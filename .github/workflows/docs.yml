@@ -1,0 +1,23 @@
+name: Docs
+# A PR to main that changes the extension must update the site (docs/index.html) in the same PR. A pure refactor can
+# carry the no-docs-needed label instead.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+jobs:
+  docs-updated:
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-docs-needed') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: docs/index.html changes with the code
+        run: |
+          changed=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+          echo "$changed"
+          if echo "$changed" | grep -qE '^(src/|package\.json$)' && ! echo "$changed" | grep -qx 'docs/index.html'; then
+            echo "::error::This PR changes the extension but not docs/index.html. Update the site (see Contributing in README.md), or add the no-docs-needed label for a pure refactor."
+            exit 1
+          fi

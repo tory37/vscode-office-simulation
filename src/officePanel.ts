@@ -1,63 +1,50 @@
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as vscode from "vscode";
-import type { PinnedSession } from "./grouping";
-import type { LiveSessionMonitor } from "./liveSessions";
 import { BUBBLE_LOOKS, BubbleLook, bubbleLook, CHATTER_LABELS, CHATTER_STYLES, chatterStyle, TALK_FREQUENCIES, TalkFrequency, talkFrequency } from "./officeChatter";
 import { OFFICE_SCENES, officeSceneId } from "./officeLayout";
 import type { AgentInput } from "./officeSim";
 import { isPerformanceKind, PERFORMANCE_KINDS, PERFORMANCES, performanceFrequency, PerformanceKindId } from "./officePerformances";
 import { visitorFrequency } from "./officeVisitors";
-import { PixelGuyLook, raceOfSeed, yourLook } from "./pixelGuy";
-import { RACES, seedWithRace } from "./pixelRaces";
-import type { Registry } from "./registry";
-import type { SceneEventDirector } from "./sceneEvents";
+import { PixelGuyLook, yourLook } from "./pixelGuy";
 
-export const OFFICE_PANEL_VIEW_ID = "overseer.office";
-const SCENE_SETTING = "overseer.office.scene";
-const SLEEPERS_SETTING = "overseer.office.sleepers";
-const YOU_SETTING = "overseer.office.you";
-const YOUR_LOOK_SETTING = "overseer.office.yourLook";
-const CRITTERS_SETTING = "overseer.office.critters";
-const FLIERS_SETTING = "overseer.office.fliers";
-const RACES_SETTING = "overseer.office.races";
-const DAY_NIGHT_SETTING = "overseer.office.dayNight";
-const VISITORS_SETTING = "overseer.office.visitors";
-const PERFORMANCES_SETTING = "overseer.office.performances";
-const CHATTER_SETTING = "overseer.office.chatter";
-const TALK_SETTING = "overseer.office.talk";
-const BUBBLE_LOOK_SETTING = "overseer.office.bubbleLook";
+export const OFFICE_PANEL_VIEW_ID = "officeSim.office";
+const SCENE_SETTING = "officeSim.scene";
+const YOU_SETTING = "officeSim.you";
+const YOUR_LOOK_SETTING = "officeSim.yourLook";
+const CRITTERS_SETTING = "officeSim.critters";
+const FLIERS_SETTING = "officeSim.fliers";
+const RACES_SETTING = "officeSim.races";
+const DAY_NIGHT_SETTING = "officeSim.dayNight";
+const VISITORS_SETTING = "officeSim.visitors";
+const PERFORMANCES_SETTING = "officeSim.performances";
+const CHATTER_SETTING = "officeSim.chatter";
+const TALK_SETTING = "officeSim.talk";
+const BUBBLE_LOOK_SETTING = "officeSim.bubbleLook";
 
 export interface OfficePanelDeps {
   extensionUri: vscode.Uri;
-  liveMonitor: LiveSessionMonitor;
-  registry: Registry;
-  pinnedSessions: () => PinnedSession[];
-  sessionTitle: (sessionId: string) => string;
-  sceneEvents: SceneEventDirector;
-  // The session the Session sidebar shows; its guy wears a crown.
-  focusedSessionId: () => string | undefined;
-  onDidChangeFocus: vscode.Event<void>;
 }
 
-// The Office view: a pixel guy for every session in the sidebar, working at his desk while the session is busy,
-// wandering the room while it's idle, and asleep at his desk while it's suspended. The simulation runs in the webview (src/officeView); this side sends it the
-// live sessions whenever they change and opens a session when its guy is clicked. You have a station too, and act out the
-// scene events the director plays on every decorative view.
+// The Office view: your guy at his station, plus a worker for each agent another extension sends in through the API.
+// The simulation runs in the webview (src/officeView); this side sends it the settings and agents whenever they
+// change, and passes on what happens there (a guy clicked).
 export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.Disposable {
   private readonly webviews = new Set<vscode.Webview>();
   private readonly views = new Set<vscode.WebviewView>();
   // A show asked for before the view was open, played once it says it's ready.
   private pendingShow: { kind: PerformanceKindId | "random" } | undefined;
   private readonly listeners: vscode.Disposable[];
+  private agents: AgentInput[] = [];
+  private focusedId: string | undefined;
+  private readonly clickEmitter = new vscode.EventEmitter<string>();
+  // A guy was clicked: his agent id.
+  readonly onDidClickAgent = this.clickEmitter.event;
 
   constructor(private readonly deps: OfficePanelDeps) {
     this.listeners = [
-      deps.liveMonitor.onDidChange(() => this.postAll()),
-      deps.registry.onDidChange(() => this.postAll()),
-      deps.onDidChangeFocus(() => this.postAll()),
       vscode.workspace.onDidChangeConfiguration((change) => {
-        if ([SCENE_SETTING, SLEEPERS_SETTING, YOU_SETTING, YOUR_LOOK_SETTING, CRITTERS_SETTING, FLIERS_SETTING, DAY_NIGHT_SETTING, VISITORS_SETTING, PERFORMANCES_SETTING, CHATTER_SETTING, TALK_SETTING, BUBBLE_LOOK_SETTING, RACES_SETTING].some((setting) => change.affectsConfiguration(setting))) {
+        if ([SCENE_SETTING, YOU_SETTING, YOUR_LOOK_SETTING, CRITTERS_SETTING, FLIERS_SETTING, DAY_NIGHT_SETTING, VISITORS_SETTING, PERFORMANCES_SETTING, CHATTER_SETTING, TALK_SETTING, BUBBLE_LOOK_SETTING, RACES_SETTING].some((setting) => change.affectsConfiguration(setting))) {
           this.postAll();
         }
       }),
@@ -73,7 +60,6 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
     webview.html = officeHtml(webview, webview.asWebviewUri(scriptUri).with({ query: `v=${scriptStamp(scriptUri)}` }));
     this.webviews.add(webview);
     this.views.add(webviewView);
-    this.deps.sceneEvents.attach(webviewView);
     const messageListener = webview.onDidReceiveMessage((message: unknown) => this.handleMessage(webview, message));
     webviewView.onDidDispose(() => {
       this.webviews.delete(webview);
@@ -92,13 +78,16 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
     this.webviews.forEach((webview) => void webview.postMessage(message));
   }
 
-  // Titles come from the analyzer and the index, which change on their own schedule.
-  refreshTitles(): void {
+  // The workers in the room besides you, and whose guy wears the crown.
+  setAgents(agents: readonly AgentInput[], focusedId?: string): void {
+    this.agents = [...agents];
+    this.focusedId = focusedId;
     this.postAll();
   }
 
   dispose(): void {
     this.listeners.forEach((listener) => listener.dispose());
+    this.clickEmitter.dispose();
   }
 
   private handleMessage(webview: vscode.Webview, message: unknown): void {
@@ -113,7 +102,7 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
         this.pendingShow = undefined;
       }
     } else if (type === "open" && typeof sessionId === "string") {
-      void vscode.commands.executeCommand("overseer.clickSession", sessionId);
+      this.clickEmitter.fire(sessionId);
     }
   }
 
@@ -141,32 +130,12 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
     races: boolean;
     focusedId: string | null;
   } {
-    const agents: AgentInput[] = [];
-    const seen = new Set<string>();
-    const showSleepers = vscode.workspace.getConfiguration().get<boolean>(SLEEPERS_SETTING, true);
-    for (const pinned of this.deps.pinnedSessions()) {
-      // Plain terminal rows aren't Claude sessions, so they get no guy.
-      if (pinned.terminal !== undefined || seen.has(pinned.sessionId)) {
-        continue;
-      }
-      const live = this.deps.liveMonitor.get(pinned.sessionId);
-      if (live === undefined && !showSleepers) {
-        continue;
-      }
-      seen.add(pinned.sessionId);
-      agents.push({
-        id: pinned.sessionId,
-        seed: this.deps.registry.avatarSeed(pinned.sessionId),
-        status: live === undefined ? "asleep" : live.status === "idle" ? "idle" : "working",
-        title: this.deps.sessionTitle(pinned.sessionId),
-      });
-    }
     const configuration = vscode.workspace.getConfiguration();
     const you = configuration.get<boolean>(YOU_SETTING, true) ? yourLook(configuration.get<unknown>(YOUR_LOOK_SETTING)) : null;
     return {
       type: "office",
       scene: currentScene(),
-      agents,
+      agents: this.agents,
       you,
       critters: configuration.get<boolean>(CRITTERS_SETTING, true),
       fliers: configuration.get<boolean>(FLIERS_SETTING, true),
@@ -177,7 +146,7 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
       talk: talkFrequency(configuration.get<unknown>(TALK_SETTING)),
       bubbleLook: bubbleLook(configuration.get<unknown>(BUBBLE_LOOK_SETTING)),
       races: configuration.get<boolean>(RACES_SETTING, true),
-      focusedId: this.deps.focusedSessionId() ?? null,
+      focusedId: this.focusedId ?? null,
     };
   }
 }
@@ -194,10 +163,10 @@ function currentScene(): string {
   return officeSceneId(vscode.workspace.getConfiguration().get<string>(SCENE_SETTING));
 }
 
-export function registerOfficeCommands(registry: Registry, office: OfficePanelProvider): vscode.Disposable[] {
+export function registerOfficeCommands(office: OfficePanelProvider): vscode.Disposable[] {
   return [
     // Takes a show kind as an argument (for a keybinding), or asks.
-    vscode.commands.registerCommand("overseer.office.playShow", async (kind?: unknown) => {
+    vscode.commands.registerCommand("officeSim.playShow", async (kind?: unknown) => {
       if (isPerformanceKind(kind) || kind === "random") {
         office.playShow(kind);
         return;
@@ -214,7 +183,7 @@ export function registerOfficeCommands(registry: Registry, office: OfficePanelPr
       }
     }),
     // Takes a style as an argument (for a keybinding), or asks for a style, a bubble look, or how often they talk.
-    vscode.commands.registerCommand("overseer.office.chatterStyle", async (style?: unknown) => {
+    vscode.commands.registerCommand("officeSim.chatterStyle", async (style?: unknown) => {
       const configuration = vscode.workspace.getConfiguration();
       const given = CHATTER_STYLES.find((id) => id === style);
       if (given !== undefined) {
@@ -254,7 +223,7 @@ export function registerOfficeCommands(registry: Registry, office: OfficePanelPr
         await configuration.update(BUBBLE_LOOK_SETTING, picked.look, vscode.ConfigurationTarget.Global);
       }
     }),
-    vscode.commands.registerCommand("overseer.office.switchScene", async () => {
+    vscode.commands.registerCommand("officeSim.switchScene", async () => {
       const current = currentScene();
       const picked = await vscode.window.showQuickPick(
         OFFICE_SCENES.map((scene) => ({ label: scene.id === current ? `$(check) ${scene.label}` : scene.label, id: scene.id })),
@@ -262,35 +231,6 @@ export function registerOfficeCommands(registry: Registry, office: OfficePanelPr
       );
       if (picked !== undefined) {
         await vscode.workspace.getConfiguration().update(SCENE_SETTING, picked.id, vscode.ConfigurationTarget.Global);
-      }
-    }),
-    vscode.commands.registerCommand("overseer.rerollPixelGuy", async (node?: { pinned?: PinnedSession }) => {
-      const sessionId = node?.pinned?.sessionId;
-      if (sessionId !== undefined) {
-        await registry.setAvatarSeed(sessionId, crypto.randomBytes(8).toString("hex"));
-      }
-    }),
-    vscode.commands.registerCommand("overseer.pickPixelGuyRace", async (node?: { pinned?: PinnedSession }) => {
-      const sessionId = node?.pinned?.sessionId;
-      if (sessionId === undefined) {
-        return;
-      }
-      // Only the race changes; the rest of the look stays.
-      const seed = registry.avatarSeed(sessionId);
-      const races = vscode.workspace.getConfiguration().get<boolean>(RACES_SETTING, true);
-      const current = raceOfSeed(seed, races);
-      const picked = await vscode.window.showQuickPick(
-        RACES.map((race) => ({ label: race.id === current ? `$(check) ${race.label}` : race.label, id: race.id })),
-        { placeHolder: "Race for this session's pixel guy" },
-      );
-      if (picked !== undefined) {
-        await registry.setAvatarSeed(sessionId, seedWithRace(seed, picked.id));
-      }
-    }),
-    vscode.commands.registerCommand("overseer.resetPixelGuy", async (node?: { pinned?: PinnedSession }) => {
-      const sessionId = node?.pinned?.sessionId;
-      if (sessionId !== undefined) {
-        await registry.setAvatarSeed(sessionId, sessionId);
       }
     }),
   ];

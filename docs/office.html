@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Office</title>
+<!-- One live Office: the same bundle and markup the extension's webview uses. The page that embeds it drives it with
+     the same messages the extension sends (see site.js), and hears what the extension would (ready, a guy clicked). -->
+<style>
+  :root {
+    --vscode-sideBar-background: #15171f;
+    --vscode-descriptionForeground: #9aa1b5;
+    --vscode-textLink-foreground: #f2b04b;
+    --vscode-editor-font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--vscode-sideBar-background); }
+  canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+  .readout {
+    position: absolute;
+    font-family: var(--vscode-editor-font-family);
+    font-size: 10px;
+    line-height: 14px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--vscode-descriptionForeground);
+    pointer-events: none;
+    white-space: pre;
+    text-shadow: 0 0 3px var(--vscode-sideBar-background);
+  }
+  .top { top: 4px; } .bottom { bottom: 4px; } .left { left: 8px; } .right { right: 8px; text-align: right; }
+  .live { color: var(--vscode-textLink-foreground); }
+  #tooltip { text-transform: none; letter-spacing: 0; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; }
+</style>
+</head>
+<body>
+<canvas id="office"></canvas>
+<div class="readout top right"><span class="live" id="scene">office</span> // <span id="status">quiet</span></div>
+<div class="readout bottom left" id="tooltip" hidden></div>
+<script>
+  // Stands in for VS Code's webview API: what the Office posts goes to the embedding page.
+  window.acquireVsCodeApi = () => ({
+    postMessage: (message) => window.parent.postMessage({ officeFrame: location.hash.slice(1), message }, "*"),
+  });
+</script>
+<script src="officeView.js"></script>
+</body>
+</html>
