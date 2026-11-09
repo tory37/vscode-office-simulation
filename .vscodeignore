@@ -11,3 +11,4 @@ docs/**
 scripts/**
 CLAUDE.md
 PLAN.md
+.gitignore
