@@ -123,6 +123,13 @@
         playShow: (kind = "random") => demo.show(kind),
         sendVisitor: (kind) => demo.post({ type: "visitor", kind }),
         say: (id, text, seconds = 3) => demo.post({ type: "say", id, text, seconds }),
+        editLook: (look, title) => new Promise((resolve) => {
+          const requestId = String(Math.random());
+          demo.on("makerDone", (message) => {
+            if (message.requestId === requestId) resolve(message.look ?? undefined);
+          });
+          demo.post({ type: "maker", requestId, look, title });
+        }),
         onDidClickAgent: (listener) => demo.on("click", (message) => listener(message.id)),
         onDidStartShow: (listener) => demo.on("showStart", (message) => listener(message.kind)),
         onDidEndShow: (listener) => demo.on("showEnd", (message) => listener(message.kind)),

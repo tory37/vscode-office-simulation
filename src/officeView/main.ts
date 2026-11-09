@@ -24,6 +24,8 @@ import { DEFENSE_BEATS, ERROR_BEAT_SECONDS, ERROR_FLASH_SECONDS, EVENT_SECONDS, 
 import { drawCritter } from "./critters";
 import { drawFlier, drawFlierShadow, drawFlierTrail } from "./fliers";
 import { drawLuckyCat } from "./luckyCat";
+import "./maker.css";
+import { openMaker } from "./maker";
 import { SCENE_PALETTES, ScenePalette } from "./palettes";
 import { drawDeskPlate, drawDisco, drawGear, drawSetPiece, drawSnack, drawSpotlight, PerformerSpot, ShowEffects, showLightLevel } from "./shows";
 import { backdropHasSky, drawAfterLight, drawBackdrop, drawGroundDetail, drawSceneryProp, drawWeather, Kit, LIBRARY_WINDOW_EVERY, propLight, skyBottom } from "./scenery";
@@ -58,6 +60,14 @@ type AgentMessage = AgentInput & { look?: PixelGuyLook };
 interface VisitorMessage {
   type: "visitor";
   kind?: string;
+}
+
+// Open the character maker on a look; the answer comes back as makerDone with the same requestId.
+interface MakerMessage {
+  type: "maker";
+  requestId: string;
+  look: PixelGuyLook;
+  title?: string;
 }
 
 // Put a line over a guy ("you" for yours).
@@ -204,8 +214,13 @@ new ResizeObserver(() => {
   }
 }).observe(canvas);
 
-window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEventMessage | TintMessage | PerformanceMessage | VisitorMessage | SayMessage>) => {
+window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEventMessage | TintMessage | PerformanceMessage | VisitorMessage | SayMessage | MakerMessage>) => {
   const data = event.data;
+  if (data !== null && typeof data === "object" && data.type === "maker") {
+    const requestId = data.requestId;
+    openMaker({ look: data.look, title: data.title }, (look) => vscode.postMessage({ type: "makerDone", requestId, look: look ?? null }));
+    return;
+  }
   if (data !== null && typeof data === "object" && data.type === "visitor") {
     sendVisitor(typeof data.kind === "string" ? data.kind : undefined);
     return;

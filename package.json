@@ -64,6 +64,12 @@
         "title": "Play Scene Event…",
         "category": "Office",
         "icon": "$(zap)"
+      },
+      {
+        "command": "officeSim.customizeYou",
+        "title": "Customize Your Guy…",
+        "category": "Office",
+        "icon": "$(person)"
       }
     ],
     "menus": {
@@ -87,6 +93,11 @@
           "command": "officeSim.playEvent",
           "when": "view == officeSim.office",
           "group": "navigation@4"
+        },
+        {
+          "command": "officeSim.customizeYou",
+          "when": "view == officeSim.office",
+          "group": "navigation@5"
         }
       ]
     },
@@ -253,12 +264,12 @@
         "officeSim.you": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Put you in the Office: your own guy at a two-monitor station in the middle of the room, who reacts to the ERROR, HACK, and DEFENSE scene events along with his monitors. Set his look with `#officeSim.yourLook#`."
+          "markdownDescription": "Put you in the Office: your own guy at a two-monitor station in the middle of the room, who reacts to the ERROR, HACK, and DEFENSE scene events along with his monitors. Make his look with **Office: Customize Your Guy…**."
         },
         "officeSim.yourLook": {
           "type": "object",
           "default": {},
-          "markdownDescription": "Your guy's look in the Office. Leave a field out for the default: a blonde ponytail with one side shaved, blue eyes, a thick orange beard, a black muscle shirt, white shorts, and black flip flops. Colors are `#rrggbb`.",
+          "markdownDescription": "Your guy's look. Make it with **Office: Customize Your Guy…** (or click your guy), which opens the character maker and saves here. Leave a field out for the default: a blonde ponytail with one side shaved, blue eyes, a thick orange beard, a black muscle shirt, white shorts, and black flip flops. Colors are `#rrggbb`; `race` takes a race id and `marks` its three colors.",
           "properties": {
             "skin": {
               "type": "string",

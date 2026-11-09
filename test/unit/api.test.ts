@@ -9,7 +9,17 @@ import type { OfficeShowKind, OfficeSimulationApi, OfficeVisitorKind } from "../
 import { VISITOR_KINDS } from "../../src/officeVisitors";
 import { pixelGuyLook } from "../../src/pixelGuy";
 import { RACES } from "../../src/pixelRaces";
+import { YourGuy } from "../../src/yourGuy";
 import { fake, FakeWebviewView, Uri } from "../fakes/vscode";
+
+function memento(): vscode.Memento {
+  const values = new Map<string, unknown>();
+  return {
+    keys: () => [...values.keys()],
+    get: <T>(key: string, fallback?: T) => (values.has(key) ? (values.get(key) as T) : fallback),
+    update: async (key: string, value: unknown) => void values.set(key, value),
+  } as vscode.Memento;
+}
 
 describe("agentsFromHost", () => {
   it("maps statuses, defaults the seed to the id, and takes the first highlighted guy", () => {
@@ -67,7 +77,7 @@ describe("the API", () => {
   beforeEach(() => {
     fake.reset();
     office = new OfficePanelProvider({ extensionUri: Uri.file("/ext") as unknown as vscode.Uri });
-    api = createOfficeApi(office, new OfficeDirector(office));
+    api = createOfficeApi(office, new OfficeDirector(office), new YourGuy(office, memento()));
     view = new FakeWebviewView();
     office.resolveWebviewView(view as unknown as vscode.WebviewView);
     view.send({ type: "ready" });
@@ -125,6 +135,41 @@ describe("the API", () => {
     expect(fake.commands).toContainEqual({ command: "setContext", args: ["officeSim.hosted", true] });
     attachment.dispose();
     expect(fake.commands.at(-1)).toEqual({ command: "setContext", args: ["officeSim.hosted", false] });
+  });
+
+  it("opens the maker in a view and resolves to the saved look, filled from the start", async () => {
+    const start = api.lookFromSeed("abc");
+    const pending = api.editLook(start, "Dress him up");
+    await Promise.resolve();
+    const request = view.last("maker") as { requestId: string; title: string; look: unknown };
+    expect(request.title).toBe("Dress him up");
+    expect(request.look).toEqual(start);
+    view.send({ type: "makerDone", requestId: "wrong", look: { shirt: "#000000" } });
+    view.send({ type: "makerDone", requestId: request.requestId, look: { shirt: "#010203", hairStyle: "nope" } });
+    expect(await pending).toEqual({ ...start, shirt: "#010203" });
+  });
+
+  it("resolves a cancelled maker, or one a new request replaced, to undefined", async () => {
+    const first = api.editLook(api.lookFromSeed("a"));
+    await Promise.resolve();
+    const second = api.editLook(api.lookFromSeed("b"));
+    expect(await first).toBeUndefined();
+    await Promise.resolve();
+    const request = view.last("maker") as { requestId: string };
+    view.send({ type: "makerDone", requestId: request.requestId, look: null });
+    expect(await second).toBeUndefined();
+  });
+
+  it("saves your guy from the maker when you click him", async () => {
+    const changes: unknown[] = [];
+    api.onDidChangeYourLook((look) => changes.push(look));
+    view.send({ type: "click", id: "you" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const request = view.last("maker") as { requestId: string };
+    view.send({ type: "makerDone", requestId: request.requestId, look: { race: "orc" } });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect((fake.settings.get("officeSim.yourLook") as { race: string }).race).toBe("orc");
+    expect(changes).toHaveLength(1);
   });
 
   it("draws portraits and races for hosts", () => {

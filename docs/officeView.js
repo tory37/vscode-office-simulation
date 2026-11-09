@@ -156,13 +156,13 @@
     return kind !== void 0 && WALKABLE.has(kind);
   }
   function openFloorTiles(layout) {
-    const open = [];
+    const open2 = [];
     layout.tiles.forEach((row, y) => row.forEach((kind, x) => {
       if (kind === "floor") {
-        open.push({ x, y });
+        open2.push({ x, y });
       }
     }));
-    return open;
+    return open2;
   }
   var STEPS = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
   function findPath(layout, from, to) {
@@ -3025,6 +3025,25 @@
     }
     return next;
   }
+  var LOOK_PALETTES = {
+    skins: SKINS,
+    hairs: HAIRS,
+    shirts: SHIRTS,
+    pants: PANTS,
+    shoes: SHOES,
+    accessoryColors: ACCESSORY_COLORS,
+    hairStyles: [...HAIR_STYLES, "ponytail"],
+    accessories: ["none", "glasses", "headphones", "cap", "beard", "fullBeard"]
+  };
+  function lookWithRace(look, race) {
+    if (race === "human") {
+      const human = { ...look };
+      delete human.race;
+      delete human.marks;
+      return human;
+    }
+    return withRace({ ...look, sleeveless: look.sleeveless }, race, () => 0);
+  }
   function defaultMarks(spec, pick3 = (items) => items[0]) {
     const marks = spec.marks ?? [["#FFFFFF"], ["#FFFFFF"], ["#FFFFFF"]];
     return [pick3(marks[0]), pick3(marks[1]), pick3(marks[2])];
@@ -4969,12 +4988,12 @@
     goTo(state2, partner, { x: left.x + 1, y: left.y }, { kind: "chat", partnerId: agent.id }, false, random2);
   }
   function wander(state2, agent, random2) {
-    const open = openFloorTiles(state2.layout).filter((tile) => !isTargeted(state2, agent, tile) && tile.y > 0);
-    if (open.length === 0) {
+    const open2 = openFloorTiles(state2.layout).filter((tile) => !isTargeted(state2, agent, tile) && tile.y > 0);
+    if (open2.length === 0) {
       setMode(state2, agent, "loiter", between(random2, 2, 4));
       return;
     }
-    goTo(state2, agent, open[Math.floor(random2() * open.length)], { kind: "wander" }, false, random2);
+    goTo(state2, agent, open2[Math.floor(random2() * open2.length)], { kind: "wander" }, false, random2);
   }
   function leave(state2, agent) {
     endChat(state2, agent);
@@ -5508,7 +5527,7 @@
   function pickStage(state2, roles, random2) {
     const { layout } = state2;
     const deskTiles = new Set(layout.desks.flatMap((desk) => [desk.desk, desk.seat]).map((point) => `${point.x},${point.y}`));
-    const open = (point) => layout.tiles[point.y]?.[point.x] === "floor" && point.y >= 1 && !deskTiles.has(`${point.x},${point.y}`);
+    const open2 = (point) => layout.tiles[point.y]?.[point.x] === "floor" && point.y >= 1 && !deskTiles.has(`${point.x},${point.y}`);
     const rowRoles = roles.filter((role) => role !== "drums");
     const hasDrums = roles.includes("drums");
     const offsets = rowRoles.map((_, index) => index === 0 ? 0 : index % 2 === 1 ? -Math.ceil(index / 2) : Math.ceil(index / 2));
@@ -5518,11 +5537,11 @@
         continue;
       }
       const row = offsets.map((offset) => ({ x: tile.x + offset, y: tile.y }));
-      if (!row.every(open)) {
+      if (!row.every(open2)) {
         continue;
       }
       const drums = { x: tile.x, y: tile.y - 1 };
-      const drumsFit = hasDrums && open(drums);
+      const drumsFit = hasDrums && open2(drums);
       const spotsByRole = [];
       let rowIndex = 0;
       for (const role of roles) {
@@ -5537,7 +5556,7 @@
       let crowdRoom = 0;
       for (let dy = 1; dy <= 3; dy++) {
         for (let dx = -3; dx <= 3; dx++) {
-          if (open({ x: tile.x + dx, y: tile.y + dy })) {
+          if (open2({ x: tile.x + dx, y: tile.y + dy })) {
             crowdRoom += dy === 1 ? 1.2 : 1;
           }
         }
@@ -6837,6 +6856,315 @@
     rect2(Math.floor(centerX), Math.floor(centerY), 1, 1, COLORS.o);
     hand(now.getHours() % 12 / 12 + now.getMinutes() / 720, COLORS.o);
     hand(now.getMinutes() / 60, COLORS.r);
+  }
+
+  // src/characterMaker.ts
+  var EYE_COLORS = ["#1A1A2E", "#3D8BFD", "#4CAF50", "#8D5524", "#7E57C2", "#E53935", "#F2C94C", "#9E9E9E"];
+  var MARK_COLORS = ["#FFFFFF", "#1A1A22", "#E8B931", "#C0392B", "#2E86AB", "#4CB944", "#7950F2", "#F06595"];
+  var BEARD_COLORS = ["#2C1B12", "#5A3825", "#A0522D", "#D9772B", "#D9A441", "#B8B8B8", "#2E2E2E"];
+  var HAIR_STYLE_LABELS = {
+    short: "Short",
+    long: "Long",
+    spiky: "Spiky",
+    bob: "Bob",
+    bald: "Bald",
+    mohawk: "Mohawk",
+    bun: "Bun",
+    curly: "Curly",
+    ponytail: "Ponytail"
+  };
+  var ACCESSORY_LABELS = {
+    none: "None",
+    glasses: "Glasses",
+    headphones: "Headphones",
+    cap: "Cap",
+    beard: "Beard",
+    fullBeard: "Full beard"
+  };
+  var unique = (lists) => [...new Set(lists.flatMap((list) => list ?? []))];
+  function makerOptions(look) {
+    const spec = raceSpec(look.race);
+    const blocked = new Set(spec.blocks ?? []);
+    return {
+      races: RACES.map((race) => ({ id: race.id, label: race.label })),
+      skins: unique([spec.skins, look.race === void 0 ? LOOK_PALETTES.skins : void 0]),
+      hairs: unique([spec.hairs, LOOK_PALETTES.hairs]),
+      hairStyles: spec.hairStyles ?? LOOK_PALETTES.hairStyles,
+      eyes: unique([spec.eyes, EYE_COLORS]),
+      accessories: LOOK_PALETTES.accessories.filter((accessory) => !blocked.has(accessory)),
+      accessoryColors: LOOK_PALETTES.accessoryColors,
+      beards: unique([BEARD_COLORS, LOOK_PALETTES.hairs]),
+      shirts: LOOK_PALETTES.shirts,
+      pants: LOOK_PALETTES.pants,
+      shoes: LOOK_PALETTES.shoes,
+      marks: look.race === void 0 || spec.marks === void 0 ? [] : spec.marks.map((palette2) => unique([palette2, MARK_COLORS])),
+      alwaysBeard: spec.beard === true,
+      alwaysSleeveless: spec.sleeveless === true
+    };
+  }
+  function changeRace(look, race) {
+    let next = lookWithRace(look, race);
+    if (race === "human") {
+      if (!LOOK_PALETTES.skins.includes(next.skin)) {
+        next = { ...next, skin: LOOK_PALETTES.skins[1] };
+      }
+      if (!LOOK_PALETTES.hairs.includes(next.hair)) {
+        next = { ...next, hair: LOOK_PALETTES.hairs[1] };
+      }
+    }
+    const options = makerOptions(next);
+    if (!options.hairStyles.includes(next.hairStyle)) {
+      next = { ...next, hairStyle: options.hairStyles[0] };
+    }
+    if (!options.accessories.includes(next.accessory)) {
+      next = { ...next, accessory: "none" };
+    }
+    return next;
+  }
+  function randomLook(random2) {
+    const pick3 = (items) => items[Math.min(items.length - 1, Math.floor(random2() * items.length))];
+    const look = pixelGuyLook(`maker|${Math.floor(random2() * 1e9)}`, true);
+    const options = makerOptions(look);
+    return {
+      ...look,
+      eyes: look.eyes ?? pick3(EYE_COLORS),
+      beard: pick3(options.beards),
+      accessory: pick3(options.accessories),
+      sleeveless: options.alwaysSleeveless || random2() < 0.3,
+      shorts: random2() < 0.3,
+      flipFlops: random2() < 0.15
+    };
+  }
+
+  // src/officeView/maker.ts
+  var open;
+  var PREVIEW = [
+    { pose: "stand", facing: "down", seconds: 1.4, fps: 1 },
+    { pose: "walk", facing: "down", seconds: 1.6, fps: 6 },
+    { pose: "walk", facing: "right", seconds: 1.6, fps: 6 },
+    { pose: "walk", facing: "up", seconds: 1.6, fps: 6 },
+    { pose: "walk", facing: "left", seconds: 1.6, fps: 6 },
+    { pose: "cheer", facing: "down", seconds: 1.4, fps: 3 },
+    { pose: "talk", facing: "down", seconds: 1.4, fps: 4 }
+  ];
+  var PREVIEW_SECONDS = PREVIEW.reduce((sum, step) => sum + step.seconds, 0);
+  function openMaker(request, done) {
+    closeMaker(void 0);
+    let look = { ...request.look };
+    const root = element("div", "maker");
+    root.setAttribute("role", "dialog");
+    root.setAttribute("aria-modal", "true");
+    root.setAttribute("aria-label", request.title ?? "Character maker");
+    const panel = element("div", "maker-panel");
+    const head = element("div", "maker-head");
+    head.append(element("span", "maker-title", request.title ?? "Make your guy"));
+    const body = element("div", "maker-body");
+    const preview = element("div", "maker-preview");
+    const canvas2 = document.createElement("canvas");
+    canvas2.className = "maker-canvas";
+    canvas2.setAttribute("aria-label", "Preview");
+    preview.append(canvas2);
+    const fields = element("div", "maker-fields");
+    body.append(preview, fields);
+    const actions = element("div", "maker-actions");
+    const randomize = button("Randomize", () => update(randomLook(Math.random)));
+    const cancel = button("Cancel", () => closeMaker(void 0));
+    const save = button("Save", () => closeMaker(look));
+    save.classList.add("primary");
+    actions.append(randomize, element("span", "maker-spacer"), cancel, save);
+    panel.append(head, body, actions);
+    root.append(panel);
+    root.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeMaker(void 0);
+      }
+    });
+    document.body.append(root);
+    function update(next) {
+      look = next;
+      const scroll = fields.scrollTop;
+      renderFields(fields, look, update);
+      fields.scrollTop = scroll;
+    }
+    update(look);
+    const started = performance.now();
+    const draw2 = (now) => {
+      if (open?.root !== root) {
+        return;
+      }
+      drawPreview(canvas2, look, (now - started) / 1e3);
+      open.frameHandle = requestAnimationFrame(draw2);
+    };
+    open = { root, done, frameHandle: requestAnimationFrame(draw2) };
+    fields.querySelector("select, button")?.focus();
+  }
+  function closeMaker(look) {
+    const current = open;
+    if (current === void 0) {
+      return;
+    }
+    open = void 0;
+    cancelAnimationFrame(current.frameHandle);
+    current.root.remove();
+    current.done(look);
+  }
+  function renderFields(fields, look, update) {
+    const options = makerOptions(look);
+    const set = (change) => update({ ...look, ...change });
+    fields.replaceChildren();
+    const race = document.createElement("select");
+    race.className = "maker-select";
+    for (const option of options.races) {
+      const item = document.createElement("option");
+      item.value = option.id;
+      item.textContent = option.label;
+      item.selected = option.id === (look.race ?? "human");
+      race.append(item);
+    }
+    race.addEventListener("change", () => update(changeRace(look, race.value)));
+    fields.append(section("Race", race));
+    fields.append(section("Skin", swatches(options.skins, look.skin, (skin) => set({ skin }))));
+    fields.append(section(
+      "Hair",
+      chips(options.hairStyles, look.hairStyle, (id) => HAIR_STYLE_LABELS[id], (hairStyle) => set({ hairStyle })),
+      swatches(options.hairs, look.hair, (hair) => set({ hair }))
+    ));
+    fields.append(section("Eyes", swatches(options.eyes, look.eyes ?? options.eyes[0], (eyes) => set({ eyes }))));
+    const extra = section("Extra", chips(options.accessories, look.accessory, (id) => ACCESSORY_LABELS[id], (accessory) => set({ accessory })));
+    const bearded = look.accessory === "beard" || look.accessory === "fullBeard";
+    if (bearded && !options.alwaysBeard) {
+      extra.append(label("Beard color"), swatches(options.beards, look.beard ?? look.hair, (beard) => set({ beard })));
+    } else if (look.accessory !== "none" && !bearded) {
+      extra.append(swatches(options.accessoryColors, look.accessoryColor, (accessoryColor) => set({ accessoryColor })));
+    }
+    fields.append(extra);
+    const shirt = section("Shirt", swatches(options.shirts, look.shirt, (color) => set({ shirt: color })));
+    shirt.append(toggle("Sleeveless", options.alwaysSleeveless || look.sleeveless === true, (sleeveless) => set({ sleeveless }), options.alwaysSleeveless));
+    fields.append(shirt);
+    const pants = section("Pants", swatches(options.pants, look.pants, (color) => set({ pants: color })));
+    pants.append(toggle("Shorts", look.shorts === true, (shorts) => set({ shorts })));
+    fields.append(pants);
+    const shoes = section("Shoes", swatches(options.shoes, look.shoes, (color) => set({ shoes: color })));
+    shoes.append(toggle("Flip flops", look.flipFlops === true, (flipFlops) => set({ flipFlops })));
+    fields.append(shoes);
+    if (options.marks.length === 3 && look.marks !== void 0) {
+      const marks = look.marks;
+      const markSection = section("Marks");
+      options.marks.forEach((palette2, index) => {
+        markSection.append(swatches(palette2, marks[index], (color) => {
+          const next = [...marks];
+          next[index] = color;
+          set({ marks: next });
+        }));
+      });
+      fields.append(markSection);
+    }
+  }
+  function drawPreview(canvas2, look, seconds) {
+    const pixelRatio = window.devicePixelRatio || 1;
+    const width2 = Math.round(canvas2.clientWidth * pixelRatio);
+    const height2 = Math.round(canvas2.clientHeight * pixelRatio);
+    if (width2 === 0 || height2 === 0) {
+      return;
+    }
+    if (canvas2.width !== width2 || canvas2.height !== height2) {
+      canvas2.width = width2;
+      canvas2.height = height2;
+    }
+    const context2 = canvas2.getContext("2d");
+    context2.clearRect(0, 0, width2, height2);
+    let time = seconds % PREVIEW_SECONDS;
+    let step = PREVIEW[0];
+    for (const candidate of PREVIEW) {
+      step = candidate;
+      if (time < candidate.seconds) {
+        break;
+      }
+      time -= candidate.seconds;
+    }
+    const scale2 = Math.max(1, Math.floor(Math.min(width2 / FRAME_WIDTH, height2 * 0.92 / FRAME_HEIGHT)));
+    const left = Math.floor((width2 - FRAME_WIDTH * scale2) / 2);
+    const top = Math.floor((height2 - FRAME_HEIGHT * scale2) / 2);
+    context2.fillStyle = "rgba(0, 0, 0, 0.25)";
+    context2.beginPath();
+    context2.ellipse(width2 / 2, top + (FRAME_HEIGHT - 0.6) * scale2, FRAME_WIDTH * scale2 * 0.38, scale2 * 1.1, 0, 0, Math.PI * 2);
+    context2.fill();
+    pixelGuyFrame(look, step.pose, step.facing, Math.floor(time * step.fps)).forEach((row, y) => row.forEach((color, x) => {
+      if (color !== null) {
+        context2.fillStyle = color;
+        context2.fillRect(left + x * scale2, top + y * scale2, scale2, scale2);
+      }
+    }));
+  }
+  function element(tag, className, text) {
+    const node = document.createElement(tag);
+    node.className = className;
+    if (text !== void 0) {
+      node.textContent = text;
+    }
+    return node;
+  }
+  function button(text, onClick) {
+    const node = document.createElement("button");
+    node.type = "button";
+    node.className = "maker-button";
+    node.textContent = text;
+    node.addEventListener("click", onClick);
+    return node;
+  }
+  function label(text) {
+    return element("div", "maker-label", text);
+  }
+  function section(title, ...children) {
+    const node = element("div", "maker-section");
+    node.append(label(title), ...children);
+    return node;
+  }
+  function swatches(colors, current, onPick) {
+    const row = element("div", "maker-swatches");
+    const lower = current.toLowerCase();
+    for (const color of colors) {
+      const swatch = document.createElement("button");
+      swatch.type = "button";
+      swatch.className = "maker-swatch";
+      swatch.style.background = color;
+      swatch.title = color;
+      swatch.setAttribute("aria-label", color);
+      swatch.setAttribute("aria-pressed", String(color.toLowerCase() === lower));
+      swatch.addEventListener("click", () => onPick(color));
+      row.append(swatch);
+    }
+    const custom = document.createElement("input");
+    custom.type = "color";
+    custom.className = "maker-custom";
+    custom.value = /^#[0-9a-f]{6}$/i.test(current) ? current.toLowerCase() : "#000000";
+    custom.title = "Any color";
+    custom.setAttribute("aria-label", "Any color");
+    custom.addEventListener("change", () => onPick(custom.value.toUpperCase()));
+    row.append(custom);
+    return row;
+  }
+  function chips(ids, current, labelOf, onPick) {
+    const row = element("div", "maker-chips");
+    for (const id of ids) {
+      const chip = button(labelOf(id), () => onPick(id));
+      chip.classList.add("maker-chip");
+      chip.setAttribute("aria-pressed", String(id === current));
+      row.append(chip);
+    }
+    return row;
+  }
+  function toggle(text, checked, onChange, disabled = false) {
+    const wrap2 = document.createElement("label");
+    wrap2.className = "maker-toggle";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = checked;
+    input.disabled = disabled;
+    input.addEventListener("change", () => onChange(input.checked));
+    wrap2.append(input, document.createTextNode(` ${text}`));
+    return wrap2;
   }
 
   // src/officeView/palettes.ts
@@ -8554,6 +8882,11 @@
   }).observe(canvas);
   window.addEventListener("message", (event) => {
     const data = event.data;
+    if (data !== null && typeof data === "object" && data.type === "maker") {
+      const requestId = data.requestId;
+      openMaker({ look: data.look, title: data.title }, (look) => vscode.postMessage({ type: "makerDone", requestId, look: look ?? null }));
+      return;
+    }
     if (data !== null && typeof data === "object" && data.type === "visitor") {
       sendVisitor(typeof data.kind === "string" ? data.kind : void 0);
       return;
@@ -9177,13 +9510,13 @@
     return 11 + Math.round(Math.sin(x / 13) * 1.2 + noise2(x) * 0.8);
   }
   function drawDoor(door, palette2) {
-    const open = state.agents.some((agent) => Math.abs(agent.x - door.x) + Math.abs(agent.y - door.y) < 1.2);
+    const open2 = state.agents.some((agent) => Math.abs(agent.x - door.x) + Math.abs(agent.y - door.y) < 1.2);
     const left = door.x * TILE3 + 2;
     switch (palette2.doorStyle) {
       case "door":
         rect(left, 1, 12, TILE3 - 1, palette2.doorFrame);
-        rect(left + 1, 2, 10, TILE3 - 2, open ? "#121212" : palette2.door);
-        if (!open) {
+        rect(left + 1, 2, 10, TILE3 - 2, open2 ? "#121212" : palette2.door);
+        if (!open2) {
           rect(left + 8, 9, 1, 1, "#F1C24B");
         }
         return;
@@ -9200,7 +9533,7 @@
         rect(left, 6, 1, TILE3 - 6, palette2.doorFrame);
         rect(left + 11, 6, 1, TILE3 - 6, palette2.doorFrame);
         rect(left + 1, 7, 10, TILE3 - 7, "#6FA84A");
-        const span = open ? 3 : 10;
+        const span = open2 ? 3 : 10;
         rect(left + 1, 9, span, 1, palette2.door);
         rect(left + 1, 13, span, 1, palette2.door);
         rect(left + span, 9, 1, 5, palette2.door);
@@ -9214,8 +9547,8 @@
         return;
       case "hatch":
         rect(left, 2, 12, TILE3 - 2, palette2.doorFrame);
-        rect(left + 1, 3, 10, TILE3 - 3, open ? "#05060C" : palette2.door);
-        if (!open) {
+        rect(left + 1, 3, 10, TILE3 - 3, open2 ? "#05060C" : palette2.door);
+        if (!open2) {
           rect(left + 4, 5, 4, 3, "#1B2340");
           rect(left + 4, 5, 1, 1, "#7FD1FF");
           rect(left + 2, 10, 8, 1, palette2.doorFrame);

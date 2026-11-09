@@ -64,6 +64,7 @@ export const workspace = {
   getConfiguration: () => ({
     get: <T>(key: string, fallback?: T) => (fake.settings.has(key) ? (fake.settings.get(key) as T) : fallback),
     update: async (key: string, value: unknown) => fake.setSetting(key, value),
+    inspect: (key: string) => ({ globalValue: fake.settings.get(key) }),
   }),
   onDidChangeConfiguration: configChange.event,
 };

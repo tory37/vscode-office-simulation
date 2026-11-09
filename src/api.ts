@@ -8,13 +8,14 @@ import type { OfficeLook, OfficeSimulationApi } from "./officeSimulationApi";
 import { VISITOR_KINDS } from "./officeVisitors";
 import { pixelGuyLook, portraitSvg, raceOfSeed, readLook } from "./pixelGuy";
 import { isRaceId, RACES, seedWithRace } from "./pixelRaces";
+import type { YourGuy } from "./yourGuy";
 
 const RACES_SETTING = "officeSim.races";
 
 const racesOn = () => vscode.workspace.getConfiguration().get<boolean>(RACES_SETTING, true);
 
 // What activate() returns. Every input is checked: a bad value is ignored, never thrown on.
-export function createOfficeApi(office: OfficePanelProvider, director: OfficeDirector): OfficeSimulationApi {
+export function createOfficeApi(office: OfficePanelProvider, director: OfficeDirector, yourGuy: YourGuy): OfficeSimulationApi {
   const openEmitter = new vscode.EventEmitter<void>();
   office.onDidBecomeReady(() => openEmitter.fire());
   return {
@@ -57,11 +58,16 @@ export function createOfficeApi(office: OfficePanelProvider, director: OfficeDir
       const color = typeof badge?.color === "string" && /^#[0-9a-f]{6}$/i.test(badge.color) ? badge.color : undefined;
       return portraitSvg(drawn, color === undefined ? undefined : { color, pulse: badge?.pulse === true }, dimmed === true);
     },
+    editLook(initial, title) {
+      const start = readLook(initial, pixelGuyLook(typeof title === "string" ? title : "maker", racesOn()));
+      return office.editLook(start, typeof title === "string" && title.trim() !== "" ? title.trim().slice(0, 60) : "Customize this guy");
+    },
     attachView: (view) => office.attachView(view),
     onDidClickAgent: office.onDidClickAgent,
     onDidStartShow: office.onDidStartShow,
     onDidEndShow: office.onDidEndShow,
     onDidFinishEvent: office.onDidFinishEvent,
     onDidOpenView: openEmitter.event,
+    onDidChangeYourLook: yourGuy.onDidChangeYourLook,
   };
 }

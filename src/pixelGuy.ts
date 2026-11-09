@@ -136,6 +136,30 @@ function withRace(look: PixelGuyLook, race: RaceId, random: () => number): Pixel
   return next;
 }
 
+// The colors a look is usually picked from, for the character maker's swatches.
+export const LOOK_PALETTES = {
+  skins: SKINS,
+  hairs: HAIRS,
+  shirts: SHIRTS,
+  pants: PANTS,
+  shoes: SHOES,
+  accessoryColors: ACCESSORY_COLORS,
+  hairStyles: [...HAIR_STYLES, "ponytail"] as readonly HairStyle[],
+  accessories: ["none", "glasses", "headphones", "cap", "beard", "fullBeard"] as readonly Accessory[],
+};
+
+// A look with a race's first skin, hair, style, eyes, and marks, for whichever the race has lists of. Human takes the
+// race off.
+export function lookWithRace(look: PixelGuyLook, race: RaceId): PixelGuyLook {
+  if (race === "human") {
+    const human = { ...look };
+    delete human.race;
+    delete human.marks;
+    return human;
+  }
+  return withRace({ ...look, sleeveless: look.sleeveless }, race, () => 0);
+}
+
 function defaultMarks(spec: RaceSpec, pick: <Item>(items: readonly Item[]) => Item = (items) => items[0]): [string, string, string] {
   const marks = spec.marks ?? [["#FFFFFF"], ["#FFFFFF"], ["#FFFFFF"]];
   return [pick(marks[0]), pick(marks[1]), pick(marks[2])];
@@ -816,6 +840,10 @@ export function yourLook(setting: unknown): PixelGuyLook {
     if (!given("eyes") && spec.eyes !== undefined) {
       look.eyes = spec.eyes[0];
     }
+  }
+  const marks = fields.marks;
+  if (look.race !== undefined && Array.isArray(marks) && marks.length === 3 && marks.every((mark) => typeof mark === "string" && /^#[0-9a-f]{6}$/i.test(mark))) {
+    look.marks = [marks[0], marks[1], marks[2]];
   }
   return look;
 }

@@ -1,0 +1,82 @@
+/* The character maker's overlay. Colors come from the VS Code theme, with fallbacks for the docs site. */
+.maker {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.45);
+  font-family: var(--vscode-font-family, system-ui, sans-serif);
+  font-size: 12px;
+  color: var(--vscode-foreground, #e6e8ef);
+}
+.maker-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 620px;
+  max-height: 100%;
+  background: var(--vscode-editorWidget-background, #1e2230);
+  border: 1px solid var(--vscode-editorWidget-border, #2a2f40);
+  border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+.maker-head { padding: 8px 12px; border-bottom: 1px solid var(--vscode-editorWidget-border, #2a2f40); }
+.maker-title { font-weight: 600; font-size: 13px; }
+.maker-body { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.maker-preview {
+  flex: 0 0 auto;
+  height: 132px;
+  background: var(--vscode-sideBar-background, #15171f);
+  border-bottom: 1px solid var(--vscode-editorWidget-border, #2a2f40);
+}
+.maker-canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+.maker-fields { overflow-y: auto; padding: 4px 12px 10px; min-height: 0; flex: 1; }
+@media (min-width: 480px) {
+  .maker-body { flex-direction: row; }
+  .maker-preview { flex: 0 0 170px; height: auto; border-bottom: 0; border-right: 1px solid var(--vscode-editorWidget-border, #2a2f40); }
+}
+.maker-section { padding: 6px 0; display: flex; flex-direction: column; gap: 5px; }
+.maker-section + .maker-section { border-top: 1px solid var(--vscode-editorWidget-border, #2a2f40); }
+.maker-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--vscode-descriptionForeground, #9aa1b5); }
+.maker-swatches, .maker-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.maker-swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+}
+.maker-swatch[aria-pressed="true"] { outline: 2px solid var(--vscode-focusBorder, #f2b04b); outline-offset: 1px; }
+.maker-custom { width: 26px; height: 22px; padding: 0; border: 0; background: none; cursor: pointer; }
+.maker-select {
+  font: inherit;
+  color: var(--vscode-dropdown-foreground, inherit);
+  background: var(--vscode-dropdown-background, #171a23);
+  border: 1px solid var(--vscode-dropdown-border, #2a2f40);
+  border-radius: 3px;
+  padding: 3px 4px;
+  max-width: 220px;
+}
+.maker-button {
+  font: inherit;
+  color: var(--vscode-button-secondaryForeground, #e6e8ef);
+  background: var(--vscode-button-secondaryBackground, #2a2f40);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.maker-button:hover { background: var(--vscode-button-secondaryHoverBackground, #343a4f); }
+.maker-button.primary { color: var(--vscode-button-foreground, #1a1407); background: var(--vscode-button-background, #f2b04b); }
+.maker-button.primary:hover { background: var(--vscode-button-hoverBackground, #f5c06d); }
+.maker-chip { padding: 2px 8px; }
+.maker-chip[aria-pressed="true"] { border-color: var(--vscode-focusBorder, #f2b04b); }
+.maker-button:focus-visible, .maker-swatch:focus-visible, .maker-select:focus-visible { outline: 2px solid var(--vscode-focusBorder, #f2b04b); outline-offset: 1px; }
+.maker-toggle { display: inline-flex; align-items: center; gap: 4px; color: var(--vscode-descriptionForeground, #9aa1b5); }
+.maker-actions { display: flex; gap: 6px; padding: 8px 12px; border-top: 1px solid var(--vscode-editorWidget-border, #2a2f40); }
+.maker-spacer { flex: 1; }

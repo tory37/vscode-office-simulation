@@ -18,4 +18,4 @@ jobs:
       # The site runs the committed bundle, and hosts copy the committed API types, so both must match the source.
       - run: npm run site
       - name: Site bundle and API types are up to date
-        run: git diff --exit-code -- docs/officeView.js docs/siteData.js api/ || (echo "::error::Run npm run site and commit docs/ and api/" && exit 1)
+        run: git diff --exit-code -- docs/officeView.js docs/officeView.css docs/siteData.js api/ || (echo "::error::Run npm run site and commit docs/ and api/" && exit 1)

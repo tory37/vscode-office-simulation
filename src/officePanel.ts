@@ -7,7 +7,7 @@ import type { AgentInput, YouStatus } from "./officeSim";
 import { SCENE_EVENT_KINDS, SceneEventKind } from "./sceneEventSchedule";
 import { isPerformanceKind, PERFORMANCE_KINDS, PERFORMANCES, performanceFrequency, PerformanceKindId } from "./officePerformances";
 import { visitorFrequency } from "./officeVisitors";
-import { PixelGuyLook, yourLook } from "./pixelGuy";
+import { PixelGuyLook, readLook, yourLook } from "./pixelGuy";
 
 export const OFFICE_PANEL_VIEW_ID = "officeSim.office";
 // True while another extension hosts the Office in its own view; the Office's own view hides.
@@ -55,6 +55,8 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
   readonly onDidEndShow = this.showEndEmitter.event;
   private readonly eventEndEmitter = new vscode.EventEmitter<SceneEventKind>();
   readonly onDidFinishEvent = this.eventEndEmitter.event;
+  // The character maker's open request: the webview it's in, the look it started from, and who's waiting.
+  private makerRequest: { id: string; webview: vscode.Webview; initial: PixelGuyLook; resolve: (look: PixelGuyLook | undefined) => void } | undefined;
   private readonly readyEmitter = new vscode.EventEmitter<vscode.Webview>();
   // A webview started and has its first state.
   readonly onDidBecomeReady = this.readyEmitter.event;
@@ -91,12 +93,17 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
     const distUri = vscode.Uri.joinPath(this.deps.extensionUri, "dist");
     webview.options = { enableScripts: true, localResourceRoots: [distUri] };
     const scriptUri = vscode.Uri.joinPath(distUri, "officeView.js");
+    const styleUri = vscode.Uri.joinPath(distUri, "officeView.css");
     // Reinstalling the same version keeps the same URL, so the build time busts the webview's cached copy.
-    webview.html = officeHtml(webview, webview.asWebviewUri(scriptUri).with({ query: `v=${scriptStamp(scriptUri)}` }));
+    const stamp = { query: `v=${scriptStamp(scriptUri)}` };
+    webview.html = officeHtml(webview, webview.asWebviewUri(scriptUri).with(stamp), webview.asWebviewUri(styleUri).with(stamp));
     this.webviews.add(webview);
     this.views.add(webviewView);
     const messageListener = webview.onDidReceiveMessage((message: unknown) => this.handleMessage(webview, message));
     webviewView.onDidDispose(() => {
+      if (this.makerRequest?.webview === webview) {
+        this.finishMaker(undefined);
+      }
       this.webviews.delete(webview);
       this.views.delete(webviewView);
       messageListener.dispose();
@@ -111,6 +118,54 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
       void vscode.commands.executeCommand(`${OFFICE_PANEL_VIEW_ID}.focus`);
     }
     this.webviews.forEach((webview) => void webview.postMessage(message));
+  }
+
+  // Opens the character maker over the Office on a look, showing the Office first if it's hidden, and resolves to the
+  // saved look, or undefined when it's cancelled or the Office closes. A new request cancels one still open.
+  async editLook(initial: PixelGuyLook, title: string): Promise<PixelGuyLook | undefined> {
+    const view = await this.visibleView();
+    if (view === undefined) {
+      return undefined;
+    }
+    this.finishMaker(undefined);
+    const id = crypto.randomBytes(8).toString("hex");
+    return new Promise((resolve) => {
+      this.makerRequest = { id, webview: view.webview, initial, resolve };
+      void view.webview.postMessage({ type: "maker", requestId: id, look: initial, title });
+    });
+  }
+
+  // A view the person can see: a host's, else the Office's own (opened and waited on when needed).
+  private async visibleView(): Promise<vscode.WebviewView | undefined> {
+    const views = [...this.hostedViews, ...this.views];
+    const shown = views.find((view) => view.visible);
+    if (shown !== undefined) {
+      return shown;
+    }
+    const target = views[0];
+    if (target !== undefined) {
+      target.show(false);
+      return target;
+    }
+    const ready = new Promise<vscode.WebviewView | undefined>((resolve) => {
+      const timer = setTimeout(() => {
+        listener.dispose();
+        resolve(undefined);
+      }, 15000);
+      const listener = this.onDidBecomeReady((webview) => {
+        clearTimeout(timer);
+        listener.dispose();
+        resolve([...this.views, ...this.hostedViews].find((view) => view.webview === webview));
+      });
+    });
+    void vscode.commands.executeCommand(`${OFFICE_PANEL_VIEW_ID}.focus`);
+    return ready;
+  }
+
+  private finishMaker(look: PixelGuyLook | undefined): void {
+    const request = this.makerRequest;
+    this.makerRequest = undefined;
+    request?.resolve(look === undefined ? undefined : readLook(look, request.initial));
   }
 
   // Sends a message to every open Office.
@@ -139,7 +194,7 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
     if (typeof message !== "object" || message === null) {
       return;
     }
-    const { type, id, kind } = message as { type?: unknown; id?: unknown; kind?: unknown };
+    const { type, id, kind, requestId, look } = message as { type?: unknown; id?: unknown; kind?: unknown; requestId?: unknown; look?: unknown };
     if (type === "ready") {
       void webview.postMessage(this.message());
       if (this.pendingShow !== undefined) {
@@ -147,6 +202,8 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
         this.pendingShow = undefined;
       }
       this.readyEmitter.fire(webview);
+    } else if (type === "makerDone" && requestId === this.makerRequest?.id) {
+      this.finishMaker(look === null || typeof look !== "object" ? undefined : (look as PixelGuyLook));
     } else if (type === "click" && typeof id === "string") {
       this.clickEmitter.fire(id);
     } else if (type === "showStart" && isPerformanceKind(kind)) {
@@ -317,15 +374,16 @@ const TALK_LABELS: Record<TalkFrequency, { label: string; description: string }>
   often: { label: "Talk: Often", description: "a chatty room" },
 };
 
-function officeHtml(webview: vscode.Webview, scriptUri: vscode.Uri): string {
+function officeHtml(webview: vscode.Webview, scriptUri: vscode.Uri, styleUri: vscode.Uri): string {
   const nonce = crypto.randomBytes(16).toString("base64");
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}' ${webview.cspSource};">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}' ${webview.cspSource}; script-src 'nonce-${nonce}' ${webview.cspSource};">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Office</title>
+<link rel="stylesheet" href="${styleUri.toString()}">
 <style nonce="${nonce}">
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--vscode-sideBar-background); }
   canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }

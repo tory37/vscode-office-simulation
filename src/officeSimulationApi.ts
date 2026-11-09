@@ -43,6 +43,10 @@ export interface OfficeSimulationApi {
   seedWithRace(seed: string, race: string): string;
   // The race a seed gives.
   raceOfSeed(seed: string): string;
+  // Opens the character maker over the Office on a look, showing the Office first if it's hidden, and resolves to the
+  // look the person saved, or undefined when they cancel. Save it yourself and send it back in setAgents. A new call
+  // cancels one still open.
+  editLook(initial: OfficeLook, title?: string): Promise<OfficeLook | undefined>;
   // A 16x16 SVG of the guy's head and shoulders, with an optional badge in the corner, for a tree item's icon.
   portraitSvg(look: OfficeLook, badge?: { color: string; pulse?: boolean }, dimmed?: boolean): string;
 
@@ -62,6 +66,8 @@ export interface OfficeSimulationApi {
   readonly onDidEndShow: vscode.Event<OfficeShowKind>;
   // A scene event finished playing in an Office.
   readonly onDidFinishEvent: vscode.Event<OfficeEventKind>;
+  // Your guy's look changed (the character maker or the officeSim.yourLook setting).
+  readonly onDidChangeYourLook: vscode.Event<OfficeLook>;
   // An Office view started (yours or the Office's own). A good time to send anything that isn't in setAgents.
   readonly onDidOpenView: vscode.Event<void>;
 }

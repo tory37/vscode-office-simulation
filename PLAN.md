@@ -14,7 +14,7 @@ it behaves. Each phase ends with tests green, the site updated, and a push.
   character maker); events `onDidClickAgent`,
   `onDidStartShow`, `onDidEndShow`, `onDidFinishEvent`, `onDidOpenView` (`onDidChangeYourLook` comes with the character maker). A types-only `.d.ts` for
   hosts. Contract tests. A live example of each on the site.
-- [ ] **3. Character maker.** An overlay on the Office with a live preview: race, skin, hair style and color, eyes,
+- [x] **3. Character maker.** An overlay on the Office with a live preview: race, skin, hair style and color, eyes,
   beard, shirt, pants, shoes, sleeveless, bare feet, accessory and color; randomize, cancel, save. Opens on first run,
   from Customize Your Guy, and through `editLook`. On the site too.
 - [ ] **4. Overseer on the API.** Overseer drops its Office code and soft-depends on this extension: pinned sessions
@@ -26,6 +26,7 @@ it behaves. Each phase ends with tests green, the site updated, and a push.
   `~/.claude/settings.json`. A silent script appends events to a file the extension watches: a prompt makes your guy
   work, stop makes him idle, a notification makes him wave, a failed tool sets off a small ERROR. Later: a worker per
   Claude session in the workspace.
+- [x] **Site simulator.** One full-size room on the site with a control for every setting and every hook.
 - [ ] **6. Release.** A `.vsix` for both extensions, READMEs, install steps, the site finished.
 
 ## Decisions
