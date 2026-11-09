@@ -36,7 +36,9 @@ committed site bundle doesn't match the source.
 | File | Job |
 | --- | --- |
 | `extension.ts` | Activate: the view provider and commands. |
-| `officePanel.ts` | The Office view: sends the webview the `officeSim.*` settings, your look, and the agents set through `setAgents`; fires `onDidClickAgent` when a guy is clicked. Switch Scene, Play Show, and Chatter (style, bubble look, talk frequency) commands. |
+| `officePanel.ts` | The Office view: sends the webview the `officeSim.*` settings, your look, and the agents set through `setAgents`; fires `onDidClickAgent` when a guy is clicked. Switch Scene, Play Show, and Chatter (style, bubble look, talk frequency) commands; `extension.ts` adds Play Scene Event. |
+| `officeDirector.ts` | Plays scene events on the `officeSim.events` schedule and moves your monitor's tint every 20-40s, until a host plays them through the API (then those stop for good). Sends a new view the current tint. |
+| `officeEvents.ts` | Pure: the `officeSim.events` frequency, event and tint gaps, and the kind pick. |
 | `site/data.ts` | The lists the docs site shows, bundled into `docs/siteData.js` by `scripts/site.mjs`. |
 | `sceneEventSchedule.ts` | Pure: the scene event kinds, lengths and beats, the HACK phrase pairs, the DEFENSE scripts, the ERROR lines, and the variant pick. Overseer keeps its own copy for its views and its director. |
 | `pixelCanvas.ts` | Pure: the pixel guys' drawing grid, 10 wide and 16 tall with 2 rows of head room above (y = -1, -2) for horns and ears; its palette keys; `shadeHex` and `mixHex`. |

@@ -6,7 +6,7 @@ it behaves. Each phase ends with tests green, the site updated, and a push.
 
 - [x] **0. Scaffold.** History of the Office files carried over from Overseer. Build, typecheck, tests, the site with
   live examples, the PR template, and CI (tests, site bundle up to date, docs updated in every PR).
-- [ ] **1. Standalone.** The Office view in its own container with just your guy; `officeSim.*` settings; Switch
+- [x] **1. Standalone.** The Office view in its own container with just your guy; `officeSim.*` settings; Switch
   Scene, Play Show, Chatter, and Play Event commands; a scene event schedule for when no host plays them. Checked in
   the Extension Development Host.
 - [ ] **2. API and hooks.** `activate()` returns a versioned API: `setAgents`, `setMainGuy`, `playEvent`, `setTint`,

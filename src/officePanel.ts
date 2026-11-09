@@ -40,6 +40,9 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
   private readonly clickEmitter = new vscode.EventEmitter<string>();
   // A guy was clicked: his agent id.
   readonly onDidClickAgent = this.clickEmitter.event;
+  private readonly readyEmitter = new vscode.EventEmitter<vscode.Webview>();
+  // A webview started and has its first state.
+  readonly onDidBecomeReady = this.readyEmitter.event;
 
   constructor(private readonly deps: OfficePanelDeps) {
     this.listeners = [
@@ -78,6 +81,11 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
     this.webviews.forEach((webview) => void webview.postMessage(message));
   }
 
+  // Sends a message to every open Office.
+  broadcast(message: unknown): void {
+    this.webviews.forEach((webview) => void webview.postMessage(message));
+  }
+
   // The workers in the room besides you, and whose guy wears the crown.
   setAgents(agents: readonly AgentInput[], focusedId?: string): void {
     this.agents = [...agents];
@@ -88,6 +96,7 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
   dispose(): void {
     this.listeners.forEach((listener) => listener.dispose());
     this.clickEmitter.dispose();
+    this.readyEmitter.dispose();
   }
 
   private handleMessage(webview: vscode.Webview, message: unknown): void {
@@ -101,6 +110,7 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
         void webview.postMessage({ type: "performance", kind: this.pendingShow.kind });
         this.pendingShow = undefined;
       }
+      this.readyEmitter.fire(webview);
     } else if (type === "open" && typeof sessionId === "string") {
       this.clickEmitter.fire(sessionId);
     }

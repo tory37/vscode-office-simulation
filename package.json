@@ -57,6 +57,12 @@
         "title": "Chatter…",
         "category": "Office",
         "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "officeSim.playEvent",
+        "title": "Play Scene Event…",
+        "category": "Office",
+        "icon": "$(zap)"
       }
     ],
     "menus": {
@@ -75,6 +81,11 @@
           "command": "officeSim.chatter",
           "when": "view == officeSim.office",
           "group": "navigation@3"
+        },
+        {
+          "command": "officeSim.playEvent",
+          "when": "view == officeSim.office",
+          "group": "navigation@4"
         }
       ]
     },
@@ -215,6 +226,23 @@
           ],
           "default": "normal",
           "markdownDescription": "How often someone comes to the Office to put on a show: a guitarist, a band, a lunch or snack trolley, a comedian under a spotlight, a magician, or a DJ with a mirror ball. The idle and sleeping guys gather round to watch, cheer, laugh, and eat; busy guys keep working and get their lunch left on their desks. A show waits until someone is free to watch. Play one now with **Office: Play Show…**."
+        },
+        "officeSim.events": {
+          "type": "string",
+          "default": "normal",
+          "enum": [
+            "off",
+            "rare",
+            "normal",
+            "often"
+          ],
+          "enumDescriptions": [
+            "no scene events",
+            "about every 15 minutes",
+            "about every 5 minutes",
+            "about every 2 minutes"
+          ],
+          "markdownDescription": "How often your guy acts out a scene event on his own: an ERROR, a HACK, or a DEFENSE, with his monitors and the room joining in. Play one now with **Office: Play Scene Event…**. An extension that plays its own events (Overseer does) takes over from this."
         },
         "officeSim.races": {
           "type": "boolean",
