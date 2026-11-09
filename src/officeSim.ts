@@ -202,7 +202,12 @@ export interface OfficeState {
   show?: ShowState;
   // How much the guys talk on their own (officeChatter's talkFactor): 0 is never, 1 the usual.
   talk?: number;
+  // What your guy is up to: auto works at his station with a break now and then; busy stays at the station; idle stays
+  // on a break. A host sets it (say, busy while Claude works).
+  youStatus?: YouStatus;
 }
+
+export type YouStatus = "auto" | "busy" | "idle";
 
 export type Random = () => number;
 
@@ -368,7 +373,7 @@ export function syncYou(state: OfficeState, seed: string | undefined, random: Ra
     facing: "up",
     workSpot: seat,
     you: true,
-    nextBreakAt: state.time + between(random, 25, 60),
+    nextBreakAt: state.youStatus === "busy" ? FOREVER : state.youStatus === "idle" ? state.time + 3 : state.time + between(random, 25, 60),
   };
   state.agents.push(agent);
   setMode(state, agent, "type", FOREVER);
@@ -506,7 +511,7 @@ export function callYouBack(state: OfficeState, random: Random): void {
   if (agent === undefined) {
     return;
   }
-  agent.nextBreakAt = state.time + between(random, 40, 90);
+  agent.nextBreakAt = state.youStatus === "busy" ? FOREVER : state.time + between(random, 40, 90);
   if (isAtStation(agent)) {
     return;
   }
@@ -517,8 +522,35 @@ export function callYouBack(state: OfficeState, random: Random): void {
   goTo(state, agent, agent.workSpot, { kind: "work" }, true, random);
 }
 
+// Sets what your guy is up to. Busy runs him back to his station and keeps him there; idle sends him on a break that
+// lasts until it changes; auto goes back to the usual loop.
+export function setYouStatus(state: OfficeState, status: YouStatus, random: Random): void {
+  if ((state.youStatus ?? "auto") === status) {
+    return;
+  }
+  state.youStatus = status;
+  const agent = youAgent(state);
+  if (agent === undefined) {
+    return;
+  }
+  if (status === "busy") {
+    callYouBack(state, random);
+  } else {
+    // Idle takes his break now; auto picks the loop back up a little later.
+    agent.nextBreakAt = status === "idle" ? state.time : state.time + between(random, 25, 60);
+  }
+}
+
 function stepYou(state: OfficeState, agent: Agent, random: Random): void {
   if (state.time < agent.nextBreakAt) {
+    return;
+  }
+  if (state.youStatus === "idle" && agent.status === "idle") {
+    // His break goes on: on to the next thing, unless he's watching a show.
+    agent.nextBreakAt = state.time + between(random, 20, 40);
+    if (agent.goal?.kind !== "show") {
+      pickIdleActivity(state, agent, random);
+    }
     return;
   }
   if (agent.status === "working") {

@@ -227,9 +227,9 @@
     <h2>How it works</h2>
     <p class="lead">Two halves talk over messages: a small extension side that reads settings and the API, and a webview that runs and draws the whole simulation. Nearly all of the logic is pure TypeScript with no VS Code or DOM in it, so it's unit tested and runs the same on this page.</p>
 
-    <div class="diagram" role="img" aria-label="The extension side sends settings, agents, events, and shows to the webview; the webview sends back ready and clicks.">
+    <div class="diagram" role="img" aria-label="The extension side sends settings, agents, events, shows, visitors, and lines to the webview; the webview sends back ready, clicks, and when shows and events start and end.">
       <div class="box"><strong>Extension side</strong>Reads <code>officeSim.*</code> settings, registers the view and commands, and exposes the API other extensions call.</div>
-      <div class="arrows"><span>office · sceneEvent · tint · performance →</span><span>← ready · open</span></div>
+      <div class="arrows"><span>office · sceneEvent · tint · performance · visitor · say →</span><span>← ready · click · showStart · showEnd · eventEnd</span></div>
       <div class="box"><strong>Webview</strong>Sizes the room, steps the sim each frame, and draws it back to front at a whole-pixel zoom. Pauses while hidden.</div>
     </div>
 
@@ -258,18 +258,85 @@
 <section id="hooks">
   <div class="wrap prose">
     <h2>Hooks</h2>
-    <p class="lead">Other extensions drive the Office through the API its <code>activate()</code> returns. Without any of them, the room still runs with just your guy.</p>
-    <div class="soon">
-      <p><strong>Being built.</strong> The API lands in the next release: <code>setAgents</code>, <code>setMainGuy</code>, <code>playEvent</code>, <code>setTint</code>, <code>playShow</code>, <code>sendVisitor</code>, <code>say</code>, <code>editLook</code>, <code>portraitSvg</code>, and <code>attachView</code>, plus events for clicks, looks, shows, and scene events. Each one will get a live example here.</p>
+    <p class="lead">Other extensions drive the Office through the API its <code>activate()</code> returns. Without any of them, the room runs with just your guy. Overseer uses these to give every Claude session a worker, play its scene events, and open a session when you click his guy.</p>
+
+<pre><code>import type { OfficeSimulationApi } from "./officeSimulationApi"; // copy api/officeSimulationApi.d.ts from this repo
+
+const office = vscode.extensions.getExtension&lt;OfficeSimulationApi&gt;("djaunt.office-simulation");
+const api = office === undefined ? undefined : office.isActive ? office.exports : await office.activate();
+if (api?.apiVersion === 1) {
+  api.setAgents([{ id: "build", status: "busy", title: "Running the build" }]);
+  api.onDidClickAgent((id) =&gt; vscode.window.showInformationMessage(`Clicked ${id}`));
+}</code></pre>
+    <p>Treat the Office as optional: check for it, and carry on without it. Every call is checked on the way in, so a bad value is ignored rather than thrown on. Version 1 only grows; anything that would break a host changes <code>apiVersion</code>.</p>
+  </div>
+
+  <div class="wrap">
+    <div class="demos">
+      <div class="demo" style="grid-column: 1 / -1">
+        <h3>Playground</h3>
+        <p>Each button makes the call shown, to the room below. Click a guy, start a show, or play an event to see the events come back.</p>
+        <div id="demo-api" style="height:340px"></div>
+        <div class="controls">
+          <button data-api="addBusy">setAgents: + busy</button>
+          <button data-api="addIdle">setAgents: + idle</button>
+          <button data-api="crown">highlighted: next</button>
+          <button data-api="dress">look: custom</button>
+          <button data-api="clear">setAgents([])</button>
+        </div>
+        <div class="controls">
+          <button data-api="mainAuto">setMainGuy("auto")</button>
+          <button data-api="mainBusy">setMainGuy("busy")</button>
+          <button data-api="mainIdle">setMainGuy("idle")</button>
+          <button data-api="event">playEvent("defense")</button>
+          <button data-api="tint">setTint(n)</button>
+          <button data-api="show">playShow("magician")</button>
+        </div>
+        <div class="controls">
+          <label>sendVisitor <select id="api-visitor"></select></label>
+          <button data-api="visitor">send</button>
+          <label>say <select id="api-say-who"></select></label>
+          <input id="api-say-text" value="Ship it!" maxlength="80" style="font:14px var(--sans);color:var(--text);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-width:0;flex:1 1 120px">
+          <button data-api="say">say</button>
+        </div>
+<pre><code id="api-code">// Click a button.</code></pre>
+        <div class="log" id="api-events" aria-live="polite"></div>
+      </div>
     </div>
-    <h3>The webview messages</h3>
-    <p>Under the API, the webview takes these messages, which is also how every demo on this page works:</p>
-<pre><code>{ type: "office", scene, agents: [{ id, seed, status: "working" | "idle" | "asleep", title }],
-  you: look | null, critters, fliers, dayNight, visitors, performances, chatter, talk, bubbleLook, races, focusedId }
-{ type: "sceneEvent", kind: "error" | "hack" | "defense", variant }
-{ type: "tint", index, burst }
-{ type: "performance", kind }   // a show id, or anything else for a random one</code></pre>
-    <p>It posts <code>{ type: "ready" }</code> when it starts and <code>{ type: "open", sessionId }</code> when a guy is clicked.</p>
+  </div>
+
+  <div class="wrap prose">
+    <h3>Into the Office</h3>
+    <div class="table-scroll"><table><thead><tr><th>Call</th><th>What it does</th></tr></thead><tbody>
+      <tr><td><code>setAgents(agents)</code></td><td>The workers besides your guy. Each <code>{ id, status: "busy" | "idle" | "asleep", title?, seed?, look?, highlighted? }</code> gets a desk; send the whole list each time. Dropping one walks him out. <code>seed</code> picks his look, desk, and personality (it defaults to the id); <code>look</code> is a full custom look over it; <code>highlighted</code> puts a crown on him.</td></tr>
+      <tr><td><code>setMainGuy(status)</code></td><td><code>"busy"</code> runs your guy back to his station and keeps him there; <code>"idle"</code> keeps him on a break; <code>"auto"</code> (the default) works with a break now and then.</td></tr>
+      <tr><td><code>playEvent(kind, variant?)</code></td><td>Plays ERROR, HACK, or DEFENSE in every open Office. The first call stops the Office's own event schedule, so your extension decides when they play. The variant picks the lines; pass the same one to your own views to keep them in step.</td></tr>
+      <tr><td><code>setTint(index, burst?)</code></td><td>Moves your guy's second monitor graph to a tint in the shared spectrum, with a sweep unless <code>burst</code> is false. The first call stops the Office's own tint cycle.</td></tr>
+      <tr><td><code>playShow(kind?)</code></td><td>Puts on a show now (<span id="api-show-ids"></span>, or <code>"random"</code>), opening the Office first if it's hidden.</td></tr>
+      <tr><td><code>sendVisitor(kind?)</code></td><td>Sends in someone from a department (<span id="api-visitor-ids"></span>), or a random one.</td></tr>
+      <tr><td><code>say(id, text, seconds?)</code></td><td>Puts a line over an agent's guy, or yours with <code>"you"</code>. Up to 80 characters for 1 to 20 seconds; it goes ahead of the room's own chatter.</td></tr>
+    </tbody></table></div>
+
+    <h3>Looks</h3>
+    <div class="table-scroll"><table><thead><tr><th>Call</th><th>What it does</th></tr></thead><tbody>
+      <tr><td><code>lookFromSeed(seed)</code></td><td>The look a seed gives, as the Office draws it: a starting point for a custom look.</td></tr>
+      <tr><td><code>races()</code>, <code>seedWithRace(seed, race)</code>, <code>raceOfSeed(seed)</code></td><td>For a race picker: changing a seed's race keeps the rest of his look.</td></tr>
+      <tr><td><code>portraitSvg(look, badge?, dimmed?)</code></td><td>A 16×16 SVG of his head and shoulders with an optional colored badge, for a tree item's icon.</td></tr>
+    </tbody></table></div>
+
+    <h3>Hosting</h3>
+    <p><code>attachView(webviewView)</code> draws the Office in a webview view your extension contributes, so it can sit in your own sidebar. Call it from your provider's <code>resolveWebviewView</code>. While a hosted view is attached, the Office's own view hides (the <code>officeSim.hosted</code> context key).</p>
+
+    <h3>Out of the Office</h3>
+    <div class="table-scroll"><table><thead><tr><th>Event</th><th>Fires when</th></tr></thead><tbody>
+      <tr><td><code>onDidClickAgent</code></td><td>A guy is clicked: his agent id, or <code>"you"</code>.</td></tr>
+      <tr><td><code>onDidStartShow</code>, <code>onDidEndShow</code></td><td>A show starts or ends, with its kind.</td></tr>
+      <tr><td><code>onDidFinishEvent</code></td><td>A scene event finishes playing, with its kind.</td></tr>
+      <tr><td><code>onDidOpenView</code></td><td>An Office view starts, yours or its own.</td></tr>
+    </tbody></table></div>
+
+    <h3>Under the API</h3>
+    <p>The extension and the webview talk in messages, which is also how every room on this page runs. In: <code>office</code> (the whole state: scene, agents, your look and status, and every setting), <code>sceneEvent</code>, <code>tint</code>, <code>performance</code>, <code>visitor</code>, and <code>say</code>. Out: <code>ready</code>, <code>click</code>, <code>showStart</code>, <code>showEnd</code>, and <code>eventEnd</code>. The API is the supported way in; the messages can change.</p>
   </div>
 </section>
 
@@ -343,9 +410,9 @@ npx serve docs      # or any static server, then open the page</code></pre>
     visitors: "often",
     performances: "rare",
   });
-  hero.on("open", (message) => {
-    const agent = hero.state.agents.find((candidate) => candidate.id === message.sessionId);
-    document.getElementById("hero-log").textContent = `onDidClickAgent → "${agent?.title ?? message.sessionId}"`;
+  hero.on("click", (message) => {
+    const agent = hero.state.agents.find((candidate) => candidate.id === message.id);
+    document.getElementById("hero-log").textContent = `onDidClickAgent → "${agent?.title ?? message.id}"`;
   });
   document.querySelectorAll("[data-hero-event]").forEach((element) => element.addEventListener("click", () => hero.sceneEvent(element.dataset.heroEvent)));
   document.querySelector("[data-hero-show]").addEventListener("click", () => hero.show("random"));
@@ -372,9 +439,9 @@ npx serve docs      # or any static server, then open the page</code></pre>
     workersLog.textContent = `setAgents: ${crew.state.agents.length} workers`;
   });
   document.getElementById("clear-workers").addEventListener("click", () => { crew.set({ agents: [] }); workersLog.textContent = "setAgents: none, just you"; });
-  crew.on("open", (message) => {
-    const agents = crew.state.agents.map((agent) => agent.id === message.sessionId ? { ...agent, status: NEXT[agent.status] } : agent);
-    const clicked = agents.find((agent) => agent.id === message.sessionId);
+  crew.on("click", (message) => {
+    const agents = crew.state.agents.map((agent) => agent.id === message.id ? { ...agent, status: NEXT[agent.status] } : agent);
+    const clicked = agents.find((agent) => agent.id === message.id);
     crew.set({ agents });
     workersLog.textContent = `clicked "${clicked?.title}" → ${clicked?.status}`;
   });
@@ -424,6 +491,65 @@ npx serve docs      # or any static server, then open the page</code></pre>
   const worldScene = document.getElementById("world-scene");
   options(worldScene, SITE.scenes.filter((scene) => scene.outdoor), "field");
   worldScene.addEventListener("change", () => world.set({ scene: worldScene.value }));
+
+
+  // API playground.
+  const playground = new OfficeDemo(document.getElementById("demo-api"), { agents: [], visitors: "off", performances: "off", critters: false, fliers: false });
+  const api = playground.api;
+  const code = document.getElementById("api-code");
+  const eventsLog = document.getElementById("api-events");
+  let apiAgents = [];
+  let crown = -1;
+  let apiTint = 0;
+  const heard = [];
+  const hear = (line) => { heard.unshift(line); eventsLog.textContent = heard.slice(0, 3).join("   ·   "); };
+  api.onDidClickAgent((id) => hear(`onDidClickAgent → "${id}"`));
+  api.onDidStartShow((kind) => hear(`onDidStartShow → "${kind}"`));
+  api.onDidEndShow((kind) => hear(`onDidEndShow → "${kind}"`));
+  api.onDidFinishEvent((kind) => hear(`onDidFinishEvent → "${kind}"`));
+  const show = (text) => { code.textContent = text; };
+  const pushAgents = () => {
+    api.setAgents(apiAgents.map((agent, index) => ({ ...agent, highlighted: index === crown })));
+    show(`api.setAgents(${JSON.stringify(apiAgents.map((agent, index) => ({ id: agent.id, status: agent.status, title: agent.title, ...(agent.look ? { look: "{ …your look }" } : {}), ...(index === crown ? { highlighted: true } : {}) })), null, 2)});`);
+    refreshSayTargets();
+  };
+  const sayWho = document.getElementById("api-say-who");
+  function refreshSayTargets() {
+    const current = sayWho.value || "you";
+    sayWho.innerHTML = "";
+    options(sayWho, [{ id: "you", label: "you" }, ...apiAgents.map((agent) => ({ id: agent.id, label: agent.id }))], current);
+  }
+  refreshSayTargets();
+  const visitorKind = document.getElementById("api-visitor");
+  options(visitorKind, SITE.visitorKinds.map((kind) => ({ id: kind.id, label: kind.title })), "ceo");
+  document.getElementById("api-show-ids").innerHTML = SITE.shows.map((item) => `<code>"${item.id}"</code>`).join(", ");
+  document.getElementById("api-visitor-ids").innerHTML = SITE.visitorKinds.map((kind) => `<code>"${kind.id}"</code>`).join(", ");
+  const randomColor = () => `#${Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, "0")}`;
+  const actions = {
+    addBusy: () => { apiAgents.push({ id: `agent-${apiAgents.length + 1}`, status: "busy", title: "Working on it" }); pushAgents(); },
+    addIdle: () => { apiAgents.push({ id: `agent-${apiAgents.length + 1}`, status: "idle", title: "Waiting for you" }); pushAgents(); },
+    crown: () => { crown = apiAgents.length === 0 ? -1 : (crown + 1) % apiAgents.length; pushAgents(); },
+    dress: () => {
+      if (apiAgents.length === 0) apiAgents.push({ id: "agent-1", status: "busy", title: "Dressed up" });
+      const race = SITE.races[Math.floor(Math.random() * SITE.races.length)].id;
+      apiAgents[0].look = { ...SITE.defaultLook, shirt: randomColor(), pants: randomColor(), hair: randomColor(), accessory: "cap", accessoryColor: randomColor(), race };
+      pushAgents();
+    },
+    clear: () => { apiAgents = []; crown = -1; pushAgents(); },
+    mainAuto: () => { api.setMainGuy("auto"); show('api.setMainGuy("auto");'); },
+    mainBusy: () => { api.setMainGuy("busy"); show('api.setMainGuy("busy");'); },
+    mainIdle: () => { api.setMainGuy("idle"); show('api.setMainGuy("idle");'); },
+    event: () => { api.playEvent("defense"); show('api.playEvent("defense");'); },
+    tint: () => { api.setTint(++apiTint); show(`api.setTint(${apiTint});`); },
+    show: () => { api.playShow("magician"); show('api.playShow("magician");'); },
+    visitor: () => { api.sendVisitor(visitorKind.value); show(`api.sendVisitor("${visitorKind.value}");`); },
+    say: () => {
+      const text = document.getElementById("api-say-text").value;
+      api.say(sayWho.value, text, 4);
+      show(`api.say(${JSON.stringify(sayWho.value)}, ${JSON.stringify(text)}, 4);`);
+    },
+  };
+  document.querySelectorAll("[data-api]").forEach((element) => element.addEventListener("click", () => actions[element.dataset.api]()));
 
   // Settings and commands, from package.json.
   const escape = (text) => String(text).replace(/[&<>]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[character]);

@@ -296,7 +296,8 @@ export interface VisitPlan {
 // At most this many visitors in the room at once.
 export const MAX_VISITORS = 5;
 
-export function planVisit(random: () => number): VisitPlan {
+// A visit from this department, or one picked by weight.
+export function planVisit(random: () => number, kindId?: string): VisitPlan {
   const total = VISITOR_KINDS.reduce((sum, kind) => sum + kind.weight, 0);
   let roll = random() * total;
   let kind = VISITOR_KINDS[VISITOR_KINDS.length - 1];
@@ -307,6 +308,7 @@ export function planVisit(random: () => number): VisitPlan {
       break;
     }
   }
+  kind = VISITOR_KINDS.find((candidate) => candidate.id === kindId) ?? kind;
   const lines = [pick(kind.openers, random)];
   const stay = visitorStay(random);
   const closer = random() < 0.7 ? pick(kind.closers, random) : undefined;

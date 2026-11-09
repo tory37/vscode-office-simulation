@@ -9,9 +9,10 @@ it behaves. Each phase ends with tests green, the site updated, and a push.
 - [x] **1. Standalone.** The Office view in its own container with just your guy; `officeSim.*` settings; Switch
   Scene, Play Show, Chatter, and Play Event commands; a scene event schedule for when no host plays them. Checked in
   the Extension Development Host.
-- [ ] **2. API and hooks.** `activate()` returns a versioned API: `setAgents`, `setMainGuy`, `playEvent`, `setTint`,
-  `playShow`, `sendVisitor`, `say`, `editLook`, `portraitSvg`, `attachView`; events `onDidClickAgent`,
-  `onDidChangeYourLook`, `onDidStartShow`, `onDidEndShow`, `onDidFinishEvent`, `onReady`. A types-only `.d.ts` for
+- [x] **2. API and hooks.** `activate()` returns a versioned API: `setAgents`, `setMainGuy`, `playEvent`, `setTint`,
+  `playShow`, `sendVisitor`, `say`, `lookFromSeed`, race helpers, `portraitSvg`, `attachView` (`editLook` comes with the
+  character maker); events `onDidClickAgent`,
+  `onDidStartShow`, `onDidEndShow`, `onDidFinishEvent`, `onDidOpenView` (`onDidChangeYourLook` comes with the character maker). A types-only `.d.ts` for
   hosts. Contract tests. A live example of each on the site.
 - [ ] **3. Character maker.** An overlay on the Office with a live preview: race, skin, hair style and color, eyes,
   beard, shirt, pants, shoes, sleeveless, bare feet, accessory and color; randomize, cancel, save. Opens on first run,

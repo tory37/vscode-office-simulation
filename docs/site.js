@@ -30,6 +30,7 @@
       bubbleLook: "soft",
       races: true,
       focusedId: null,
+      youStatus: "auto",
     };
   }
 
@@ -76,7 +77,7 @@
       (this.listeners.get(message?.type) ?? []).forEach((listener) => listener(message));
     }
 
-    // What the Office posts back: "ready", and "open" with the clicked guy's id.
+    // What the Office posts back: "ready", "click" (id), "showStart" and "showEnd" (kind), and "eventEnd" (kind).
     on(type, listener) {
       this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
     }
@@ -102,6 +103,31 @@
 
     tint(index, burst = true) {
       this.post({ type: "tint", index, burst });
+    }
+
+    // The same calls as the extension's API, on this demo, so examples read like real host code.
+    get api() {
+      const demo = this;
+      const statuses = { busy: "working", idle: "idle", asleep: "asleep" };
+      return {
+        setAgents(agents) {
+          const focused = agents.find((agent) => agent.highlighted);
+          demo.set({
+            agents: agents.map((agent) => ({ id: agent.id, seed: agent.seed ?? agent.id, status: statuses[agent.status], title: agent.title ?? "", ...(agent.look ? { look: agent.look } : {}) })),
+            focusedId: focused?.id ?? null,
+          });
+        },
+        setMainGuy: (status) => demo.set({ youStatus: status }),
+        playEvent: (kind, variant) => demo.post({ type: "sceneEvent", kind, variant: variant ?? Math.floor(Math.random() * SITE.eventVariants) }),
+        setTint: (index, burst = true) => demo.tint(index, burst),
+        playShow: (kind = "random") => demo.show(kind),
+        sendVisitor: (kind) => demo.post({ type: "visitor", kind }),
+        say: (id, text, seconds = 3) => demo.post({ type: "say", id, text, seconds }),
+        onDidClickAgent: (listener) => demo.on("click", (message) => listener(message.id)),
+        onDidStartShow: (listener) => demo.on("showStart", (message) => listener(message.kind)),
+        onDidEndShow: (listener) => demo.on("showEnd", (message) => listener(message.kind)),
+        onDidFinishEvent: (listener) => demo.on("eventEnd", (message) => listener(message.kind)),
+      };
     }
   }
 

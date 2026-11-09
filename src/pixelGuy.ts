@@ -819,3 +819,46 @@ export function yourLook(setting: unknown): PixelGuyLook {
   }
   return look;
 }
+
+const HEX = /^#[0-9a-f]{6}$/i;
+
+// A full look from outside (an extension, the character maker, a saved setting) over a fallback, a field at a time: a
+// field that isn't a #rrggbb color, a known style, a known race, or a boolean keeps the fallback's. A race that is
+// given without marks gets the race's own.
+export function readLook(value: unknown, fallback: PixelGuyLook): PixelGuyLook {
+  const look: PixelGuyLook = { ...fallback };
+  if (typeof value !== "object" || value === null) {
+    return look;
+  }
+  const fields = value as Record<string, unknown>;
+  for (const field of [...COLOR_FIELDS, "tie"] as const) {
+    const color = fields[field];
+    if (typeof color === "string" && HEX.test(color)) {
+      look[field] = color;
+    }
+  }
+  for (const field of FLAG_FIELDS) {
+    if (typeof fields[field] === "boolean") {
+      look[field] = fields[field] as boolean;
+    }
+  }
+  if (ALL_HAIR_STYLES.includes(fields.hairStyle as HairStyle)) {
+    look.hairStyle = fields.hairStyle as HairStyle;
+  }
+  if (ALL_ACCESSORIES.includes(fields.accessory as Accessory)) {
+    look.accessory = fields.accessory as Accessory;
+  }
+  if (isRaceId(fields.race)) {
+    if (fields.race === "human") {
+      delete look.race;
+      delete look.marks;
+    } else {
+      look.race = fields.race;
+      const marks = fields.marks;
+      look.marks = Array.isArray(marks) && marks.length === 3 && marks.every((mark) => typeof mark === "string" && HEX.test(mark))
+        ? [marks[0], marks[1], marks[2]]
+        : defaultMarks(raceSpec(fields.race));
+    }
+  }
+  return look;
+}

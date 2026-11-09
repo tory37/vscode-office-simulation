@@ -8,6 +8,7 @@ import {
   mixHex,
   pixelGuyFrame,
   pixelGuyLook,
+  readLook,
   portraitSvg,
   POSE_FRAMES,
   Pose,
@@ -158,5 +159,40 @@ describe("mixHex", () => {
   it("blends two colors", () => {
     expect(mixHex("#000000", "#FFFFFF", 0.5)).toBe("#808080");
     expect(mixHex("bad", "#FFFFFF", 0.5)).toBe("bad");
+  });
+});
+
+describe("readLook", () => {
+  const fallback = pixelGuyLook("fallback", false);
+
+  it("keeps the fallback for anything that isn't valid", () => {
+    expect(readLook(undefined, fallback)).toEqual(fallback);
+    expect(readLook({ skin: "red", hairStyle: "afro", accessory: "monocle", race: "dragonborn", sleeveless: "yes" }, fallback)).toEqual(fallback);
+  });
+
+  it("takes valid colors, styles, flags, and a race", () => {
+    const look = readLook({ skin: "#112233", hairStyle: "ponytail", accessory: "fullBeard", shorts: true, race: "orc", tie: "#ABCDEF" }, fallback);
+    expect(look.skin).toBe("#112233");
+    expect(look.hairStyle).toBe("ponytail");
+    expect(look.accessory).toBe("fullBeard");
+    expect(look.shorts).toBe(true);
+    expect(look.race).toBe("orc");
+    expect(look.marks).toHaveLength(3);
+    expect(look.tie).toBe("#ABCDEF");
+  });
+
+  it("takes the race's marks when they're valid, and human clears the race", () => {
+    expect(readLook({ race: "elf", marks: ["#000000", "#111111", "#222222"] }, fallback).marks).toEqual(["#000000", "#111111", "#222222"]);
+    const orc = readLook({ race: "orc" }, fallback);
+    const human = readLook({ race: "human" }, orc);
+    expect(human.race).toBeUndefined();
+    expect(human.marks).toBeUndefined();
+  });
+
+  it("round-trips any seed's look", () => {
+    for (const seed of ["a", "b", "c", "d#race=orc"]) {
+      const look = pixelGuyLook(seed);
+      expect(readLook(JSON.parse(JSON.stringify(look)), fallback)).toEqual({ ...fallback, ...look });
+    }
   });
 });

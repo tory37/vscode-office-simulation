@@ -15,7 +15,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      # The site runs the committed bundle, so it must match the source.
+      # The site runs the committed bundle, and hosts copy the committed API types, so both must match the source.
       - run: npm run site
-      - name: Site bundle is up to date
-        run: git diff --exit-code -- docs/officeView.js docs/siteData.js || (echo "::error::Run npm run site and commit docs/officeView.js and docs/siteData.js" && exit 1)
+      - name: Site bundle and API types are up to date
+        run: git diff --exit-code -- docs/officeView.js docs/siteData.js api/ || (echo "::error::Run npm run site and commit docs/ and api/" && exit 1)

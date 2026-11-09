@@ -35,7 +35,8 @@
         {
           "type": "webview",
           "id": "officeSim.office",
-          "name": "Office"
+          "name": "Office",
+          "when": "!officeSim.hosted"
         }
       ]
     },
@@ -399,7 +400,7 @@
     }
   },
   "scripts": {
-    "build": "node esbuild.mjs",
+    "build": "node esbuild.mjs && node scripts/apiTypes.mjs",
     "watch": "node esbuild.mjs --watch",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.webview.json",
     "test": "vitest run",

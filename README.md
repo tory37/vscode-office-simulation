@@ -29,12 +29,19 @@ The Office shows up in its own activity bar container.
 
 Every setting is listed on the [site](https://tory37.github.io/vscode-office-simulation/#settings).
 
+## Hook into it
+
+`activate()` returns an API: send workers in with `setAgents`, drive your guy with `setMainGuy`, play scene events,
+shows, visitors, and lines, draw portraits, host the Office in your own view, and hear clicks, shows, and events.
+Copy [`api/officeSimulationApi.d.ts`](api/officeSimulationApi.d.ts) for the types. The
+[site](https://tory37.github.io/vscode-office-simulation/#hooks) has a live playground and the full reference.
+
 ## Contributing
 
 The site in `docs/` is the documentation, and every room on it runs the real code. **A pull request to `main` that
 changes behavior, a hook, a setting, a command, a scene, a show, or a look must update `docs/index.html` in the same
-PR**, with a live example where one fits. Run `npm run site` and commit `docs/officeView.js` and `docs/siteData.js`
-too. CI checks both; a pure refactor can carry the `no-docs-needed` label instead.
+PR**, with a live example where one fits. Run `npm run site` and commit `docs/officeView.js`, `docs/siteData.js`, and
+`api/` too. CI checks both; a pure refactor can carry the `no-docs-needed` label instead.
 
 ```bash
 npm install

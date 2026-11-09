@@ -1,12 +1,14 @@
 import * as vscode from "vscode";
+import { createOfficeApi } from "./api";
 import { OfficeDirector } from "./officeDirector";
 import { isEventKind } from "./officeEvents";
 import { OFFICE_PANEL_VIEW_ID, OfficePanelProvider, registerOfficeCommands } from "./officePanel";
+import type { OfficeSimulationApi } from "./officeSimulationApi";
 import { SCENE_EVENT_KINDS } from "./sceneEventSchedule";
 
 const EVENT_LABELS = { error: "ERROR", hack: "HACK", defense: "DEFENSE" } as const;
 
-export function activate(context: vscode.ExtensionContext): void {
+export function activate(context: vscode.ExtensionContext): OfficeSimulationApi {
   const office = new OfficePanelProvider({ extensionUri: context.extensionUri });
   const director = new OfficeDirector(office);
   context.subscriptions.push(
@@ -24,6 +26,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     }),
   );
+  return createOfficeApi(office, director);
 }
 
 export function deactivate(): void {}

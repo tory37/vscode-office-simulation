@@ -4201,7 +4201,7 @@
     return "grumbler";
   }
   var MAX_VISITORS = 5;
-  function planVisit(random2) {
+  function planVisit(random2, kindId) {
     const total = VISITOR_KINDS.reduce((sum, kind2) => sum + kind2.weight, 0);
     let roll = random2() * total;
     let kind = VISITOR_KINDS[VISITOR_KINDS.length - 1];
@@ -4212,6 +4212,7 @@
         break;
       }
     }
+    kind = VISITOR_KINDS.find((candidate) => candidate.id === kindId) ?? kind;
     const lines = [pick2(kind.openers, random2)];
     const stay = visitorStay(random2);
     const closer = random2() < 0.7 ? pick2(kind.closers, random2) : void 0;
@@ -4395,7 +4396,7 @@
       facing: "up",
       workSpot: seat,
       you: true,
-      nextBreakAt: state2.time + between(random2, 25, 60)
+      nextBreakAt: state2.youStatus === "busy" ? FOREVER : state2.youStatus === "idle" ? state2.time + 3 : state2.time + between(random2, 25, 60)
     };
     state2.agents.push(agent);
     setMode(state2, agent, "type", FOREVER);
@@ -4507,7 +4508,7 @@
     if (agent === void 0) {
       return;
     }
-    agent.nextBreakAt = state2.time + between(random2, 40, 90);
+    agent.nextBreakAt = state2.youStatus === "busy" ? FOREVER : state2.time + between(random2, 40, 90);
     if (isAtStation(agent)) {
       return;
     }
@@ -4517,8 +4518,30 @@
     say(state2, agent, "!", 1);
     goTo(state2, agent, agent.workSpot, { kind: "work" }, true, random2);
   }
+  function setYouStatus(state2, status, random2) {
+    if ((state2.youStatus ?? "auto") === status) {
+      return;
+    }
+    state2.youStatus = status;
+    const agent = youAgent(state2);
+    if (agent === void 0) {
+      return;
+    }
+    if (status === "busy") {
+      callYouBack(state2, random2);
+    } else {
+      agent.nextBreakAt = status === "idle" ? state2.time : state2.time + between(random2, 25, 60);
+    }
+  }
   function stepYou(state2, agent, random2) {
     if (state2.time < agent.nextBreakAt) {
+      return;
+    }
+    if (state2.youStatus === "idle" && agent.status === "idle") {
+      agent.nextBreakAt = state2.time + between(random2, 20, 40);
+      if (agent.goal?.kind !== "show") {
+        pickIdleActivity(state2, agent, random2);
+      }
       return;
     }
     if (agent.status === "working") {
@@ -8531,6 +8554,14 @@
   }).observe(canvas);
   window.addEventListener("message", (event) => {
     const data = event.data;
+    if (data !== null && typeof data === "object" && data.type === "visitor") {
+      sendVisitor(typeof data.kind === "string" ? data.kind : void 0);
+      return;
+    }
+    if (data !== null && typeof data === "object" && data.type === "say") {
+      sayLine(data);
+      return;
+    }
     if (data !== null && typeof data === "object" && data.type === "performance") {
       playShow(isPerformanceKind(data.kind) ? data.kind : void 0);
       return;
@@ -8560,7 +8591,7 @@
     if (nextRaces !== racesOn) {
       racesOn = nextRaces;
       for (const key of [...lookCache.keys()]) {
-        if (!key.startsWith("you|") && !key.startsWith("visitor|") && !key.startsWith("show|")) {
+        if (!key.startsWith("you|") && !key.startsWith("visitor|") && !key.startsWith("show|") && !customLooks.has(key)) {
           lookCache.delete(key);
         }
       }
@@ -8599,14 +8630,18 @@
         fitLayout();
       }
     }
-    latestInputs = data.agents.filter(
-      (agent) => typeof agent?.id === "string" && (agent.status === "working" || agent.status === "idle" || agent.status === "asleep")
+    const agents = data.agents.filter(
+      (agent) => typeof agent?.id === "string" && typeof agent.seed === "string" && (agent.status === "working" || agent.status === "idle" || agent.status === "asleep")
     );
+    setCustomLooks(agents);
+    latestInputs = agents.map(({ id, seed, status, title }) => ({ id, seed, status, title: typeof title === "string" ? title : "" }));
+    const nextYouStatus = data.youStatus === "busy" || data.youStatus === "idle" ? data.youStatus : "auto";
     if (width > 0 && height > 0) {
       fitLayout();
     }
     syncOffice(state, latestInputs, random, hasSynced ? "door" : "seated");
     syncYou(state, youKey, random);
+    setYouStatus(state, nextYouStatus, random);
     hasSynced = true;
     sceneLabel.textContent = OFFICE_SCENES.find((scene) => scene.id === sceneId)?.label.toLowerCase() ?? "office";
   });
@@ -8637,9 +8672,9 @@
   }
   function stepVisitors() {
     const here2 = visitorAgents(state);
-    for (const id2 of [...visits.keys()]) {
-      if (!here2.some((agent) => agent.id === id2)) {
-        visits.delete(id2);
+    for (const id of [...visits.keys()]) {
+      if (!here2.some((agent) => agent.id === id)) {
+        visits.delete(id);
       }
     }
     for (const visitor of here2) {
@@ -8660,10 +8695,13 @@
       return;
     }
     nextVisitorAt = state.time + visitorGap(random, visitorsSetting);
+    sendVisitor(void 0);
+  }
+  function sendVisitor(kindId) {
     if (!state.agents.some((agent) => agent.visitor === void 0)) {
       return;
     }
-    const plan = planVisit(random);
+    const plan = planVisit(random, kindId);
     visitCount += 1;
     const seed = `visitor|${plan.kind.id}|${visitCount % 12}`;
     const id = `${seed}|${visitCount}`;
@@ -8734,6 +8772,7 @@
     });
     if (startShow(state, { kind: plan.kind, title: plan.title, performers, lines: plan.lines, closer: plan.closer, length: plan.length, food: plan.food }, random)) {
       nextShowAt = Math.max(nextShowAt, state.time + plan.length + 120);
+      vscode.postMessage({ type: "showStart", kind: plan.kind });
     }
   }
   function currentEvent() {
@@ -8742,11 +8781,43 @@
     }
     sceneEvent.age = state.time - sceneEvent.start;
     if (sceneEvent.age >= yourEventSeconds(sceneEvent.kind)) {
+      vscode.postMessage({ type: "eventEnd", kind: sceneEvent.kind });
       sceneEvent = void 0;
     }
     return sceneEvent;
   }
   var lookCache = /* @__PURE__ */ new Map();
+  var customLooks = /* @__PURE__ */ new Map();
+  function setCustomLooks(agents) {
+    const next = /* @__PURE__ */ new Map();
+    for (const agent of agents) {
+      if (agent.look !== null && typeof agent.look === "object") {
+        next.set(agent.seed, agent.look);
+      }
+    }
+    for (const seed of /* @__PURE__ */ new Set([...customLooks.keys(), ...next.keys()])) {
+      const look = next.get(seed);
+      const text = look === void 0 ? void 0 : JSON.stringify(look);
+      if (text === customLooks.get(seed)) {
+        continue;
+      }
+      if (look === void 0 || text === void 0) {
+        customLooks.delete(seed);
+        lookCache.delete(seed);
+      } else {
+        customLooks.set(seed, text);
+        lookCache.set(seed, look);
+      }
+      forgetSprites(seed);
+    }
+  }
+  function forgetSprites(seed) {
+    for (const key of [...spriteCache.keys()]) {
+      if (key.startsWith(`${seed}|`)) {
+        spriteCache.delete(key);
+      }
+    }
+  }
   var CREW_UNIFORM = { shirt: "#F28C28", pants: "#2F3E55", shoes: "#3A2B26", accessory: "cap", accessoryColor: "#E8B931" };
   function lookOf(seed) {
     let look = lookCache.get(seed);
@@ -10218,7 +10289,7 @@
       }
       const bubble = box.agent.bubble;
       if (bubble !== void 0) {
-        const priority = box.agent.performer !== void 0 ? "must" : box.agent.visitor !== void 0 ? "high" : "normal";
+        const priority = box.agent.performer !== void 0 ? "must" : box.agent.visitor !== void 0 || hostLines.has(bubble) ? "high" : "normal";
         lines.push(spokenLine(box.agent.id, box.agent.seed, bubble, priority, box, box.top - (crowned ? 14 : 11)));
       }
     });
@@ -10487,6 +10558,27 @@
     });
     context.restore();
   }
+  var showOn;
+  function noticeShowEnd() {
+    const now = state.show?.kind;
+    if (showOn !== void 0 && now !== showOn) {
+      vscode.postMessage({ type: "showEnd", kind: showOn });
+    }
+    showOn = now;
+  }
+  function sayLine(data) {
+    if (typeof data.text !== "string" || data.text.trim() === "") {
+      return;
+    }
+    const agent = state.agents.find((candidate) => data.id === "you" ? candidate.you : candidate.id === data.id);
+    if (agent === void 0) {
+      return;
+    }
+    const seconds = typeof data.seconds === "number" && Number.isFinite(data.seconds) ? Math.min(20, Math.max(1, data.seconds)) : 3;
+    agent.bubble = { text: data.text.trim().slice(0, 80), until: state.time + seconds };
+    hostLines.add(agent.bubble);
+  }
+  var hostLines = /* @__PURE__ */ new WeakSet();
   var frameHandle = 0;
   var lastTime;
   function loop(now) {
@@ -10499,6 +10591,7 @@
       playRoomReactions();
       stepCritters();
       stepFliers();
+      noticeShowEnd();
     }
     lastTime = seconds;
     if (width > 0 && height > 0) {
@@ -10568,7 +10661,9 @@
   canvas.addEventListener("click", (event) => {
     const agent = agentAt(event.clientX, event.clientY);
     if (agent !== void 0 && !agent.you && agent.visitor === void 0 && agent.crew === void 0 && agent.performer === void 0) {
-      vscode.postMessage({ type: "open", sessionId: agent.id });
+      vscode.postMessage({ type: "click", id: agent.id });
+    } else if (agent?.you === true) {
+      vscode.postMessage({ type: "click", id: "you" });
     }
   });
   vscode.postMessage({ type: "ready" });

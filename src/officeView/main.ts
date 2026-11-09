@@ -7,7 +7,7 @@ import { DAYTIME_SKY, discLit, earthIllumination, lunarSunElevation, mix, SceneL
 import { critterGap, critterLines, critterPoses, CritterRun, critterRunDone, planCritterRun } from "../officeCritters";
 import { FLIERS, flierGap, flierLines, flierPoses, Flight, flightDone, planFlight } from "../officeFliers";
 import {
-  Agent, AgentInput, agentPose, callYouBack, createOffice, endShow, isAtStation, lookToward, officeCounts, reactToCritter, relayoutOffice, startShow,
+  Agent, AgentInput, agentPose, callYouBack, createOffice, endShow, isAtStation, lookToward, officeCounts, reactToCritter, relayoutOffice, setYouStatus, startShow,
   stepOffice, syncOffice, syncYou, visitorAgents, visitorArrives, youAgent,
 } from "../officeSim";
 import {
@@ -33,7 +33,7 @@ declare function acquireVsCodeApi(): { postMessage(message: unknown): void };
 interface OfficeMessage {
   type: "office";
   scene: string;
-  agents: AgentInput[];
+  agents: AgentMessage[];
   you: PixelGuyLook | null;
   critters?: boolean;
   fliers?: boolean;
@@ -45,8 +45,27 @@ interface OfficeMessage {
   bubbleLook?: unknown;
   // False makes every guy human.
   races?: boolean;
-  // The session the Session sidebar shows: his guy wears a crown.
+  // The highlighted agent: his guy wears a crown.
   focusedId?: string | null;
+  // What your guy is up to: auto, busy, or idle.
+  youStatus?: unknown;
+}
+
+// An agent as the extension sends it: a custom look, when it has one, replaces the look from its seed.
+type AgentMessage = AgentInput & { look?: PixelGuyLook };
+
+// Send in a visitor now: a department id, or any other value for a random one.
+interface VisitorMessage {
+  type: "visitor";
+  kind?: string;
+}
+
+// Put a line over a guy ("you" for yours).
+interface SayMessage {
+  type: "say";
+  id: string;
+  text: string;
+  seconds?: number;
 }
 
 interface TintMessage {
@@ -185,8 +204,16 @@ new ResizeObserver(() => {
   }
 }).observe(canvas);
 
-window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEventMessage | TintMessage | PerformanceMessage>) => {
+window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEventMessage | TintMessage | PerformanceMessage | VisitorMessage | SayMessage>) => {
   const data = event.data;
+  if (data !== null && typeof data === "object" && data.type === "visitor") {
+    sendVisitor(typeof data.kind === "string" ? data.kind : undefined);
+    return;
+  }
+  if (data !== null && typeof data === "object" && data.type === "say") {
+    sayLine(data);
+    return;
+  }
   if (data !== null && typeof data === "object" && data.type === "performance") {
     playShow(isPerformanceKind(data.kind) ? data.kind : undefined);
     return;
@@ -217,7 +244,7 @@ window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEve
     racesOn = nextRaces;
     // Redraw the session guys; your look and visitors already in the room keep theirs.
     for (const key of [...lookCache.keys()]) {
-      if (!key.startsWith("you|") && !key.startsWith("visitor|") && !key.startsWith("show|")) {
+      if (!key.startsWith("you|") && !key.startsWith("visitor|") && !key.startsWith("show|") && !customLooks.has(key)) {
         lookCache.delete(key);
       }
     }
@@ -257,9 +284,12 @@ window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEve
       fitLayout();
     }
   }
-  latestInputs = data.agents.filter((agent) =>
-    typeof agent?.id === "string" && (agent.status === "working" || agent.status === "idle" || agent.status === "asleep"),
+  const agents = data.agents.filter((agent) =>
+    typeof agent?.id === "string" && typeof agent.seed === "string" && (agent.status === "working" || agent.status === "idle" || agent.status === "asleep"),
   );
+  setCustomLooks(agents);
+  latestInputs = agents.map(({ id, seed, status, title }) => ({ id, seed, status, title: typeof title === "string" ? title : "" }));
+  const nextYouStatus = data.youStatus === "busy" || data.youStatus === "idle" ? data.youStatus : "auto";
   // Grow or shrink the room first, so newcomers get one of the new desks.
   if (width > 0 && height > 0) {
     fitLayout();
@@ -267,6 +297,7 @@ window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEve
   // The first sync seats everyone where they belong; later ones walk newcomers in from the door.
   syncOffice(state, latestInputs, random, hasSynced ? "door" : "seated");
   syncYou(state, youKey, random);
+  setYouStatus(state, nextYouStatus, random);
   hasSynced = true;
   sceneLabel.textContent = OFFICE_SCENES.find((scene) => scene.id === sceneId)?.label.toLowerCase() ?? "office";
 });
@@ -327,11 +358,15 @@ function stepVisitors(): void {
     return;
   }
   nextVisitorAt = state.time + visitorGap(random, visitorsSetting);
-  // Nobody to talk to.
+  sendVisitor(undefined);
+}
+
+// Sends in a visitor from this department, or a random one, if there's anyone to talk to and room for him.
+function sendVisitor(kindId: string | undefined): void {
   if (!state.agents.some((agent) => agent.visitor === undefined)) {
     return;
   }
-  const plan = planVisit(random);
+  const plan = planVisit(random, kindId);
   visitCount += 1;
   // A dozen looks per department, each with its own race.
   const seed = `visitor|${plan.kind.id}|${visitCount % 12}`;
@@ -409,6 +444,7 @@ function playShow(kind: PerformanceKindId | undefined): void {
   });
   if (startShow(state, { kind: plan.kind, title: plan.title, performers, lines: plan.lines, closer: plan.closer, length: plan.length, food: plan.food }, random)) {
     nextShowAt = Math.max(nextShowAt, state.time + plan.length + 120);
+    vscode.postMessage({ type: "showStart", kind: plan.kind });
   }
 }
 
@@ -418,6 +454,7 @@ function currentEvent(): YourEvent | undefined {
   }
   sceneEvent.age = state.time - sceneEvent.start;
   if (sceneEvent.age >= yourEventSeconds(sceneEvent.kind)) {
+    vscode.postMessage({ type: "eventEnd", kind: sceneEvent.kind });
     sceneEvent = undefined;
   }
   return sceneEvent;
@@ -426,6 +463,40 @@ function currentEvent(): YourEvent | undefined {
 // ----- Sprites -----
 
 const lookCache = new Map<string, PixelGuyLook>();
+// Agents' custom looks by seed: they win over the look the seed would give.
+const customLooks = new Map<string, string>();
+
+function setCustomLooks(agents: readonly AgentMessage[]): void {
+  const next = new Map<string, PixelGuyLook>();
+  for (const agent of agents) {
+    if (agent.look !== null && typeof agent.look === "object") {
+      next.set(agent.seed, agent.look);
+    }
+  }
+  for (const seed of new Set([...customLooks.keys(), ...next.keys()])) {
+    const look = next.get(seed);
+    const text = look === undefined ? undefined : JSON.stringify(look);
+    if (text === customLooks.get(seed)) {
+      continue;
+    }
+    if (look === undefined || text === undefined) {
+      customLooks.delete(seed);
+      lookCache.delete(seed);
+    } else {
+      customLooks.set(seed, text);
+      lookCache.set(seed, look);
+    }
+    forgetSprites(seed);
+  }
+}
+
+function forgetSprites(seed: string): void {
+  for (const key of [...spriteCache.keys()]) {
+    if (key.startsWith(`${seed}|`)) {
+      spriteCache.delete(key);
+    }
+  }
+}
 
 // The maintenance crew's uniform: hi-vis orange, work pants, and a yellow cap.
 const CREW_UNIFORM: Partial<PixelGuyLook> = { shirt: "#F28C28", pants: "#2F3E55", shoes: "#3A2B26", accessory: "cap", accessoryColor: "#E8B931" };
@@ -2090,7 +2161,7 @@ function draw(seconds: number): void {
     }
     const bubble = box.agent.bubble;
     if (bubble !== undefined) {
-      const priority = box.agent.performer !== undefined ? "must" : box.agent.visitor !== undefined ? "high" : "normal";
+      const priority = box.agent.performer !== undefined ? "must" : box.agent.visitor !== undefined || hostLines.has(bubble) ? "high" : "normal";
       lines.push(spokenLine(box.agent.id, box.agent.seed, bubble, priority, box, box.top - (crowned ? 14 : 11)));
     }
   });
@@ -2387,6 +2458,32 @@ function drawFlight(current: Flight, seconds: number, glowing: boolean): void {
   context.restore();
 }
 
+// Notices when a show ends, however it ended, for the extension's onDidEndShow.
+let showOn: string | undefined;
+function noticeShowEnd(): void {
+  const now = state.show?.kind;
+  if (showOn !== undefined && now !== showOn) {
+    vscode.postMessage({ type: "showEnd", kind: showOn });
+  }
+  showOn = now;
+}
+
+// A line over a guy, from the extension: anyone in the room, or "you". Kept short so it fits a bubble.
+function sayLine(data: SayMessage): void {
+  if (typeof data.text !== "string" || data.text.trim() === "") {
+    return;
+  }
+  const agent = state.agents.find((candidate) => (data.id === "you" ? candidate.you : candidate.id === data.id));
+  if (agent === undefined) {
+    return;
+  }
+  const seconds = typeof data.seconds === "number" && Number.isFinite(data.seconds) ? Math.min(20, Math.max(1, data.seconds)) : 3;
+  agent.bubble = { text: data.text.trim().slice(0, 80), until: state.time + seconds };
+  hostLines.add(agent.bubble);
+}
+// Lines the extension sent: they go ahead of the room's own chatter.
+const hostLines = new WeakSet<object>();
+
 let frameHandle = 0;
 let lastTime: number | undefined;
 function loop(now: number): void {
@@ -2399,6 +2496,7 @@ function loop(now: number): void {
     playRoomReactions();
     stepCritters();
     stepFliers();
+    noticeShowEnd();
   }
   lastTime = seconds;
   if (width > 0 && height > 0) {
@@ -2477,7 +2575,9 @@ canvas.addEventListener("mouseleave", () => {
 canvas.addEventListener("click", (event) => {
   const agent = agentAt(event.clientX, event.clientY);
   if (agent !== undefined && !agent.you && agent.visitor === undefined && agent.crew === undefined && agent.performer === undefined) {
-    vscode.postMessage({ type: "open", sessionId: agent.id });
+    vscode.postMessage({ type: "click", id: agent.id });
+  } else if (agent?.you === true) {
+    vscode.postMessage({ type: "click", id: "you" });
   }
 });
 

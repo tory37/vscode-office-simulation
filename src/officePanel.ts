@@ -3,12 +3,18 @@ import * as fs from "fs";
 import * as vscode from "vscode";
 import { BUBBLE_LOOKS, BubbleLook, bubbleLook, CHATTER_LABELS, CHATTER_STYLES, chatterStyle, TALK_FREQUENCIES, TalkFrequency, talkFrequency } from "./officeChatter";
 import { OFFICE_SCENES, officeSceneId } from "./officeLayout";
-import type { AgentInput } from "./officeSim";
+import type { AgentInput, YouStatus } from "./officeSim";
+import { SCENE_EVENT_KINDS, SceneEventKind } from "./sceneEventSchedule";
 import { isPerformanceKind, PERFORMANCE_KINDS, PERFORMANCES, performanceFrequency, PerformanceKindId } from "./officePerformances";
 import { visitorFrequency } from "./officeVisitors";
 import { PixelGuyLook, yourLook } from "./pixelGuy";
 
 export const OFFICE_PANEL_VIEW_ID = "officeSim.office";
+// True while another extension hosts the Office in its own view; the Office's own view hides.
+const HOSTED_CONTEXT = "officeSim.hosted";
+
+// An agent as the webview takes it: a custom look, when there is one, replaces the look from the seed.
+export type OfficeAgentInput = AgentInput & { look?: PixelGuyLook };
 const SCENE_SETTING = "officeSim.scene";
 const YOU_SETTING = "officeSim.you";
 const YOUR_LOOK_SETTING = "officeSim.yourLook";
@@ -35,11 +41,20 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
   // A show asked for before the view was open, played once it says it's ready.
   private pendingShow: { kind: PerformanceKindId | "random" } | undefined;
   private readonly listeners: vscode.Disposable[];
-  private agents: AgentInput[] = [];
+  private agents: OfficeAgentInput[] = [];
   private focusedId: string | undefined;
+  private youStatus: YouStatus = "auto";
+  // Views other extensions host through attachView. While one is open, the Office's own view hides.
+  private readonly hostedViews = new Set<vscode.WebviewView>();
   private readonly clickEmitter = new vscode.EventEmitter<string>();
-  // A guy was clicked: his agent id.
+  // A guy was clicked: his agent id, or "you".
   readonly onDidClickAgent = this.clickEmitter.event;
+  private readonly showStartEmitter = new vscode.EventEmitter<PerformanceKindId>();
+  readonly onDidStartShow = this.showStartEmitter.event;
+  private readonly showEndEmitter = new vscode.EventEmitter<PerformanceKindId>();
+  readonly onDidEndShow = this.showEndEmitter.event;
+  private readonly eventEndEmitter = new vscode.EventEmitter<SceneEventKind>();
+  readonly onDidFinishEvent = this.eventEndEmitter.event;
   private readonly readyEmitter = new vscode.EventEmitter<vscode.Webview>();
   // A webview started and has its first state.
   readonly onDidBecomeReady = this.readyEmitter.event;
@@ -52,6 +67,23 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
         }
       }),
     ];
+  }
+
+  // Draws the Office in a view another extension contributes.
+  attachView(webviewView: vscode.WebviewView): vscode.Disposable {
+    this.hostedViews.add(webviewView);
+    this.updateHosted();
+    this.resolveWebviewView(webviewView);
+    const detach = () => {
+      if (this.hostedViews.delete(webviewView)) {
+        this.updateHosted();
+      }
+    };
+    const disposeListener = webviewView.onDidDispose(detach);
+    return new vscode.Disposable(() => {
+      disposeListener.dispose();
+      detach();
+    });
   }
 
   resolveWebviewView(webviewView: vscode.WebviewView): void {
@@ -87,23 +119,27 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
   }
 
   // The workers in the room besides you, and whose guy wears the crown.
-  setAgents(agents: readonly AgentInput[], focusedId?: string): void {
+  setAgents(agents: readonly OfficeAgentInput[], focusedId?: string): void {
     this.agents = [...agents];
     this.focusedId = focusedId;
     this.postAll();
   }
 
+  setYouStatus(status: YouStatus): void {
+    this.youStatus = status;
+    this.postAll();
+  }
+
   dispose(): void {
     this.listeners.forEach((listener) => listener.dispose());
-    this.clickEmitter.dispose();
-    this.readyEmitter.dispose();
+    [this.clickEmitter, this.readyEmitter, this.showStartEmitter, this.showEndEmitter, this.eventEndEmitter].forEach((emitter) => emitter.dispose());
   }
 
   private handleMessage(webview: vscode.Webview, message: unknown): void {
     if (typeof message !== "object" || message === null) {
       return;
     }
-    const { type, sessionId } = message as { type?: unknown; sessionId?: unknown };
+    const { type, id, kind } = message as { type?: unknown; id?: unknown; kind?: unknown };
     if (type === "ready") {
       void webview.postMessage(this.message());
       if (this.pendingShow !== undefined) {
@@ -111,9 +147,19 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
         this.pendingShow = undefined;
       }
       this.readyEmitter.fire(webview);
-    } else if (type === "open" && typeof sessionId === "string") {
-      this.clickEmitter.fire(sessionId);
+    } else if (type === "click" && typeof id === "string") {
+      this.clickEmitter.fire(id);
+    } else if (type === "showStart" && isPerformanceKind(kind)) {
+      this.showStartEmitter.fire(kind);
+    } else if (type === "showEnd" && isPerformanceKind(kind)) {
+      this.showEndEmitter.fire(kind);
+    } else if (type === "eventEnd" && SCENE_EVENT_KINDS.includes(kind as SceneEventKind)) {
+      this.eventEndEmitter.fire(kind as SceneEventKind);
     }
+  }
+
+  private updateHosted(): void {
+    void vscode.commands.executeCommand("setContext", HOSTED_CONTEXT, this.hostedViews.size > 0);
   }
 
   private postAll(): void {
@@ -127,7 +173,7 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
   private message(): {
     type: "office";
     scene: string;
-    agents: AgentInput[];
+    agents: OfficeAgentInput[];
     you: PixelGuyLook | null;
     critters: boolean;
     fliers: boolean;
@@ -139,6 +185,7 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
     bubbleLook: string;
     races: boolean;
     focusedId: string | null;
+    youStatus: YouStatus;
   } {
     const configuration = vscode.workspace.getConfiguration();
     const you = configuration.get<boolean>(YOU_SETTING, true) ? yourLook(configuration.get<unknown>(YOUR_LOOK_SETTING)) : null;
@@ -157,6 +204,7 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
       bubbleLook: bubbleLook(configuration.get<unknown>(BUBBLE_LOOK_SETTING)),
       races: configuration.get<boolean>(RACES_SETTING, true),
       focusedId: this.focusedId ?? null,
+      youStatus: this.youStatus,
     };
   }
 }

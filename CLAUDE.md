@@ -28,6 +28,8 @@ committed site bundle doesn't match the source.
 - `docs/office.html`: one live Office, the webview's markup with a stand-in for `acquireVsCodeApi`.
 - `docs/site.js`: `OfficeDemo`, which embeds one, runs it only while it's near the screen, and drives it with the same
   messages the extension sends.
+- `OfficeDemo.api` in `docs/site.js` mirrors the extension's API on a demo, so examples read like host code. Keep it
+  in step with `src/api.ts`.
 - `docs/siteData.js`: generated from `src/site/data.ts` and `package.json` (lists, settings, commands). Add a list
   there instead of copying it into the page.
 
@@ -35,8 +37,11 @@ committed site bundle doesn't match the source.
 
 | File | Job |
 | --- | --- |
-| `extension.ts` | Activate: the view provider and commands. |
-| `officePanel.ts` | The Office view: sends the webview the `officeSim.*` settings, your look, and the agents set through `setAgents`; fires `onDidClickAgent` when a guy is clicked. Switch Scene, Play Show, and Chatter (style, bubble look, talk frequency) commands; `extension.ts` adds Play Scene Event. |
+| `extension.ts` | Activate: the view provider, the director, commands (Play Scene Event here), and returns the API. |
+| `officeSimulationApi.ts` | The public API's types, and only types (imports nothing but `vscode`), so `npm run build` copies it as is to `api/officeSimulationApi.d.ts` for hosts. Version 1: add members, never change them. |
+| `api.ts` | `createOfficeApi`: the API object. Checks every input (hosts are other extensions), then calls the panel and director. The first `playEvent` or `setTint` takes over from the Office's own schedule. |
+| `apiAgents.ts` | Pure: host input to webview input. Agents (busy to working, seed defaults to the id, a partial `look` filled from the seed's look by `readLook`, the first highlighted gets the crown; bad entries, duplicates, and the id `you` dropped), your guy's status, and a `say` line (80 characters, 1-20 seconds). |
+| `officePanel.ts` | The Office view: sends the webview the `officeSim.*` settings, your look and status, and the agents; `attachView` draws it in a host's view (the `officeSim.hosted` context key hides the Office's own view meanwhile); `broadcast` sends one message to every open Office; fires click, show start and end, finished event, and ready from the webview's messages. Switch Scene, Play Show, and Chatter (style, bubble look, talk frequency) commands; `extension.ts` adds Play Scene Event. |
 | `officeDirector.ts` | Plays scene events on the `officeSim.events` schedule and moves your monitor's tint every 20-40s, until a host plays them through the API (then those stop for good). Sends a new view the current tint. |
 | `officeEvents.ts` | Pure: the `officeSim.events` frequency, event and tint gaps, and the kind pick. |
 | `site/data.ts` | The lists the docs site shows, bundled into `docs/siteData.js` by `scripts/site.mjs`. |
@@ -56,6 +61,12 @@ committed site bundle doesn't match the source.
 | `deskStyles.ts` | Pure: the desk styles (colors and a decor: crates, candle, glow strip, coral, gold) and the map from race to style. |
 | `officeSim.ts` | Pure: the Office's guys. Desks: `placed` holds the standing desks (index to the seed they came in for); spots are floor until then. When an agent's desk is missing or a desk has no agent, `manageCrew` sends in two maintenance guys (`crew`): fetch at the door, carry it to the spot (the partner carries the chair or stands by), build, walk out; or take it apart and haul it out. A guy with no desk yet waits below its spot (`waitDesk`). Seated agents on open and a relayout get their desks at once. Busy types at his desk; idle sits back, then goes to a prop, the couch, a walk, or a chat with another idle guy; busy again runs back. Asleep sleeps at his desk. An agent that goes away walks out the door. Overflow works from the couch. You're an agent too (`syncYou`): you take breaks from your station to wander, chat, or visit a busy guy's desk, and `callYouBack` runs you back for a scene event. `reactToCritter` has idle guys near a passing critter stop, face it, and say a line. `visitorArrives` walks a visitor (not an agent: no desk, not counted, skipped by `syncOffice`) to the middle of the room to say his lines, then out, or he stays a while as an idle guy (chats, props, the couch, looming at a busy guy's desk) making small talk the guys answer in character, then says bye; his `remarks` count tells the view when the room should answer. `lookToward` turns idle guys to him. `startShow` walks a show's performers (not agents) to a stage picked for the most open floor in front, then gathers the idle and asleep guys (and you on a break) into a crowd facing it; the lead says the script's lines, cues make the crowd answer and cheer, food shows hand out snacks; after the closer and bows `endShow` sends everyone back. A relayout keeps the show if its stage is still open floor. |
 | `officeView/` | The Office webview's own bundle (`dist/officeView.js`, `tsconfig.webview.json` for DOM types): sizes the room from `officeShape` at a whole-device-pixel zoom, draws it and the sprites back to front, runs `officeSim` each frame, pauses while hidden. The room sits flush with the bottom of the view. Your second monitor's graph follows the tint messages (Overseer sends its Core view's bursts), in the spectrum order Overseer's views share. `luckyCat.ts` draws the waving lucky cat clock on the back wall; `scenery.ts` the beach, snowfield, desert, reef, library, and rooftop scenes' back rows, ground, props, prop light, snow and bubbles, and the city's lit windows; `shows.ts` the shows' gear, set pieces, food, spotlight, mirror ball, and particles; `critters.ts` holds the critter sprites; `fliers.ts` the flier sprites, shadows, and trails. A light map multiplies the room by `officeDaylight`'s tint, keeps open sky bright, and adds pools around screens, lamps, and fires; bubbles draw after it, lifted out of each other's way, as many as the chatter style shows (`officeChatter`); the rest are "..." pips. The chat log uses the free space above the room (the log style makes a strip if there is none), drawn in screen pixels in the editor font with each speaker's face. Sends visitors in on the frequency setting and has the room answer them (everyone for arrival lines, guys within 4 tiles for small talk). Puts on shows on their frequency setting, and at once on a `performance` message. |
+
+## Tests
+
+`test/fakes/vscode.ts` stands in for the `vscode` module (vitest aliases it), so the extension side runs in unit tests:
+`FakeWebviewView` records what's posted and sends messages back, and `fake` holds settings and executed commands.
+`test/unit/api.test.ts` is the API's contract.
 
 ## Rules
 

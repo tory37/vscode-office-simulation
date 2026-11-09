@@ -1,7 +1,7 @@
 import { SLEEP_LINES, WAKE_TO_WORK_LINES } from "../../src/officePhrases";
 import { describe, expect, it } from "vitest";
 import { buildOfficeLayout } from "../../src/officeLayout";
-import { Agent, AgentInput, agentPose, callYouBack, createOffice, crewAgents, endShow, hasDesk, isAtStation, officeCounts, OfficeState, relayoutOffice, ShowInput, showPerformers, startShow, stepOffice, syncOffice, syncYou, youAgent } from "../../src/officeSim";
+import { Agent, AgentInput, agentPose, callYouBack, createOffice, crewAgents, endShow, hasDesk, isAtStation, officeCounts, OfficeState, relayoutOffice, setYouStatus, ShowInput, showPerformers, startShow, stepOffice, syncOffice, syncYou, youAgent } from "../../src/officeSim";
 import { PERFORMANCES, PerformanceKindId, planPerformance } from "../../src/officePerformances";
 import { seededRandom } from "../../src/pixelGuy";
 
@@ -284,6 +284,44 @@ describe("officeSim", () => {
       expect(officeCounts(state)).toEqual({ working: 2, idle: 0, asleep: 0 });
       syncOffice(state, [input("a", "working")], random);
       expect(youAgent(state)).toBeDefined();
+    });
+
+    it("stays at his station while busy, and runs back to it from a break", () => {
+      const random = seededRandom(23);
+      const state = office(random);
+      const you = youAgent(state) as Agent;
+      setYouStatus(state, "idle", random);
+      run(state, 20, random);
+      expect(isAtStation(you)).toBe(false);
+      setYouStatus(state, "busy", random);
+      run(state, 20, random);
+      expect(isAtStation(you)).toBe(true);
+      for (let step = 0; step < 4000; step++) {
+        stepOffice(state, 0.05, random);
+        expect(isAtStation(you)).toBe(true);
+      }
+    });
+
+    it("stays on his break while idle, and picks the loop back up on auto", () => {
+      const random = seededRandom(24);
+      const state = office(random);
+      const you = youAgent(state) as Agent;
+      setYouStatus(state, "idle", random);
+      run(state, 10, random);
+      let atStation = 0;
+      for (let step = 0; step < 4000; step++) {
+        stepOffice(state, 0.05, random);
+        atStation += atWorkSpot(you) ? 1 : 0;
+      }
+      expect(you.status).toBe("idle");
+      expect(atStation).toBeLessThan(400);
+      setYouStatus(state, "auto", random);
+      let back = false;
+      for (let step = 0; step < 4000 && !back; step++) {
+        stepOffice(state, 0.05, random);
+        back = isAtStation(you);
+      }
+      expect(back).toBe(true);
     });
 
     it("takes a break now and then, visits busy guys, and comes back on his own", () => {
