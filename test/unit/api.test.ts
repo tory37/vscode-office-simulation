@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type * as vscode from "vscode";
 import { createOfficeApi } from "../../src/api";
 import { agentsFromHost, lineFromHost, youStatusFromHost } from "../../src/apiAgents";
@@ -108,6 +108,25 @@ describe("the API", () => {
     expect(view.last("visitor")).toEqual({ type: "visitor", kind: "ceo" });
     expect(types.filter((type) => type === "say")).toHaveLength(1);
     expect(view.last("say")).toEqual({ type: "say", id: "a", text: "hi there", seconds: 2 });
+  });
+
+  it("stops its own events and tint once a host takes over", () => {
+    vi.useFakeTimers();
+    try {
+      const own = new OfficePanelProvider({ extensionUri: Uri.file("/ext") as unknown as vscode.Uri });
+      const hostApi = createOfficeApi(own, new OfficeDirector(own), new YourGuy(own, memento()));
+      const hosted = new FakeWebviewView();
+      own.resolveWebviewView(hosted as unknown as vscode.WebviewView);
+      hosted.send({ type: "ready" });
+      vi.advanceTimersByTime(3 * 60_000);
+      expect(hosted.posted.some((message) => message.type === "sceneEvent")).toBe(true);
+      hostApi.takeOverEvents();
+      const before = hosted.posted.length;
+      vi.advanceTimersByTime(60 * 60_000);
+      expect(hosted.posted.slice(before).filter((message) => message.type === "sceneEvent" || message.type === "tint")).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("passes on clicks, shows, and finished events", () => {

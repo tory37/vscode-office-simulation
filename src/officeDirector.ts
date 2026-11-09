@@ -39,6 +39,14 @@ export class OfficeDirector implements vscode.Disposable {
     this.office.broadcast(variant === undefined ? message : { ...message, variant });
   }
 
+  // A host plays events and sets the tint from now on.
+  takeOver(): void {
+    this.eventsTakenOver = true;
+    this.tintTakenOver = true;
+    clearTimeout(this.eventTimer);
+    clearTimeout(this.tintTimer);
+  }
+
   setTint(index: number, burst = true, fromHost = false): void {
     if (fromHost) {
       this.tintTakenOver = true;

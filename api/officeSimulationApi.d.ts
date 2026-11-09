@@ -27,6 +27,9 @@ export interface OfficeSimulationApi {
   // Moves your guy's second monitor graph to a tint, an index into the spectrum Overseer's views share (it wraps). The
   // first call stops the Office's own tint cycle.
   setTint(index: number, burst?: boolean): void;
+  // Stops the Office's own event schedule and tint cycle now, for a host that plays its own (playEvent and setTint
+  // do this too, on their first call).
+  takeOverEvents(): void;
   // Puts on a show now, opening the Office first if it isn't showing: a show id, or "random".
   playShow(kind?: OfficeShowKind | "random"): void;
   // Sends in a visitor now: a department id, or a random one.

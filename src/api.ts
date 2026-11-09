@@ -37,6 +37,9 @@ export function createOfficeApi(office: OfficePanelProvider, director: OfficeDir
         director.setTint(index, burst !== false, true);
       }
     },
+    takeOverEvents() {
+      director.takeOver();
+    },
     playShow(kind = "random") {
       office.playShow(isPerformanceKind(kind) ? kind : "random");
     },
