@@ -1,5 +1,7 @@
 // The lists the docs site shows, taken from the code so the site can't drift from it. scripts/site.mjs bundles this
 // into docs/siteData.js as the global OFFICE_SITE.
+import { applyClaudeEvent, mainGuyFor, workersFor } from "../claudeActivity";
+import { HOOK_COMMAND, HOOK_EVENTS, withOfficeHooks } from "../claudeHooks";
 import { BUBBLE_LOOKS, CHATTER_LABELS, CHATTER_STYLES, TALK_FREQUENCIES } from "../officeChatter";
 import { OFFICE_SCENES, OUTDOOR_SCENES } from "../officeLayout";
 import { PERFORMANCE_KINDS, PERFORMANCES } from "../officePerformances";
@@ -21,4 +23,6 @@ export const OFFICE_SITE = {
   visitorKinds: [...VISITOR_KINDS],
   races: RACES.map((race) => ({ id: race.id, label: race.label })),
   defaultLook: DEFAULT_YOUR_LOOK,
+  // The Claude Code bridge's own logic, so the site's demo maps hook events exactly as the extension does.
+  claude: { applyClaudeEvent, mainGuyFor, workersFor, hookEvents: [...HOOK_EVENTS], hookCommand: HOOK_COMMAND, exampleSettings: withOfficeHooks({}) },
 };

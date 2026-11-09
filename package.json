@@ -70,6 +70,17 @@
         "title": "Customize Your Guy…",
         "category": "Office",
         "icon": "$(person)"
+      },
+      {
+        "command": "officeSim.connectClaude",
+        "title": "Connect Claude Code…",
+        "category": "Office",
+        "enablement": "!officeSim.claudeConnected"
+      },
+      {
+        "command": "officeSim.disconnectClaude",
+        "title": "Disconnect Claude Code",
+        "category": "Office"
       }
     ],
     "menus": {
@@ -406,6 +417,11 @@
             }
           },
           "additionalProperties": false
+        },
+        "officeSim.claude.workers": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "With Claude Code connected (**Office: Connect Claude Code…**), give each Claude session in this window's folders a worker of its own, busy while Claude works and idle when it stops. Your guy works while any of them does. An extension that sends its own workers (Overseer does) takes over from this."
         }
       }
     }

@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { createOfficeApi } from "./api";
+import { ClaudeBridge } from "./claudeBridge";
 import { OfficeDirector } from "./officeDirector";
 import { isEventKind } from "./officeEvents";
 import { OFFICE_PANEL_VIEW_ID, OfficePanelProvider, registerOfficeCommands } from "./officePanel";
@@ -13,10 +14,14 @@ export function activate(context: vscode.ExtensionContext): OfficeSimulationApi 
   const office = new OfficePanelProvider({ extensionUri: context.extensionUri });
   const director = new OfficeDirector(office);
   const yourGuy = new YourGuy(office, context.globalState);
+  const claude = new ClaudeBridge(office);
   context.subscriptions.push(
     office,
     director,
     yourGuy,
+    claude,
+    vscode.commands.registerCommand("officeSim.connectClaude", () => claude.connect()),
+    vscode.commands.registerCommand("officeSim.disconnectClaude", () => claude.disconnect()),
     vscode.commands.registerCommand("officeSim.customizeYou", () => yourGuy.customize()),
     vscode.window.registerWebviewViewProvider(OFFICE_PANEL_VIEW_ID, office, { webviewOptions: { retainContextWhenHidden: true } }),
     ...registerOfficeCommands(office),

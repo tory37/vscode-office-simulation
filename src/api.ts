@@ -22,9 +22,11 @@ export function createOfficeApi(office: OfficePanelProvider, director: OfficeDir
     apiVersion: 1,
     setAgents(agents) {
       const { agents: inputs, focusedId } = agentsFromHost(agents, racesOn());
+      office.hostOwnsAgents = true;
       office.setAgents(inputs, focusedId);
     },
     setMainGuy(status) {
+      office.hostOwnsMainGuy = true;
       office.setYouStatus(youStatusFromHost(status));
     },
     playEvent(kind, variant) {

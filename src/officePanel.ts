@@ -41,6 +41,10 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
   // A show asked for before the view was open, played once it says it's ready.
   private pendingShow: { kind: PerformanceKindId | "random" } | undefined;
   private readonly listeners: vscode.Disposable[];
+  // Set once another extension sends agents or drives your guy through the API: the Claude Code bridge then leaves
+  // them to it.
+  hostOwnsAgents = false;
+  hostOwnsMainGuy = false;
   private agents: OfficeAgentInput[] = [];
   private focusedId: string | undefined;
   private youStatus: YouStatus = "auto";

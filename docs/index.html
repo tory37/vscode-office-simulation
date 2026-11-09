@@ -136,6 +136,7 @@
     <a href="#how">How it works</a>
     <a href="#hooks">Hooks</a>
     <a href="#maker">Character maker</a>
+    <a href="#claude">Claude Code</a>
     <a href="#settings">Settings</a>
     <a href="#commands">Commands</a>
     <a href="#contributing">Contributing</a>
@@ -445,6 +446,41 @@ if (api?.apiVersion === 1) {
   </div>
 </section>
 
+<section id="claude">
+  <div class="wrap prose">
+    <h2>Claude Code</h2>
+    <p class="lead">Without any other extension, the Office can follow Claude Code itself. Run <em>Office: Connect Claude Code…</em>: after you confirm, it adds a few hooks to <code>~/.claude/settings.json</code> (and keeps a backup of the file the first time). Your guy works while Claude does, and each Claude session in this window's folders gets a worker of his own (<code>officeSim.claude.workers</code>).</p>
+    <p>Each hook appends Claude's hook input to <code>~/.claude/office-simulation/events.jsonl</code> and prints nothing, so the agent never sees it and nothing slows down. <em>Office: Disconnect Claude Code</em> takes out exactly those hooks and leaves yours. If an extension like Overseer drives the Office, it takes over and the bridge stands aside.</p>
+    <div class="table-scroll"><table><thead><tr><th>Hook</th><th>In the Office</th></tr></thead><tbody>
+      <tr><td><code>SessionStart</code></td><td>A worker walks in and waits for a desk.</td></tr>
+      <tr><td><code>UserPromptSubmit</code></td><td>He gets busy, and your guy runs back to his station. His first prompt is his title.</td></tr>
+      <tr><td><code>Notification</code></td><td>He stops and says "need you!"</td></tr>
+      <tr><td><code>Stop</code></td><td>He says "done!" and goes idle. Your guy takes his breaks again once nobody's busy.</td></tr>
+      <tr><td><code>SessionEnd</code></td><td>He walks out, and his desk gets hauled away.</td></tr>
+    </tbody></table></div>
+    <h3>What it adds</h3>
+<pre><code id="claude-settings"></code></pre>
+  </div>
+  <div class="wrap">
+    <div class="demos">
+      <div class="demo" style="grid-column: 1 / -1">
+        <h3>Pretend Claude</h3>
+        <p>These buttons send hook lines through the same code the extension uses.</p>
+        <div id="demo-claude" style="height:320px"></div>
+        <div class="controls">
+          <button id="claude-start">SessionStart (new session)</button>
+          <label>session <select id="claude-session"></select></label>
+          <button data-claude="UserPromptSubmit">UserPromptSubmit</button>
+          <button data-claude="Notification">Notification</button>
+          <button data-claude="Stop">Stop</button>
+          <button data-claude="SessionEnd">SessionEnd</button>
+        </div>
+<pre><code id="claude-line">// The hook line appears here.</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="settings">
   <div class="wrap">
     <h2>Settings</h2>
@@ -731,6 +767,40 @@ npx serve docs      # or any static server, then open the page</code></pre>
     },
   };
   document.querySelectorAll("[data-api]").forEach((element) => element.addEventListener("click", () => actions[element.dataset.api]()));
+
+
+  // Pretend Claude: hook lines through the bridge's own logic.
+  const claudeDemo = new OfficeDemo(document.getElementById("demo-claude"), { agents: [], visitors: "off", performances: "off" });
+  document.getElementById("claude-settings").textContent = JSON.stringify(SITE.claude.exampleSettings, null, 2);
+  const claudeSessions = new Map();
+  const claudeSelect = document.getElementById("claude-session");
+  const PROMPTS = ["Fix the flaky login test", "Add a dark mode toggle", "Why is the build slow?", "Write the changelog", "Port this to TypeScript"];
+  let claudeCount = 0;
+  const showClaude = () => {
+    const sessions = [...claudeSessions.values()];
+    claudeDemo.api.setMainGuy(SITE.claude.mainGuyFor(sessions));
+    claudeDemo.api.setAgents(SITE.claude.workersFor(sessions));
+    const current = claudeSelect.value;
+    claudeSelect.innerHTML = "";
+    options(claudeSelect, sessions.map((session) => ({ id: session.id, label: session.title === "Claude" ? session.id : session.title })), current);
+  };
+  const sendHook = (event, sessionId) => {
+    const input = { hook_event_name: event, session_id: sessionId, cwd: "/work/app", ...(event === "UserPromptSubmit" ? { prompt: PROMPTS[claudeCount % PROMPTS.length] } : {}), ...(event === "Notification" ? { message: "Claude needs your permission to use Bash" } : {}) };
+    document.getElementById("claude-line").textContent = JSON.stringify(input);
+    const said = SITE.claude.applyClaudeEvent(claudeSessions, { event, sessionId, cwd: input.cwd, prompt: input.prompt, message: input.message }, Date.now());
+    showClaude();
+    if (said) setTimeout(() => claudeDemo.api.say(`claude-${sessionId}`, said, 3), 300);
+  };
+  document.getElementById("claude-start").addEventListener("click", () => {
+    claudeCount += 1;
+    const id = `session-${claudeCount}`;
+    sendHook("SessionStart", id);
+    claudeSelect.value = id;
+  });
+  document.querySelectorAll("[data-claude]").forEach((element) => element.addEventListener("click", () => {
+    if (!claudeSelect.value) document.getElementById("claude-start").click();
+    sendHook(element.dataset.claude, claudeSelect.value);
+  }));
 
   // Settings and commands, from package.json.
   const escape = (text) => String(text).replace(/[&<>]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[character]);

@@ -46,6 +46,9 @@ committed site bundle doesn't match the source.
 | `officeEvents.ts` | Pure: the `officeSim.events` frequency, event and tint gaps, and the kind pick. |
 | `yourGuy.ts` | Your guy: Customize Your Guy (and a click on him) opens the maker on `officeSim.yourLook` and saves the result there; the maker opens by itself the first time an Office view is ready, unless you set a look already or turned `officeSim.you` off (`officeSim.madeYourGuy` in globalState); `onDidChangeYourLook`. |
 | `characterMaker.ts` | Pure: what the maker offers for a look (the race narrows hair styles and accessories, its own colors come first, marks only for races with them), `changeRace` (the race's first colors, keeps the clothes, human takes the race off), and `randomLook`. |
+| `claudeHooks.ts` | Pure: the Claude Code hooks Connect adds to `~/.claude/settings.json` (SessionStart, UserPromptSubmit, Stop, Notification, SessionEnd), each a shell append of the hook input to `~/.claude/office-simulation/events.jsonl` that prints nothing; adding them beside yours, and taking out only ours (found by the events file in the command). |
+| `claudeActivity.ts` | Pure: hook lines to sessions (busy on a prompt, idle on stop, waiting on a notification, gone on end; the first prompt is the title), stale ones forgotten after 2 hours unless busy, the workspace filter, your guy's status (busy while any session is), and a worker per session. |
+| `claudeBridge.ts` | Connect Claude Code (confirms, backs up `settings.json` once, refuses a file it can't parse) and Disconnect; polls the events file every 1.5s from where it was when connected, whole lines only, clears it past 2 MB; drives your guy and, with `officeSim.claude.workers`, the workers, unless a host has (`hostOwnsMainGuy`, `hostOwnsAgents` on the panel). |
 | `site/data.ts` | The lists the docs site shows, bundled into `docs/siteData.js` by `scripts/site.mjs`. |
 | `sceneEventSchedule.ts` | Pure: the scene event kinds, lengths and beats, the HACK phrase pairs, the DEFENSE scripts, the ERROR lines, and the variant pick. Overseer keeps its own copy for its views and its director. |
 | `pixelCanvas.ts` | Pure: the pixel guys' drawing grid, 10 wide and 16 tall with 2 rows of head room above (y = -1, -2) for horns and ears; its palette keys; `shadeHex` and `mixHex`. |
@@ -77,6 +80,7 @@ committed site bundle doesn't match the source.
 - Keep logic that can be pure in pure modules and test it there. `vscode` can't be imported in unit tests, and the
   webview's modules can't touch the DOM outside `officeView/`.
 - The API is public: never break it in a minor release. Add, don't change; bump `apiVersion` for anything else.
-- Never print to stdout from a Claude Code hook script: some hooks add their output to the agent's context.
+- Never print to stdout from a Claude Code hook: some hooks add their output to the agent's context. The bridge's
+  hooks only append to a file; keep them that way, and never touch hooks that aren't ours.
 - New commands need an entry in `contributes.commands` and, if they only make sense in the view, a `view/title` or
   `commandPalette` `when`.

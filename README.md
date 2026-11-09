@@ -29,6 +29,13 @@ The Office shows up in its own activity bar container.
 
 Every setting is listed on the [site](https://tory37.github.io/vscode-office-simulation/#settings).
 
+## Claude Code
+
+**Office: Connect Claude Code…** adds a few hooks to `~/.claude/settings.json` (after you confirm, with a backup) so
+the Office follows Claude itself: your guy works while Claude does, and each session in this window's folders gets a
+worker. The hooks only append Claude's hook input to a file and print nothing. **Office: Disconnect Claude Code**
+takes out exactly those.
+
 ## Hook into it
 
 `activate()` returns an API: send workers in with `setAgents`, drive your guy with `setMainGuy`, play scene events,

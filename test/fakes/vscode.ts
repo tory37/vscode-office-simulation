@@ -46,6 +46,9 @@ export const QuickPickItemKind = { Separator: -1 };
 const configChange = new EventEmitter<{ affectsConfiguration: (key: string) => boolean }>();
 
 export const fake = {
+  // The button a test's information message "clicks".
+  answer: undefined as string | undefined,
+  messages: [] as string[],
   settings: new Map<string, unknown>(),
   commands: [] as { command: string; args: unknown[] }[],
   registered: new Map<string, (...args: unknown[]) => unknown>(),
@@ -54,6 +57,8 @@ export const fake = {
     configChange.fire({ affectsConfiguration: (changed) => key === changed || key.startsWith(`${changed}.`) });
   },
   reset(): void {
+    this.answer = undefined;
+    this.messages = [];
     this.settings.clear();
     this.commands = [];
     this.registered.clear();
@@ -67,6 +72,8 @@ export const workspace = {
     inspect: (key: string) => ({ globalValue: fake.settings.get(key) }),
   }),
   onDidChangeConfiguration: configChange.event,
+  workspaceFolders: undefined as { uri: Uri }[] | undefined,
+  onDidChangeWorkspaceFolders: new EventEmitter<void>().event,
 };
 
 export const commands = {
@@ -80,6 +87,14 @@ export const commands = {
 };
 
 export const window = {
+  showInformationMessage: async (message: string) => {
+    fake.messages.push(message);
+    return fake.answer;
+  },
+  showErrorMessage: async (message: string) => {
+    fake.messages.push(message);
+    return undefined;
+  },
   showQuickPick: async () => undefined,
   showInputBox: async () => undefined,
   registerWebviewViewProvider: () => new Disposable(),

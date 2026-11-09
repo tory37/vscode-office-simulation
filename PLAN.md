@@ -22,10 +22,10 @@ it behaves. Each phase ends with tests green, the site updated, and a push.
   portraits through `portraitSvg`, and its sidebar draws the Office through `attachView`. Customize Guy on a session's
   row stores a full look per session (re-roll and reset clear it). `overseer.office.*` settings copy to `officeSim.*`
   once. Offers to install the Office when it's missing.
-- [ ] **5. Claude Code hooks bridge.** Opt-in Connect and Disconnect commands add and remove hooks in
+- [x] **5. Claude Code hooks bridge.** Opt-in Connect and Disconnect commands add and remove hooks in
   `~/.claude/settings.json`. A silent script appends events to a file the extension watches: a prompt makes your guy
-  work, stop makes him idle, a notification makes him wave, a failed tool sets off a small ERROR. Later: a worker per
-  Claude session in the workspace.
+  work, stop makes him idle, a notification makes him wave, a worker per Claude session in the workspace
+  (`officeSim.claude.workers`). The site has a Pretend Claude demo on the same logic.
 - [x] **Site simulator.** One full-size room on the site with a control for every setting and every hook.
 - [ ] **6. Release.** A `.vsix` for both extensions, READMEs, install steps, the site finished.
 

@@ -25,6 +25,91 @@ var OFFICE_SITE_MODULE = (() => {
     OFFICE_SITE: () => OFFICE_SITE
   });
 
+  // src/claudeActivity.ts
+  var TITLE_LENGTH = 48;
+  function titleFrom(prompt) {
+    const text = prompt?.replace(/\s+/g, " ").trim();
+    if (text === void 0 || text === "") {
+      return void 0;
+    }
+    return text.length > TITLE_LENGTH ? `${text.slice(0, TITLE_LENGTH - 1)}\u2026` : text;
+  }
+  function applyClaudeEvent(sessions, event, now) {
+    const known = sessions.get(event.sessionId);
+    if (event.event === "SessionEnd") {
+      sessions.delete(event.sessionId);
+      return void 0;
+    }
+    const session = known ?? { id: event.sessionId, cwd: event.cwd, status: "idle", title: "Claude", lastAt: now };
+    session.cwd = event.cwd || session.cwd;
+    session.lastAt = now;
+    sessions.set(session.id, session);
+    switch (event.event) {
+      case "UserPromptSubmit":
+        session.status = "busy";
+        if (session.title === "Claude") {
+          session.title = titleFrom(event.prompt) ?? session.title;
+        }
+        return void 0;
+      case "Stop":
+        session.status = "idle";
+        return "done!";
+      case "Notification":
+        session.status = "waiting";
+        return "need you!";
+      default:
+        return void 0;
+    }
+  }
+  function mainGuyFor(sessions) {
+    return sessions.some((session) => session.status === "busy") ? "busy" : "auto";
+  }
+  function workersFor(sessions) {
+    return sessions.map((session) => ({
+      id: `claude-${session.id}`,
+      status: session.status === "busy" ? "busy" : "idle",
+      title: session.title,
+      seed: session.id
+    }));
+  }
+
+  // src/claudeHooks.ts
+  var MARKER = "office-simulation/events.jsonl";
+  var HOOK_EVENTS = ["SessionStart", "UserPromptSubmit", "Stop", "Notification", "SessionEnd"];
+  var HOOK_COMMAND = `mkdir -p "$HOME/.claude/office-simulation"; { cat; echo; } >> "$HOME/.claude/${MARKER}"`;
+  var isOurs = (hook) => typeof hook.command === "string" && hook.command.includes(MARKER);
+  function hooksOf(settings) {
+    const hooks = settings.hooks;
+    return hooks !== null && typeof hooks === "object" && !Array.isArray(hooks) ? hooks : {};
+  }
+  function withOfficeHooks(settings) {
+    const cleaned = withoutOfficeHooks(settings);
+    const hooks = { ...hooksOf(cleaned) };
+    for (const event of HOOK_EVENTS) {
+      const entries = Array.isArray(hooks[event]) ? hooks[event] : [];
+      hooks[event] = [...entries, { hooks: [{ type: "command", command: HOOK_COMMAND }] }];
+    }
+    return { ...cleaned, hooks };
+  }
+  function withoutOfficeHooks(settings) {
+    if (!("hooks" in settings)) {
+      return { ...settings };
+    }
+    const hooks = {};
+    for (const [event, entries] of Object.entries(hooksOf(settings))) {
+      if (!Array.isArray(entries)) {
+        hooks[event] = entries;
+        continue;
+      }
+      const kept = entries.map((entry) => Array.isArray(entry?.hooks) ? { ...entry, hooks: entry.hooks.filter((hook) => !isOurs(hook)) } : entry).filter((entry) => !Array.isArray(entry?.hooks) || entry.hooks.length > 0);
+      if (kept.length > 0) {
+        hooks[event] = kept;
+      }
+    }
+    const { hooks: _old, ...rest } = settings;
+    return Object.keys(hooks).length > 0 ? { ...rest, hooks } : rest;
+  }
+
   // src/officeChatter.ts
   var CHATTER_STYLES = ["bubbles", "tidy", "log", "quiet"];
   var CHATTER_LABELS = {
@@ -1660,8 +1745,10 @@ var OFFICE_SITE_MODULE = (() => {
     performanceFrequencies: ["off", "rare", "normal", "often"],
     visitorKinds: [...VISITOR_KINDS],
     races: RACES.map((race) => ({ id: race.id, label: race.label })),
-    defaultLook: DEFAULT_YOUR_LOOK
+    defaultLook: DEFAULT_YOUR_LOOK,
+    // The Claude Code bridge's own logic, so the site's demo maps hook events exactly as the extension does.
+    claude: { applyClaudeEvent, mainGuyFor, workersFor, hookEvents: [...HOOK_EVENTS], hookCommand: HOOK_COMMAND, exampleSettings: withOfficeHooks({}) }
   };
   return __toCommonJS(data_exports);
 })();
-window.OFFICE_SITE = Object.assign(OFFICE_SITE_MODULE.OFFICE_SITE, {"version":"0.1.0","settings":[{"key":"officeSim.scene","type":"string","default":"office","values":["office","serverRoom","forest","field","riverbed","cave","moon","beach","snowfield","desert","reef","library","rooftop"],"description":"The Office view's room. Switch it with **Office: Switch Scene…** or the button on the view."},{"key":"officeSim.critters","type":"boolean","default":true,"description":"Every so often a few critters for the scene run across the Office: mice in the office, foxes and rabbits in the forest, chickens in the field, ducks and frogs by the river, bats in the cave, little aliens on the moon. Idle guys stop to watch."},{"key":"officeSim.fliers","type":"boolean","default":true,"description":"Every so often something for the scene flies over the Office: pigeons and paper planes in the office, drones and ghosts in the server room, owls and hawks in the forest, geese and hot-air balloons over the field, herons and dragonflies by the river, a dragon or a phoenix in the cave, rockets, meteors, and a space whale on the moon. Some only come out by day or by night. Idle guys look up."},{"key":"officeSim.dayNight","type":"boolean","default":true,"description":"Light the Office by your clock: sunrise, golden hour, sunset, and night, with the sun and the real phase of the moon in the sky. Outdoor scenes get dark at night and screens and fires light up around them; the office keeps its lights on; the server room and the cave never see the sky. On the moon a day lasts a month. Off keeps it daytime."},{"key":"officeSim.visitors","type":"string","default":"normal","values":["off","rare","normal","often","packed"],"description":"How often people from other departments (sometimes a manager) drop into the Office. Up to five hang around at once: some say something and leave, others stay a minute or two, and some settle in for a good while to chat, get coffee, and loom over busy guys. Each guy answers in his own way: the suck-up says \"OK BOSS!\", the reasonable ones grumble."},{"key":"officeSim.chatter","type":"string","default":"tidy","values":["tidy","bubbles","log","quiet"],"description":"How the Office shows what the guys say. In every style, hovering a guy shows his line, and your own lines during an event and a show's act are always in bubbles. **Office: Chatter…** switches it from the Office view."},{"key":"officeSim.talk","type":"string","default":"normal","values":["off","rare","normal","often"],"description":"How often the Office guys talk on their own: chats with each other, mutters while typing, and musings while idle. Visitors, shows, events, and critters keep their own lines. **Office: Chatter…** sets it from the Office view."},{"key":"officeSim.bubbleLook","type":"string","default":"soft","values":["solid","soft","faint"],"description":"How the Office's speech bubbles look. The text stays solid, and hovering a guy makes his bubble solid. **Office: Chatter…** sets it from the Office view."},{"key":"officeSim.performances","type":"string","default":"normal","values":["off","rare","normal","often"],"description":"How often someone comes to the Office to put on a show: a guitarist, a band, a lunch or snack trolley, a comedian under a spotlight, a magician, or a DJ with a mirror ball. The idle and sleeping guys gather round to watch, cheer, laugh, and eat; busy guys keep working and get their lunch left on their desks. A show waits until someone is free to watch. Play one now with **Office: Play Show…**."},{"key":"officeSim.events","type":"string","default":"normal","values":["off","rare","normal","often"],"description":"How often your guy acts out a scene event on his own: an ERROR, a HACK, or a DEFENSE, with his monitors and the room joining in. Play one now with **Office: Play Scene Event…**. An extension that plays its own events (Overseer does) takes over from this."},{"key":"officeSim.races","type":"boolean","default":true,"description":"Give the pixel guys races: orcs, elves, aliens, robots, centaurs, ghosts, and 30 more, each as likely as human. Visitors get them too. Pick one for a session with **Pixel Guy → Pick Race…** on its row's menu. Off makes everyone human, except guys you picked a race for."},{"key":"officeSim.you","type":"boolean","default":true,"description":"Put you in the Office: your own guy at a two-monitor station in the middle of the room, who reacts to the ERROR, HACK, and DEFENSE scene events along with his monitors. Make his look with **Office: Customize Your Guy…**."},{"key":"officeSim.yourLook","type":"object","default":{},"description":"Your guy's look. Make it with **Office: Customize Your Guy…** (or click your guy), which opens the character maker and saves here. Leave a field out for the default: a blonde ponytail with one side shaved, blue eyes, a thick orange beard, a black muscle shirt, white shorts, and black flip flops. Colors are `#rrggbb`; `race` takes a race id and `marks` its three colors."}],"commands":[{"id":"officeSim.switchScene","title":"Office: Switch Scene…"},{"id":"officeSim.playShow","title":"Office: Play Show…"},{"id":"officeSim.chatter","title":"Office: Chatter…"},{"id":"officeSim.playEvent","title":"Office: Play Scene Event…"},{"id":"officeSim.customizeYou","title":"Office: Customize Your Guy…"}]});
+window.OFFICE_SITE = Object.assign(OFFICE_SITE_MODULE.OFFICE_SITE, {"version":"0.1.0","settings":[{"key":"officeSim.scene","type":"string","default":"office","values":["office","serverRoom","forest","field","riverbed","cave","moon","beach","snowfield","desert","reef","library","rooftop"],"description":"The Office view's room. Switch it with **Office: Switch Scene…** or the button on the view."},{"key":"officeSim.critters","type":"boolean","default":true,"description":"Every so often a few critters for the scene run across the Office: mice in the office, foxes and rabbits in the forest, chickens in the field, ducks and frogs by the river, bats in the cave, little aliens on the moon. Idle guys stop to watch."},{"key":"officeSim.fliers","type":"boolean","default":true,"description":"Every so often something for the scene flies over the Office: pigeons and paper planes in the office, drones and ghosts in the server room, owls and hawks in the forest, geese and hot-air balloons over the field, herons and dragonflies by the river, a dragon or a phoenix in the cave, rockets, meteors, and a space whale on the moon. Some only come out by day or by night. Idle guys look up."},{"key":"officeSim.dayNight","type":"boolean","default":true,"description":"Light the Office by your clock: sunrise, golden hour, sunset, and night, with the sun and the real phase of the moon in the sky. Outdoor scenes get dark at night and screens and fires light up around them; the office keeps its lights on; the server room and the cave never see the sky. On the moon a day lasts a month. Off keeps it daytime."},{"key":"officeSim.visitors","type":"string","default":"normal","values":["off","rare","normal","often","packed"],"description":"How often people from other departments (sometimes a manager) drop into the Office. Up to five hang around at once: some say something and leave, others stay a minute or two, and some settle in for a good while to chat, get coffee, and loom over busy guys. Each guy answers in his own way: the suck-up says \"OK BOSS!\", the reasonable ones grumble."},{"key":"officeSim.chatter","type":"string","default":"tidy","values":["tidy","bubbles","log","quiet"],"description":"How the Office shows what the guys say. In every style, hovering a guy shows his line, and your own lines during an event and a show's act are always in bubbles. **Office: Chatter…** switches it from the Office view."},{"key":"officeSim.talk","type":"string","default":"normal","values":["off","rare","normal","often"],"description":"How often the Office guys talk on their own: chats with each other, mutters while typing, and musings while idle. Visitors, shows, events, and critters keep their own lines. **Office: Chatter…** sets it from the Office view."},{"key":"officeSim.bubbleLook","type":"string","default":"soft","values":["solid","soft","faint"],"description":"How the Office's speech bubbles look. The text stays solid, and hovering a guy makes his bubble solid. **Office: Chatter…** sets it from the Office view."},{"key":"officeSim.performances","type":"string","default":"normal","values":["off","rare","normal","often"],"description":"How often someone comes to the Office to put on a show: a guitarist, a band, a lunch or snack trolley, a comedian under a spotlight, a magician, or a DJ with a mirror ball. The idle and sleeping guys gather round to watch, cheer, laugh, and eat; busy guys keep working and get their lunch left on their desks. A show waits until someone is free to watch. Play one now with **Office: Play Show…**."},{"key":"officeSim.events","type":"string","default":"normal","values":["off","rare","normal","often"],"description":"How often your guy acts out a scene event on his own: an ERROR, a HACK, or a DEFENSE, with his monitors and the room joining in. Play one now with **Office: Play Scene Event…**. An extension that plays its own events (Overseer does) takes over from this."},{"key":"officeSim.races","type":"boolean","default":true,"description":"Give the pixel guys races: orcs, elves, aliens, robots, centaurs, ghosts, and 30 more, each as likely as human. Visitors get them too. Pick one for a session with **Pixel Guy → Pick Race…** on its row's menu. Off makes everyone human, except guys you picked a race for."},{"key":"officeSim.you","type":"boolean","default":true,"description":"Put you in the Office: your own guy at a two-monitor station in the middle of the room, who reacts to the ERROR, HACK, and DEFENSE scene events along with his monitors. Make his look with **Office: Customize Your Guy…**."},{"key":"officeSim.yourLook","type":"object","default":{},"description":"Your guy's look. Make it with **Office: Customize Your Guy…** (or click your guy), which opens the character maker and saves here. Leave a field out for the default: a blonde ponytail with one side shaved, blue eyes, a thick orange beard, a black muscle shirt, white shorts, and black flip flops. Colors are `#rrggbb`; `race` takes a race id and `marks` its three colors."},{"key":"officeSim.claude.workers","type":"boolean","default":true,"description":"With Claude Code connected (**Office: Connect Claude Code…**), give each Claude session in this window's folders a worker of its own, busy while Claude works and idle when it stops. Your guy works while any of them does. An extension that sends its own workers (Overseer does) takes over from this."}],"commands":[{"id":"officeSim.switchScene","title":"Office: Switch Scene…"},{"id":"officeSim.playShow","title":"Office: Play Show…"},{"id":"officeSim.chatter","title":"Office: Chatter…"},{"id":"officeSim.playEvent","title":"Office: Play Scene Event…"},{"id":"officeSim.customizeYou","title":"Office: Customize Your Guy…"},{"id":"officeSim.connectClaude","title":"Office: Connect Claude Code…"},{"id":"officeSim.disconnectClaude","title":"Office: Disconnect Claude Code"}]});
