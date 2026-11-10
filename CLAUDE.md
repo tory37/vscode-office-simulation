@@ -26,6 +26,7 @@ without touching `docs/index.html` (the `no-docs-needed` label skips it for pure
 committed site bundle doesn't match the source.
 
 - `docs/office.html`: one live Office, the webview's markup with a stand-in for `acquireVsCodeApi`.
+- `docs/embed.html`: one self-running Office for other pages to iframe (Overseer's site does). Keep it working.
 - `docs/site.js`: `OfficeDemo`, which embeds one, runs it only while it's near the screen, and drives it with the same
   messages the extension sends.
 - `OfficeDemo.api` in `docs/site.js` mirrors the extension's API on a demo, so examples read like host code. Keep it

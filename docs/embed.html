@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Office Simulation</title>
+<!-- One Office that runs by itself, for other pages to put in an iframe (Overseer's site does). A few workers come
+     and go between busy, idle, and asleep, and a scene event plays now and then. Optional hash: #scene=forest. -->
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #15171f; }
+  .office-frame { position: absolute; inset: 0; }
+  .office-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+</style>
+</head>
+<body>
+<div id="room"></div>
+<script src="siteData.js"></script>
+<script src="site.js"></script>
+<script>
+  const { OfficeDemo, workers, SITE } = window.OfficeSite;
+  const params = new URLSearchParams(location.hash.slice(1));
+  const scene = SITE.scenes.some((item) => item.id === params.get("scene")) ? params.get("scene") : "office";
+  const demo = new OfficeDemo(document.getElementById("room"), { scene });
+  const crew = workers(["busy", "busy", "idle", "busy", "idle", "asleep"]);
+  crew[0].highlighted = true;
+  const statuses = ["busy", "busy", "idle", "asleep"];
+  demo.on("ready", () => demo.api.setAgents(crew));
+  // A worker changes what he's doing every few seconds, like sessions do.
+  setInterval(() => {
+    const pick = crew[Math.floor(Math.random() * crew.length)];
+    pick.status = statuses[Math.floor(Math.random() * statuses.length)];
+    demo.api.setAgents(crew);
+  }, 7000);
+  setInterval(() => demo.api.playEvent(SITE.events[Math.floor(Math.random() * SITE.events.length)]), 75000);
+  // A click on a worker flips him between busy and idle.
+  demo.api.onDidClickAgent((id) => {
+    const clicked = crew.find((agent) => agent.id === id);
+    if (clicked !== undefined) {
+      clicked.status = clicked.status === "busy" ? "idle" : "busy";
+      demo.api.setAgents(crew);
+    }
+  });
+</script>
+</body>
+</html>

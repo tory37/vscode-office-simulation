@@ -428,6 +428,8 @@ if (api?.apiVersion === 1) {
 
     <h3>Hosting</h3>
     <p><code>attachView(webviewView)</code> draws the Office in a webview view your extension contributes, so it can sit in your own sidebar. Call it from your provider's <code>resolveWebviewView</code>. While a hosted view is attached, the Office's own view hides (the <code>officeSim.hosted</code> context key).</p>
+    <p>To show the Office on a web page, put <a href="embed.html">embed.html</a> in an iframe: a room that runs by itself, with a few workers coming and going. Add <code>#scene=forest</code> (or any scene id) for another room.</p>
+    <pre><code>&lt;iframe src="https://tory37.github.io/vscode-office-simulation/embed.html#scene=office" width="560" height="300"&gt;&lt;/iframe&gt;</code></pre>
 
     <h3>Out of the Office</h3>
     <div class="table-scroll"><table><thead><tr><th>Event</th><th>Fires when</th></tr></thead><tbody>
@@ -529,7 +531,7 @@ npx serve docs      # or any static server, then open the page</code></pre>
 </main>
 
 <footer>
-  <div class="wrap">Office Simulation. Every room on this page runs the extension's own code.</div>
+  <div class="wrap">Office Simulation, <a href="https://github.com/tory37/vscode-office-simulation/blob/main/LICENSE">MIT licensed</a>. Every room on this page runs the extension's own code.</div>
 </footer>
 
 <script src="siteData.js"></script>
