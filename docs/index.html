@@ -219,6 +219,7 @@
         </fieldset>
         <fieldset><legend>Activities</legend>
           <label>how many <select id="sim-activities"></select></label>
+          <label>how often they change <select id="sim-activity-swaps"></select></label>
         </fieldset>
         <fieldset><legend>Wildlife</legend>
           <label><input type="checkbox" id="sim-critters" checked> critters</label>
@@ -275,12 +276,13 @@
 
       <div class="demo">
         <h3>Activities</h3>
-        <p>The crew carries things to do onto the empty desk spots: pinball, arcade cabinets, ping pong, foosball, a punching bag, yoga mats, a trampoline, and more. Idle guys go use them. Some go alone, some bring a buddy to take turns, and the table games need two. Every few minutes the crew swaps one out for something new. Add guys and watch the crew clear a spot for each new desk. Take guys away and more activities come in.</p>
+        <p>The crew carries things to do onto the empty desk spots: pinball, arcade cabinets, ping pong, foosball, a punching bag, yoga mats, a trampoline, and more. Idle guys go use them. Some go alone, some bring a buddy to take turns, and the table games need two. Every few minutes the crew swaps one out for something new: <code>officeSim.activities</code> sets how many there are, and <code>officeSim.activitySwaps</code> (never, rare, normal, often) how often they change. This one swaps often. Add guys and watch the crew clear a spot for each new desk. Take guys away and more activities come in.</p>
         <div id="demo-activities"></div>
         <div class="controls">
           <button id="activity-add">+ idle guy</button>
           <button id="activity-remove">− one</button>
           <label>How many <select id="activity-level"></select></label>
+          <label>How often they change <select id="activity-swaps"></select></label>
         </div>
         <p class="log" id="activity-list"></p>
       </div>
@@ -353,7 +355,7 @@
 
     <h3>The guys</h3>
     <p><code>officeSim</code> runs everyone. A busy worker types at his desk. An idle one sits back, then goes to a prop, the couch, a walk, or a chat with another idle guy, and runs back when he's busy again. Asleep (a suspended session) is treated as idle: a nap at the desk is just one more idle thing, picked now and then for half a minute to a minute or so, and a few are napping when the view opens. Going between idle and asleep changes nothing he is doing; going busy wakes him and runs him back. A worker that goes away walks out the door. Desks are real objects: when one is missing, two maintenance guys fetch it from the door, carry it to its spot (the partner brings the chair), and build it, and the new guy waits beside the spot meanwhile. A desk with no worker gets taken apart and hauled out. While desks are still waiting, another maintenance guy comes in every moment or so, up to six, so a batch of new or ended sessions gets one job each. When the room grows or shrinks, desks already standing stay, and the crew still brings in or hauls out the rest.</p>
-    <p>Empty desk spots get activities (<code>officeActivities</code>). How many depends on the free spots and <code>officeSim.activities</code>, so a big room with few guys gets a lot of them and a full room gets none. Every so often the crew carries one in over his head (a little picture of the thing itself) and sets it down, nothing else showing at its spot meanwhile, or takes one that has stood a few minutes back out. An activity goes on one desk spot or a pair of them. A machine like pinball stands on the desk tile, with its player on the seat tile below. A mat or a chair lies on the seat tile. A table spans two desk tiles, with a player at each end. New guys get spots without activities first. When a guy needs a spot that has one, the crew takes it out before his desk comes in. An idle guy picks an activity like he picks the cooler. Solo ones he uses alone. At a turns one, a buddy waits beside him and they swap every ten seconds or so. A versus game needs two, so he brings someone, and the winner and loser each say so at the end. When the room changes shape, activities stay put if their spot is still free, and move if it isn't.</p>
+    <p>Empty desk spots get activities (<code>officeActivities</code>). How many depends on the free spots and <code>officeSim.activities</code>, so a big room with few guys gets a lot of them and a full room gets none. Every so often the crew carries one in over his head (a little picture of the thing itself) and sets it down, nothing else showing at its spot meanwhile, or takes one that has stood its time back out. How long that is comes from <code>officeSim.activitySwaps</code>: never (they stay until a guy needs the spot), rare (6 to 12 minutes), normal (2 to 5), or often (under 2, with the crew in and out all the time). An activity goes on one desk spot or a pair of them. A machine like pinball stands on the desk tile, with its player on the seat tile below. A mat or a chair lies on the seat tile. A table spans two desk tiles, with a player at each end. New guys get spots without activities first. When a guy needs a spot that has one, the crew takes it out before his desk comes in. An idle guy picks an activity like he picks the cooler. Solo ones he uses alone. At a turns one, a buddy waits beside him and they swap every ten seconds or so. A versus game needs two, so he brings someone, and the winner and loser each say so at the end. When the room changes shape, activities stay put if their spot is still free, and move if it isn't.</p>
     <p>Looks come from a seed. <code>pixelGuy</code> hashes it into skin, hair, clothes, and an accessory, and a separate hash stream picks one of 36 races from <code>pixelRaces</code>, so re-rolling the race keeps his clothes. Each guy is drawn into outlined 12×18 frames per pose and facing, and cached.</p>
 
     <h3>Your guy</h3>
@@ -623,6 +625,7 @@ npx serve docs      # or any static server, then open the page</code></pre>
   simToggle("sim-daynight", "dayNight");
   simToggle("sim-races", "races");
   simSelect("sim-activities", SITE.activityLevels, "some", "activities");
+  simSelect("sim-activity-swaps", SITE.activitySwaps, "normal", "activitySwaps");
   simToggle("sim-critters", "critters");
   simToggle("sim-fliers", "fliers");
   simSelect("sim-chatter", SITE.chatterStyles, "tidy", "chatter");
@@ -732,10 +735,13 @@ npx serve docs      # or any static server, then open the page</code></pre>
   document.getElementById("tint").addEventListener("click", () => events.tint(++tintIndex));
 
   // Activities.
-  const activities = new OfficeDemo(document.getElementById("demo-activities"), { agents: workers(["idle", "idle", "idle", "working", "idle"]), activities: "lots", visitors: "off" });
+  const activities = new OfficeDemo(document.getElementById("demo-activities"), { agents: workers(["idle", "idle", "idle", "working", "idle"]), activities: "lots", activitySwaps: "often", visitors: "off" });
   const activityLevel = document.getElementById("activity-level");
   options(activityLevel, SITE.activityLevels, "lots");
   activityLevel.addEventListener("change", () => activities.set({ activities: activityLevel.value }));
+  const activitySwapSelect = document.getElementById("activity-swaps");
+  options(activitySwapSelect, SITE.activitySwaps, "often");
+  activitySwapSelect.addEventListener("change", () => activities.set({ activitySwaps: activitySwapSelect.value }));
   document.getElementById("activity-add").addEventListener("click", () => activities.set({ agents: [...activities.state.agents, worker("idle", activities.state.agents.length)] }));
   document.getElementById("activity-remove").addEventListener("click", () => activities.set({ agents: activities.state.agents.slice(0, -1) }));
   const PLAY_NOTE = { solo: "", turns: " (take turns)", versus: " (two players)", side: " (side by side)" };

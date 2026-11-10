@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACTIVITIES, ACTIVITY_KINDS, activityLevel, activityTarget, activityWidth, pickActivityKind } from "../../src/officeActivities";
+import { ACTIVITIES, ACTIVITY_KINDS, activityLevel, activityStay, activitySwaps, activityTarget, activityWidth, pickActivityKind } from "../../src/officeActivities";
 import { buildOfficeLayout } from "../../src/officeLayout";
 import { activityFit, addActivity, Agent, AgentInput, createOffice, crewAgents, OfficeState, relayoutOffice, stepOffice, syncOffice } from "../../src/officeSim";
 import { POSE_FRAMES, seededRandom } from "../../src/pixelGuy";
@@ -167,5 +167,40 @@ describe("officeActivities", () => {
     }
     run(state, 60, random);
     expect(state.agents.every((agent) => Number.isFinite(agent.x) && Number.isFinite(agent.y))).toBe(true);
+  });
+
+  it("swaps them out as often as officeSim.activitySwaps says, and never on never", () => {
+    expect(activitySwaps("often")).toBe("often");
+    expect(activitySwaps("bogus")).toBe("normal");
+    expect(activityStay(() => 0.5, "never")).toBe(Infinity);
+    expect(activityStay(() => 0.5, "often")).toBeLessThan(activityStay(() => 0.5, "normal"));
+    expect(activityStay(() => 0.5, "rare")).toBeGreaterThan(activityStay(() => 0.5, "normal"));
+    const swapsIn = (swaps: "never" | "rare" | "normal" | "often") => {
+      const random = seededRandom(4);
+      const state = createOffice(buildOfficeLayout(13, 8, "office"));
+      state.activityLevel = "some";
+      state.activitySwaps = swaps;
+      syncOffice(state, ["a", "b"].map(idle), random, "seated");
+      const first = state.activityCount ?? 0;
+      run(state, 1200, random);
+      return (state.activityCount ?? 0) - first;
+    };
+    const counts = (["never", "rare", "normal", "often"] as const).map(swapsIn);
+    expect(counts[0]).toBe(0);
+    expect(counts[1]).toBeLessThan(counts[2]);
+    expect(counts[2]).toBeLessThan(counts[3]);
+  });
+
+  it("re-rolls the standing ones' stays when the frequency changes", () => {
+    const random = seededRandom(5);
+    const state = createOffice(buildOfficeLayout(13, 8, "office"));
+    state.activityLevel = "some";
+    state.activitySwaps = "never";
+    syncOffice(state, ["a"].map(idle), random, "seated");
+    run(state, 1, random);
+    expect((state.activities ?? []).every((activity) => activity.until === Infinity)).toBe(true);
+    state.activitySwaps = "often";
+    run(state, 1, random);
+    expect((state.activities ?? []).every((activity) => activity.until < state.time + 101)).toBe(true);
   });
 });

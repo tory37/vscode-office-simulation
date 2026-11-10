@@ -186,13 +186,32 @@ export function activityTarget(level: ActivityLevel, freeSpots: number): number 
   return Math.min(cap, Math.max(1, Math.floor(freeSpots / share)));
 }
 
-// How long one stands before the crew swaps it for something else, and the gap between the crew's trips for them.
-export function activityStay(random: () => number): number {
-  return 120 + random() * 180;
+// How often the crew swaps one out for something new (officeSim.activitySwaps). never: they stay until a guy needs the
+// spot or the count changes.
+export type ActivitySwaps = "never" | "rare" | "normal" | "often";
+
+export function activitySwaps(value: unknown): ActivitySwaps {
+  return value === "never" || value === "rare" || value === "often" ? value : "normal";
 }
 
-export function activityTripGap(random: () => number): number {
-  return 15 + random() * 25;
+// How long one stands before the crew swaps it for something else, in seconds.
+const STAY_SECONDS: Record<ActivitySwaps, readonly [number, number]> = {
+  never: [Infinity, Infinity], rare: [360, 720], normal: [120, 300], often: [45, 100],
+};
+
+// The gap between the crew's trips for them.
+const TRIP_SECONDS: Record<ActivitySwaps, readonly [number, number]> = {
+  never: [15, 40], rare: [30, 70], normal: [15, 40], often: [6, 15],
+};
+
+export function activityStay(random: () => number, swaps: ActivitySwaps = "normal"): number {
+  const [low, high] = STAY_SECONDS[swaps];
+  return low === Infinity ? Infinity : low + random() * (high - low);
+}
+
+export function activityTripGap(random: () => number, swaps: ActivitySwaps = "normal"): number {
+  const [low, high] = TRIP_SECONDS[swaps];
+  return low + random() * (high - low);
 }
 
 // A kind to bring in: one the room doesn't have yet when it can, of a width that fits.

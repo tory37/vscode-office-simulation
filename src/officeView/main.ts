@@ -21,7 +21,7 @@ import {
 import { Facing, FRAME_HEIGHT, FRAME_WIDTH, HEAD_ROOM, pixelGuyFrame, pixelGuyLook, PixelGuyLook, Pose } from "../pixelGuy";
 import { DeskStyle, deskStyleFor } from "../deskStyles";
 import { DEFENSE_BEATS, ERROR_BEAT_SECONDS, ERROR_FLASH_SECONDS, EVENT_SECONDS, SCENE_EVENT_KINDS, SceneEventKind } from "../sceneEventSchedule";
-import { ACTIVITIES, activityLevel } from "../officeActivities";
+import { ACTIVITIES, activityLevel, activitySwaps } from "../officeActivities";
 import { activityLight, drawActivity, drawCarriedActivity, drawHeld } from "./activities";
 import { drawCritter } from "./critters";
 import { drawFlier, drawFlierShadow, drawFlierTrail } from "./fliers";
@@ -47,6 +47,7 @@ interface OfficeMessage {
   chatter?: unknown;
   talk?: unknown;
   activities?: unknown;
+  activitySwaps?: unknown;
   bubbleLook?: unknown;
   // False makes every guy human.
   races?: boolean;
@@ -282,6 +283,7 @@ window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEve
   performancesSetting = nextPerformances;
   state.talk = talkFactor(talkFrequency(data.talk));
   state.activityLevel = activityLevel(data.activities);
+  state.activitySwaps = activitySwaps(data.activitySwaps);
   bubbleLookSetting = bubbleLook(data.bubbleLook);
   const nextChatter = chatterStyle(data.chatter);
   if (nextChatter !== chatterSetting) {

@@ -28,6 +28,7 @@
       chatter: "tidy",
       talk: "normal",
       activities: "some",
+      activitySwaps: "normal",
       bubbleLook: "soft",
       races: true,
       focusedId: null,

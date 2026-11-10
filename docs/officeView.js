@@ -1813,11 +1813,28 @@
     const cap = { few: 3, some: 6, lots: 10 }[level];
     return Math.min(cap, Math.max(1, Math.floor(freeSpots / share)));
   }
-  function activityStay(random2) {
-    return 120 + random2() * 180;
+  function activitySwaps(value) {
+    return value === "never" || value === "rare" || value === "often" ? value : "normal";
   }
-  function activityTripGap(random2) {
-    return 15 + random2() * 25;
+  var STAY_SECONDS = {
+    never: [Infinity, Infinity],
+    rare: [360, 720],
+    normal: [120, 300],
+    often: [45, 100]
+  };
+  var TRIP_SECONDS = {
+    never: [15, 40],
+    rare: [30, 70],
+    normal: [15, 40],
+    often: [6, 15]
+  };
+  function activityStay(random2, swaps = "normal") {
+    const [low, high] = STAY_SECONDS[swaps];
+    return low === Infinity ? Infinity : low + random2() * (high - low);
+  }
+  function activityTripGap(random2, swaps = "normal") {
+    const [low, high] = TRIP_SECONDS[swaps];
+    return low + random2() * (high - low);
   }
   function pickActivityKind(random2, standing, fits) {
     const fitting = ACTIVITY_KINDS.filter(fits);
@@ -6085,7 +6102,7 @@
       id: `activity-${state2.activityCount}`,
       kind,
       index,
-      until: state2.time + activityStay(random2),
+      until: state2.time + activityStay(random2, state2.activitySwaps),
       going: false,
       endsAt: void 0,
       nextTurnAt: 0
@@ -6127,9 +6144,17 @@
       }
       placeActivity(state2, kind, index, random2);
     }
-    state2.nextActivityTripAt = state2.time + activityTripGap(random2);
+    state2.nextActivityTripAt = state2.time + activityTripGap(random2, state2.activitySwaps);
   }
   function manageActivities(state2, random2) {
+    const swaps = state2.activitySwaps ?? "normal";
+    if ((state2.activitySwapsRolled ?? "normal") !== swaps) {
+      state2.activitySwapsRolled = swaps;
+      for (const activity of state2.activities ?? []) {
+        activity.until = state2.time + activityStay(random2, swaps);
+      }
+      state2.nextActivityTripAt = Math.min(state2.nextActivityTripAt ?? 0, state2.time + activityTripGap(random2, swaps));
+    }
     const activities = state2.activities ?? [];
     const level = state2.activityLevel ?? "off";
     if (activities.length === 0 && (state2.activityOrders ?? []).length === 0 && level === "off") {
@@ -6164,7 +6189,7 @@
         tripped = orderActivity(state2, random2);
       }
     }
-    state2.nextActivityTripAt = state2.time + (tripped ? activityTripGap(random2) : 3);
+    state2.nextActivityTripAt = state2.time + (tripped ? activityTripGap(random2, state2.activitySwaps) : 3);
   }
   function activityPlayers(state2, activityId) {
     return state2.agents.filter((agent) => agent.goal?.kind === "activity" && agent.goal.activityId === activityId);
@@ -10343,6 +10368,7 @@
     performancesSetting = nextPerformances;
     state.talk = talkFactor(talkFrequency(data.talk));
     state.activityLevel = activityLevel(data.activities);
+    state.activitySwaps = activitySwaps(data.activitySwaps);
     bubbleLookSetting = bubbleLook(data.bubbleLook);
     const nextChatter = chatterStyle(data.chatter);
     if (nextChatter !== chatterSetting) {

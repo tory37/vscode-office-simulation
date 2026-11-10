@@ -24,6 +24,7 @@ export const OFFICE_SITE = {
   visitorKinds: [...VISITOR_KINDS],
   activities: ACTIVITY_KINDS.map((id) => ({ id, label: ACTIVITIES[id].label, play: ACTIVITIES[id].play })),
   activityLevels: ["off", "few", "some", "lots"],
+  activitySwaps: ["never", "rare", "normal", "often"],
   races: RACES.map((race) => ({ id: race.id, label: race.label })),
   defaultLook: DEFAULT_YOUR_LOOK,
   // The Claude Code bridge's own logic, so the site's demo maps hook events exactly as the extension does.
