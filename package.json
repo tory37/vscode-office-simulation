@@ -2,7 +2,7 @@
   "name": "office-simulation",
   "displayName": "Office Simulation",
   "description": "A living pixel office in your sidebar: your guy at his desk, critters, fliers, visitors, shows, and day and night by your clock. Other extensions hook in to add workers.",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "publisher": "djaunt",
   "license": "MIT",
   "repository": {
