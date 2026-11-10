@@ -331,7 +331,7 @@ function startSceneEvent(data: SceneEventMessage): void {
   roomReactions = [];
   callYouBack(state, random);
   for (const agent of state.agents) {
-    const text = agent.status === "asleep" || agent.leaving || agent.you ? undefined : roomReaction(data.kind, random);
+    const text = agent.mode === "sleep" || agent.leaving || agent.you ? undefined : roomReaction(data.kind, random);
     if (text !== undefined) {
       roomReactions.push({ id: agent.id, text, at: start + 0.2 + random() * 0.9 });
     }
@@ -419,7 +419,7 @@ function answerVisitor(visitor: Agent, kind: VisitorKind, wholeRoom: boolean): v
     // Other visitors don't answer to the room's personalities; they just nod along now and then.
     const text = agent.visitor !== undefined
       ? (random() < 0.3 ? "mhm" : undefined)
-      : visitorReaction(personalityOf(agent.seed), kind.boss, agent.status === "asleep", random);
+      : visitorReaction(personalityOf(agent.seed), kind.boss, agent.mode === "sleep", random);
     if (text !== undefined) {
       roomReactions.push({ id: agent.id, text, at: state.time + 0.9 + random() * 1.8, seconds: 2 });
     }

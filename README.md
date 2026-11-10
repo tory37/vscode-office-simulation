@@ -20,8 +20,8 @@ The Office shows up in its own activity bar container.
 ## Features
 
 - 13 scenes: office, server room, forest, field, riverbed, cave, moon, beach, snowfield, desert, reef, library, and rooftop.
-- Workers for anything another extension sends in: busy types, idle wanders and chats, asleep naps at his desk. Desks
-  are carried in and built by a maintenance crew.
+- Workers for anything another extension sends in: busy types; idle and asleep (suspended) wander, chat, play, and
+  now and then nap at the desk. Desks are carried in and built by a maintenance crew.
 - 24 activities the crew carries onto empty desk spots and swaps out now and then: pinball, arcade cabinets, a claw
   machine, ping pong, foosball, air hockey, chess, a punching bag, a treadmill, yoga mats, a trampoline, VR, and more.
   Idle guys play alone, take turns with a buddy, or face off two at a time.

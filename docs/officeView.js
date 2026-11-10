@@ -4685,8 +4685,9 @@
         continue;
       }
       if (agent.status !== input.status) {
+        const previous = agent.status;
         agent.status = input.status;
-        onStatusChange(state2, agent, random2);
+        onStatusChange(state2, agent, previous, random2);
       }
     }
     const known = new Set(state2.agents.filter(isSession).map((agent) => agent.id));
@@ -4704,12 +4705,12 @@
         agent.x = agent.workSpot.x;
         agent.y = agent.workSpot.y;
         agent.facing = "up";
-        if (agent.status === "asleep") {
-          agent.goal = { kind: "sleep" };
-          setMode(state2, agent, "sleep", FOREVER);
-          continue;
-        }
-        if (agent.status === "idle") {
+        if (agent.status !== "working") {
+          if (random2() < OPEN_NAP_CHANCE && hasDesk(state2, agent)) {
+            agent.goal = { kind: "sleep" };
+            setMode(state2, agent, "sleep", between(random2, 10, NAP_SECONDS[1]));
+            continue;
+          }
           agent.mode = agent.deskIndex === void 0 ? "couch" : "sit";
           agent.modeUntil = state2.time + between(random2, 1, 12);
           continue;
@@ -4783,7 +4784,7 @@
     return agent.visitor !== void 0 && agent.goal?.kind === "address";
   }
   function lookToward(state2, agent, at, seconds) {
-    if (agent.status !== "idle" || agent.leaving || SEATED_MODES.has(agent.mode) || agent.mode === "chat") {
+    if (agent.status === "working" || agent.leaving || SEATED_MODES.has(agent.mode) || agent.mode === "chat") {
       return;
     }
     const dx = at.x - agent.x;
@@ -4984,7 +4985,7 @@
       if (agent.bubble !== void 0 && state2.time >= agent.bubble.until) {
         agent.bubble = void 0;
       }
-      if (agent.watch !== void 0 && (state2.time >= agent.watch.until || agent.status !== "idle" || agent.leaving)) {
+      if (agent.watch !== void 0 && (state2.time >= agent.watch.until || agent.status === "working" || agent.leaving)) {
         agent.watch = void 0;
       }
       if (agent.watch !== void 0) {
@@ -5054,12 +5055,15 @@
       }
     }
   }
+  var NAP_WEIGHT = 1;
+  var NAP_SECONDS = [25, 75];
+  var OPEN_NAP_CHANCE = 0.25;
   var SEATED_MODES = /* @__PURE__ */ new Set(["type", "sit", "couch", "stretch", "sleep"]);
   var CRITTER_REACH = { x: 3, y: 2 };
   function reactToCritter(state2, at, lines, reacted, random2) {
     const watchers = [];
     for (const agent of state2.agents) {
-      if (reacted.has(agent.id) || agent.status !== "idle" || agent.leaving || agent.bubble !== void 0) {
+      if (reacted.has(agent.id) || agent.status === "working" || agent.mode === "sleep" || agent.leaving || agent.bubble !== void 0) {
         continue;
       }
       const dx = at.x - agent.x;
@@ -5210,20 +5214,13 @@
       }
     }
   }
-  function onStatusChange(state2, agent, random2) {
+  function onStatusChange(state2, agent, previous, random2) {
+    if (agent.status !== "working" && previous !== "working") {
+      return;
+    }
     endChat(state2, agent);
-    const wasAsleep = agent.mode === "sleep";
-    if (wasAsleep) {
-      say(state2, agent, pickPhrase(agent.status === "working" ? WAKE_TO_WORK_LINES : WAKE_IDLE_LINES, random2), 1.6);
-    }
-    if (agent.status === "asleep") {
-      say(state2, agent, pickPhrase(SLEEP_LINES, random2), 1.6);
-      goTo(state2, agent, agent.workSpot, { kind: "sleep" }, false, random2);
-      return;
-    }
-    if (wasAsleep && agent.status === "idle") {
-      setMode(state2, agent, agent.deskIndex === void 0 ? "couch" : "sit", between(random2, 3, 6));
-      return;
+    if (agent.mode === "sleep") {
+      say(state2, agent, pickPhrase(WAKE_TO_WORK_LINES, random2), 1.6);
     }
     if (agent.status === "working") {
       const atWork = agent.path.length === 0 && isAt(agent, agent.workSpot);
@@ -5276,14 +5273,13 @@
       goTo(state2, agent, agent.workSpot, { kind: "work" }, false, random2);
       return;
     }
-    if (agent.status === "asleep") {
-      goTo(state2, agent, agent.workSpot, { kind: "sleep" }, false, random2);
-      return;
-    }
     endChat(state2, agent);
     pickIdleActivity(state2, agent, random2);
   }
   function pickIdleActivity(state2, agent, random2) {
+    if (agent.mode === "sleep" && random2() < 0.5 * Math.min(1, talkOf(state2))) {
+      say(state2, agent, pickPhrase(WAKE_IDLE_LINES, random2), 1.6);
+    }
     const atDesk = hasDesk(state2, agent) && agent.path.length === 0 && isAt(agent, agent.workSpot);
     const freeProps = state2.layout.props.map((prop, propIndex) => ({ prop, propIndex })).filter(({ prop }) => prop.stand !== void 0 && !isTargeted(state2, agent, prop.stand));
     const freeCouch = state2.layout.couchSeats.filter((seat) => !isTargeted(state2, agent, seat) && !isWorkSpotOfOther(state2, agent, seat));
@@ -5309,6 +5305,9 @@
     }
     if (freeCouch.length > 0) {
       options.push({ weight: 1, run: () => goTo(state2, agent, freeCouch[Math.floor(random2() * freeCouch.length)], { kind: "couch" }, false, random2) });
+    }
+    if (!agent.you && agent.visitor === void 0 && agent.mode !== "sleep" && (hasDesk(state2, agent) || agent.deskIndex === void 0)) {
+      options.push({ weight: NAP_WEIGHT, run: () => goTo(state2, agent, agent.workSpot, { kind: "sleep" }, false, random2) });
     }
     const games = activityChoices(state2, agent, partners);
     if (games.length > 0) {
@@ -5341,7 +5340,7 @@
     options[options.length - 1].run();
   }
   function canChat(agent) {
-    return !agent.leaving && agent.status === "idle" && agent.performer === void 0 && agent.goal?.kind !== "chat" && agent.goal?.kind !== "show" && agent.goal?.kind !== "activity" && agent.crew === void 0 && agent.mode !== "chat" && agent.mode !== "wait" && agent.mode !== "watch";
+    return !agent.leaving && agent.status !== "working" && agent.mode !== "sleep" && agent.performer === void 0 && agent.goal?.kind !== "chat" && agent.goal?.kind !== "show" && agent.goal?.kind !== "activity" && agent.crew === void 0 && agent.mode !== "chat" && agent.mode !== "wait" && agent.mode !== "watch";
   }
   function startChat(state2, agent, partner, random2) {
     const pairs = openFloorTiles(state2.layout).filter(
@@ -5440,11 +5439,14 @@
         return;
       case "sleep":
         agent.facing = "up";
-        if (agent.status !== "asleep") {
+        if (agent.status === "working") {
           setMode(state2, agent, "loiter", 0.5);
           return;
         }
-        setMode(state2, agent, "sleep", FOREVER);
+        if (random2() < 0.5 * Math.min(1, talkOf(state2))) {
+          say(state2, agent, pickPhrase(SLEEP_LINES, random2), 1.4);
+        }
+        setMode(state2, agent, "sleep", between(random2, NAP_SECONDS[0], NAP_SECONDS[1]));
         return;
       case "desk":
         agent.facing = "up";
@@ -5575,7 +5577,7 @@
     agent.bubble = { text, until: state2.time + (text.length > 8 ? Math.max(seconds, lineSeconds(text)) : seconds) };
   }
   function museMode(agent) {
-    if (agent.status !== "idle" || agent.visitor !== void 0 || agent.crew !== void 0 || agent.leaving || agent.path.length > 0) {
+    if (agent.status === "working" || agent.visitor !== void 0 || agent.crew !== void 0 || agent.leaving || agent.path.length > 0) {
       return void 0;
     }
     switch (agent.mode) {
@@ -6291,7 +6293,9 @@
       const coming = activityPlayers(state2, activity.id);
       const here2 = coming.filter((agent) => agent.path.length === 0 && (agent.mode === "play" || agent.mode === "wait"));
       if (here2.length === 0) {
-        activity.endsAt = void 0;
+        if (coming.length === 0) {
+          activity.endsAt = void 0;
+        }
         continue;
       }
       const spotOf = (agent) => fit.spots[agent.goal.spot];
@@ -6422,6 +6426,7 @@
     agent.goal = void 0;
     agent.target = void 0;
     agent.snack = void 0;
+    agent.groggy = void 0;
     agent.react = void 0;
     agent.cheerUntil = 0;
     setMode(state2, agent, "loiter", between(random2, 0.3, 2.5));
@@ -6497,15 +6502,18 @@
     }
     endChat(state2, agent);
     agent.watch = void 0;
-    if (agent.mode === "sleep" && random2() < 0.6) {
-      say(state2, agent, random2() < 0.5 ? "huh? a show?" : "*yawn* \u2026ooh!", 1.6);
+    if (agent.mode === "sleep") {
+      agent.groggy = true;
+      if (random2() < 0.6) {
+        say(state2, agent, random2() < 0.5 ? "huh? a show?" : "*yawn* \u2026ooh!", 1.6);
+      }
     }
     goTo(state2, agent, spot, { kind: "show" }, false, random2);
     return true;
   }
   function gatherCrowd(state2, random2) {
     for (const agent of state2.agents) {
-      if (agent.goal?.kind !== "show" && (agent.status === "idle" || agent.status === "asleep") && agent.watch === void 0) {
+      if (agent.goal?.kind !== "show" && agent.status !== "working" && agent.watch === void 0) {
         joinShow(state2, agent, random2);
       }
     }
@@ -6586,7 +6594,7 @@
       const personality = personalityOf(agent.seed);
       const speaks = random2() < 0.65;
       agent.react = {
-        text: speaks ? audienceLine(show.kind, line.cue, personality, agent.status === "asleep", random2, agent.snack) : "",
+        text: speaks ? audienceLine(show.kind, line.cue, personality, agent.groggy === true, random2, agent.snack) : "",
         at: state2.time + between(random2, 0.4, 1.3),
         cheer: line.cue !== "gasp" && (line.cue !== "laugh" || random2() < 0.4)
       };
@@ -6612,7 +6620,7 @@
     if (state2.time >= agent.nextBubbleAt && agent.bubble === void 0) {
       agent.nextBubbleAt = state2.time + between(random2, 6, 14);
       if (random2() < 0.45) {
-        say(state2, agent, audienceLine(show.kind, "idle", personalityOf(agent.seed), agent.status === "asleep", random2, agent.snack), 1.6);
+        say(state2, agent, audienceLine(show.kind, "idle", personalityOf(agent.seed), agent.groggy === true, random2, agent.snack), 1.6);
       }
     }
   }
@@ -10291,7 +10299,7 @@
     roomReactions = [];
     callYouBack(state, random);
     for (const agent of state.agents) {
-      const text = agent.status === "asleep" || agent.leaving || agent.you ? void 0 : roomReaction(data.kind, random);
+      const text = agent.mode === "sleep" || agent.leaving || agent.you ? void 0 : roomReaction(data.kind, random);
       if (text !== void 0) {
         roomReactions.push({ id: agent.id, text, at: start + 0.2 + random() * 0.9 });
       }
@@ -10367,7 +10375,7 @@
         continue;
       }
       lookToward(state, agent, visitor, 3);
-      const text = agent.visitor !== void 0 ? random() < 0.3 ? "mhm" : void 0 : visitorReaction(personalityOf(agent.seed), kind.boss, agent.status === "asleep", random);
+      const text = agent.visitor !== void 0 ? random() < 0.3 ? "mhm" : void 0 : visitorReaction(personalityOf(agent.seed), kind.boss, agent.mode === "sleep", random);
       if (text !== void 0) {
         roomReactions.push({ id: agent.id, text, at: state.time + 0.9 + random() * 1.8, seconds: 2 });
       }
