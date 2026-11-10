@@ -27,6 +27,7 @@
       performances: "off",
       chatter: "tidy",
       talk: "normal",
+      activities: "some",
       bubbleLook: "soft",
       races: true,
       focusedId: null,

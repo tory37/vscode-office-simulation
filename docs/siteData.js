@@ -110,6 +110,243 @@ var OFFICE_SITE_MODULE = (() => {
     return Object.keys(hooks).length > 0 ? { ...rest, hooks } : rest;
   }
 
+  // src/officeActivities.ts
+  var TURN_CHEERS = ["my turn next", "go go go", "ooh, close", "nice!", "you got this", "come on\u2026", "lemme try"];
+  var ACTIVITIES = {
+    pinball: {
+      label: "Pinball",
+      shape: "machine",
+      play: "turns",
+      pose: "build",
+      seconds: [40, 80],
+      glow: "#FF7AD9",
+      lines: ["multiball!", "TILT\u2014no no no", "come on, come on", "extra ball!", "the flippers hate me", "jackpot!", "nudge it\u2026"],
+      cheer: [...TURN_CHEERS, "hit the ramp!", "multiball, do it"]
+    },
+    arcade: {
+      label: "Arcade cabinet",
+      shape: "machine",
+      play: "turns",
+      pose: "build",
+      seconds: [35, 70],
+      glow: "#6EE7FF",
+      lines: ["new high score", "one more life\u2026", "boss fight", "pew pew", "hadouken!", "insert coin"],
+      cheer: [...TURN_CHEERS, "jump! JUMP!", "behind you"]
+    },
+    arcadeDuo: {
+      label: "Two arcade cabinets",
+      shape: "pair",
+      play: "side",
+      pose: "build",
+      seconds: [30, 60],
+      glow: "#B98CFF",
+      lines: ["race you", "level 9!", "pew pew", "co-op time", "dodge!", "game over? again?"]
+    },
+    clawMachine: {
+      label: "Claw machine",
+      shape: "machine",
+      play: "turns",
+      pose: "build",
+      seconds: [25, 45],
+      glow: "#FFD25E",
+      lines: ["got it\u2026 got it\u2026", "it dropped it!", "rigged", "the pink one", "one more try", "YES. a duck."],
+      cheer: [...TURN_CHEERS, "left, left!", "it's rigged, man"]
+    },
+    hoops: {
+      label: "Arcade hoops",
+      shape: "machine",
+      play: "turns",
+      pose: "punch",
+      seconds: [25, 45],
+      glow: "#FF9A4D",
+      lines: ["swish", "nothing but net", "brick.", "on fire!", "buzzer beater", "three!"],
+      cheer: [...TURN_CHEERS, "from downtown"]
+    },
+    dartboard: {
+      label: "Dartboard",
+      shape: "machine",
+      play: "turns",
+      pose: "punch",
+      seconds: [30, 55],
+      lines: ["bullseye!", "triple twenty", "missed the board", "oops, the wall", "double out", "lucky shot"],
+      cheer: [...TURN_CHEERS, "watch the wall"]
+    },
+    karaoke: {
+      label: "Karaoke",
+      shape: "machine",
+      play: "turns",
+      pose: "talk",
+      seconds: [30, 50],
+      glow: "#FF6FAE",
+      lines: ["\u266A don't stop believin' \u266A", "\u266A la la laaa \u266A", "\u266A is this the real life \u266A", "\u266A ooh baby \u266A", "*hits the high note*", "\u266A we will rock you \u266A"],
+      cheer: [...TURN_CHEERS, "encore!", "duet next"]
+    },
+    jukebox: {
+      label: "Jukebox",
+      shape: "machine",
+      play: "solo",
+      pose: "build",
+      seconds: [12, 20],
+      glow: "#FFB347",
+      lines: ["this one's a banger", "B-7, the classic", "something chill", "who picked that last one", "\u266A"]
+    },
+    pingPong: {
+      label: "Ping pong",
+      shape: "table",
+      play: "versus",
+      pose: "build",
+      seconds: [35, 70],
+      lines: ["ping", "pong", "spin serve", "net!", "11\u20139", "rally!", "smash!", "edge ball, sorry"],
+      win: ["game!", "too easy", "rematch?"],
+      lose: ["best of three", "lucky", "ugh, the net"]
+    },
+    foosball: {
+      label: "Foosball",
+      shape: "table",
+      play: "versus",
+      pose: "build",
+      seconds: [35, 60],
+      lines: ["no spinning!", "goal!", "the goalie!", "*rattle rattle*", "nice pass", "own goal\u2026"],
+      win: ["GOAL! game!", "foos master"],
+      lose: ["you spun", "rematch."]
+    },
+    airHockey: {
+      label: "Air hockey",
+      shape: "table",
+      play: "versus",
+      pose: "build",
+      seconds: [30, 50],
+      glow: "#7FE3FF",
+      lines: ["*clack*", "bank shot!", "goal!", "blocked", "it went off the table", "so fast"],
+      win: ["7\u20135, done", "too slow"],
+      lose: ["next time", "my wrist"]
+    },
+    chess: {
+      label: "Chess",
+      shape: "table",
+      play: "versus",
+      pose: "build",
+      seconds: [60, 110],
+      lines: ["hmm.", "your move", "check.", "interesting\u2026", "en passant!", "*taps clock*", "wait, no"],
+      win: ["checkmate.", "good game"],
+      lose: ["I resign", "good game"]
+    },
+    punchingBag: {
+      label: "Punching bag",
+      shape: "machine",
+      play: "turns",
+      pose: "punch",
+      seconds: [25, 45],
+      lines: ["hya!", "one-two", "that's for the merge conflict", "pow", "that's for the flaky test", "huff\u2026 huff\u2026"],
+      cheer: ["hold the bag", "your form!", "harder!", "rocky!"]
+    },
+    treadmill: {
+      label: "Treadmill",
+      shape: "machine",
+      play: "solo",
+      pose: "walk",
+      seconds: [30, 60],
+      lines: ["one more mile", "cardio", "walking meeting", "10,000 steps", "huff\u2026"]
+    },
+    exerciseBike: {
+      label: "Exercise bike",
+      shape: "machine",
+      play: "solo",
+      pose: "type",
+      seated: true,
+      seconds: [30, 60],
+      lines: ["climbing a hill", "spin class", "legs. burning.", "tour de office", "pedal pedal"]
+    },
+    piano: {
+      label: "Piano",
+      shape: "machine",
+      play: "turns",
+      pose: "type",
+      seated: true,
+      seconds: [30, 60],
+      lines: ["\u266A chopsticks \u266A", "\u266A plink plonk \u266A", "\u266A heart and soul \u266A", "*dramatic chord*", "\u266A moonlight\u2026 \u266A"],
+      cheer: ["play the other part", "do the bit!", "bravo", "my turn on keys"]
+    },
+    easel: {
+      label: "Easel",
+      shape: "machine",
+      play: "solo",
+      pose: "build",
+      seconds: [30, 60],
+      lines: ["happy little trees", "it's abstract", "a self-portrait", "needs more blue", "art."]
+    },
+    yogaMat: {
+      label: "Yoga mat",
+      shape: "floor",
+      play: "solo",
+      pose: "yoga",
+      facing: "down",
+      seconds: [30, 60],
+      lines: ["namaste", "tree pose", "breathe in\u2026", "\u2026and out", "inner peace", "my back cracked"]
+    },
+    weights: {
+      label: "Weights",
+      shape: "floor",
+      play: "turns",
+      pose: "lift",
+      facing: "down",
+      seconds: [25, 45],
+      lines: ["one more rep", "feel the burn", "light weight!", "hnngh", "leg day? never"],
+      cheer: ["spot me next", "push!", "you got it", "two more!"]
+    },
+    trampoline: {
+      label: "Trampoline",
+      shape: "floor",
+      play: "solo",
+      pose: "cheer",
+      facing: "down",
+      hop: true,
+      seconds: [20, 35],
+      lines: ["boing", "wheee", "higher!", "don't tell facilities", "boing boing"]
+    },
+    beanbag: {
+      label: "Beanbag",
+      shape: "floor",
+      play: "solo",
+      pose: "type",
+      facing: "down",
+      seated: true,
+      seconds: [40, 80],
+      lines: ["just one more level", "handheld time", "*beep boop*", "save point", "comfy"]
+    },
+    massageChair: {
+      label: "Massage chair",
+      shape: "floor",
+      play: "solo",
+      pose: "sit",
+      facing: "down",
+      seated: true,
+      shake: true,
+      seconds: [35, 60],
+      lines: ["ahhh", "right there", "brrrrr", "best chair", "the knots\u2026"]
+    },
+    meditation: {
+      label: "Meditation cushion",
+      shape: "floor",
+      play: "solo",
+      pose: "sit",
+      facing: "down",
+      seated: true,
+      seconds: [40, 70],
+      lines: ["ommm", "\u2026", "clearing the cache", "be the code", "zen"]
+    },
+    vr: {
+      label: "VR headset",
+      shape: "floor",
+      play: "solo",
+      pose: "cheer",
+      facing: "down",
+      seconds: [25, 45],
+      lines: ["whoa", "there's a dragon!", "am I near a wall?", "it's so real", "duck!", "I'm flying"]
+    }
+  };
+  var ACTIVITY_KINDS = Object.keys(ACTIVITIES);
+
   // src/officeChatter.ts
   var CHATTER_STYLES = ["bubbles", "tidy", "log", "quiet"];
   var CHATTER_LABELS = {
@@ -1744,6 +1981,8 @@ var OFFICE_SITE_MODULE = (() => {
     visitorFrequencies: ["off", "rare", "normal", "often", "packed"],
     performanceFrequencies: ["off", "rare", "normal", "often"],
     visitorKinds: [...VISITOR_KINDS],
+    activities: ACTIVITY_KINDS.map((id) => ({ id, label: ACTIVITIES[id].label, play: ACTIVITIES[id].play })),
+    activityLevels: ["off", "few", "some", "lots"],
     races: RACES.map((race) => ({ id: race.id, label: race.label })),
     defaultLook: DEFAULT_YOUR_LOOK,
     // The Claude Code bridge's own logic, so the site's demo maps hook events exactly as the extension does.
@@ -1751,4 +1990,4 @@ var OFFICE_SITE_MODULE = (() => {
   };
   return __toCommonJS(data_exports);
 })();
-window.OFFICE_SITE = Object.assign(OFFICE_SITE_MODULE.OFFICE_SITE, {"version":"0.1.1","settings":[{"key":"officeSim.scene","type":"string","default":"office","values":["office","serverRoom","forest","field","riverbed","cave","moon","beach","snowfield","desert","reef","library","rooftop"],"description":"The Office view's room. Switch it with **Office: Switch Scene…** or the button on the view."},{"key":"officeSim.critters","type":"boolean","default":true,"description":"Every so often a few critters for the scene run across the Office: mice in the office, foxes and rabbits in the forest, chickens in the field, ducks and frogs by the river, bats in the cave, little aliens on the moon. Idle guys stop to watch."},{"key":"officeSim.fliers","type":"boolean","default":true,"description":"Every so often something for the scene flies over the Office: pigeons and paper planes in the office, drones and ghosts in the server room, owls and hawks in the forest, geese and hot-air balloons over the field, herons and dragonflies by the river, a dragon or a phoenix in the cave, rockets, meteors, and a space whale on the moon. Some only come out by day or by night. Idle guys look up."},{"key":"officeSim.dayNight","type":"boolean","default":true,"description":"Light the Office by your clock: sunrise, golden hour, sunset, and night, with the sun and the real phase of the moon in the sky. Outdoor scenes get dark at night and screens and fires light up around them; the office keeps its lights on; the server room and the cave never see the sky. On the moon a day lasts a month. Off keeps it daytime."},{"key":"officeSim.visitors","type":"string","default":"normal","values":["off","rare","normal","often","packed"],"description":"How often people from other departments (sometimes a manager) drop into the Office. Up to five hang around at once: some say something and leave, others stay a minute or two, and some settle in for a good while to chat, get coffee, and loom over busy guys. Each guy answers in his own way: the suck-up says \"OK BOSS!\", the reasonable ones grumble."},{"key":"officeSim.chatter","type":"string","default":"tidy","values":["tidy","bubbles","log","quiet"],"description":"How the Office shows what the guys say. In every style, hovering a guy shows his line, and your own lines during an event and a show's act are always in bubbles. **Office: Chatter…** switches it from the Office view."},{"key":"officeSim.talk","type":"string","default":"normal","values":["off","rare","normal","often"],"description":"How often the Office guys talk on their own: chats with each other, mutters while typing, and musings while idle. Visitors, shows, events, and critters keep their own lines. **Office: Chatter…** sets it from the Office view."},{"key":"officeSim.bubbleLook","type":"string","default":"soft","values":["solid","soft","faint"],"description":"How the Office's speech bubbles look. The text stays solid, and hovering a guy makes his bubble solid. **Office: Chatter…** sets it from the Office view."},{"key":"officeSim.performances","type":"string","default":"normal","values":["off","rare","normal","often"],"description":"How often someone comes to the Office to put on a show: a guitarist, a band, a lunch or snack trolley, a comedian under a spotlight, a magician, or a DJ with a mirror ball. The idle and sleeping guys gather round to watch, cheer, laugh, and eat; busy guys keep working and get their lunch left on their desks. A show waits until someone is free to watch. Play one now with **Office: Play Show…**."},{"key":"officeSim.events","type":"string","default":"normal","values":["off","rare","normal","often"],"description":"How often your guy acts out a scene event on his own: an ERROR, a HACK, or a DEFENSE, with his monitors and the room joining in. Play one now with **Office: Play Scene Event…**. An extension that plays its own events (Overseer does) takes over from this."},{"key":"officeSim.races","type":"boolean","default":true,"description":"Give the pixel guys races: orcs, elves, aliens, robots, centaurs, ghosts, and 30 more, each as likely as human. Visitors get them too. Pick one for a session with **Pixel Guy → Pick Race…** on its row's menu. Off makes everyone human, except guys you picked a race for."},{"key":"officeSim.you","type":"boolean","default":true,"description":"Put you in the Office: your own guy at a two-monitor station in the middle of the room, who reacts to the ERROR, HACK, and DEFENSE scene events along with his monitors. Make his look with **Office: Customize Your Guy…**."},{"key":"officeSim.yourLook","type":"object","default":{},"description":"Your guy's look. Make it with **Office: Customize Your Guy…** (or click your guy), which opens the character maker and saves here. Leave a field out for the default: a blonde ponytail with one side shaved, blue eyes, a thick orange beard, a black muscle shirt, white shorts, and black flip flops. Colors are `#rrggbb`; `race` takes a race id and `marks` its three colors."},{"key":"officeSim.claude.workers","type":"boolean","default":true,"description":"With Claude Code connected (**Office: Connect Claude Code…**), give each Claude session in this window's folders a worker of its own, busy while Claude works and idle when it stops. Your guy works while any of them does. An extension that sends its own workers (Overseer does) takes over from this."}],"commands":[{"id":"officeSim.switchScene","title":"Office: Switch Scene…"},{"id":"officeSim.playShow","title":"Office: Play Show…"},{"id":"officeSim.chatter","title":"Office: Chatter…"},{"id":"officeSim.playEvent","title":"Office: Play Scene Event…"},{"id":"officeSim.customizeYou","title":"Office: Customize Your Guy…"},{"id":"officeSim.connectClaude","title":"Office: Connect Claude Code…"},{"id":"officeSim.disconnectClaude","title":"Office: Disconnect Claude Code"}]});
+window.OFFICE_SITE = Object.assign(OFFICE_SITE_MODULE.OFFICE_SITE, {"version":"0.1.1","settings":[{"key":"officeSim.scene","type":"string","default":"office","values":["office","serverRoom","forest","field","riverbed","cave","moon","beach","snowfield","desert","reef","library","rooftop"],"description":"The Office view's room. Switch it with **Office: Switch Scene…** or the button on the view."},{"key":"officeSim.critters","type":"boolean","default":true,"description":"Every so often a few critters for the scene run across the Office: mice in the office, foxes and rabbits in the forest, chickens in the field, ducks and frogs by the river, bats in the cave, little aliens on the moon. Idle guys stop to watch."},{"key":"officeSim.fliers","type":"boolean","default":true,"description":"Every so often something for the scene flies over the Office: pigeons and paper planes in the office, drones and ghosts in the server room, owls and hawks in the forest, geese and hot-air balloons over the field, herons and dragonflies by the river, a dragon or a phoenix in the cave, rockets, meteors, and a space whale on the moon. Some only come out by day or by night. Idle guys look up."},{"key":"officeSim.activities","type":"string","default":"some","values":["off","few","some","lots"],"description":"Things to do between jobs on the Office's empty desk spots: pinball, arcade cabinets, a claw machine, arcade hoops, darts, karaoke, a jukebox, ping pong, foosball, air hockey, chess, a punching bag, a treadmill, an exercise bike, a piano, an easel, yoga mats, weights, a trampoline, a beanbag, a massage chair, a meditation cushion, and VR. The maintenance crew carries them in and out now and then, so the room changes, and makes room when a new guy needs the spot. Idle guys go use them: some alone, some taking turns with a buddy, and the table games two at a time. How many stand depends on the free spots, so a bigger room or fewer guys gets more."},{"key":"officeSim.dayNight","type":"boolean","default":true,"description":"Light the Office by your clock: sunrise, golden hour, sunset, and night, with the sun and the real phase of the moon in the sky. Outdoor scenes get dark at night and screens and fires light up around them; the office keeps its lights on; the server room and the cave never see the sky. On the moon a day lasts a month. Off keeps it daytime."},{"key":"officeSim.visitors","type":"string","default":"normal","values":["off","rare","normal","often","packed"],"description":"How often people from other departments (sometimes a manager) drop into the Office. Up to five hang around at once: some say something and leave, others stay a minute or two, and some settle in for a good while to chat, get coffee, and loom over busy guys. Each guy answers in his own way: the suck-up says \"OK BOSS!\", the reasonable ones grumble."},{"key":"officeSim.chatter","type":"string","default":"tidy","values":["tidy","bubbles","log","quiet"],"description":"How the Office shows what the guys say. In every style, hovering a guy shows his line, and your own lines during an event and a show's act are always in bubbles. **Office: Chatter…** switches it from the Office view."},{"key":"officeSim.talk","type":"string","default":"normal","values":["off","rare","normal","often"],"description":"How often the Office guys talk on their own: chats with each other, mutters while typing, and musings while idle. Visitors, shows, events, and critters keep their own lines. **Office: Chatter…** sets it from the Office view."},{"key":"officeSim.bubbleLook","type":"string","default":"soft","values":["solid","soft","faint"],"description":"How the Office's speech bubbles look. The text stays solid, and hovering a guy makes his bubble solid. **Office: Chatter…** sets it from the Office view."},{"key":"officeSim.performances","type":"string","default":"normal","values":["off","rare","normal","often"],"description":"How often someone comes to the Office to put on a show: a guitarist, a band, a lunch or snack trolley, a comedian under a spotlight, a magician, or a DJ with a mirror ball. The idle and sleeping guys gather round to watch, cheer, laugh, and eat; busy guys keep working and get their lunch left on their desks. A show waits until someone is free to watch. Play one now with **Office: Play Show…**."},{"key":"officeSim.events","type":"string","default":"normal","values":["off","rare","normal","often"],"description":"How often your guy acts out a scene event on his own: an ERROR, a HACK, or a DEFENSE, with his monitors and the room joining in. Play one now with **Office: Play Scene Event…**. An extension that plays its own events (Overseer does) takes over from this."},{"key":"officeSim.races","type":"boolean","default":true,"description":"Give the pixel guys races: orcs, elves, aliens, robots, centaurs, ghosts, and 30 more, each as likely as human. Visitors get them too. Pick one for a session with **Pixel Guy → Pick Race…** on its row's menu. Off makes everyone human, except guys you picked a race for."},{"key":"officeSim.you","type":"boolean","default":true,"description":"Put you in the Office: your own guy at a two-monitor station in the middle of the room, who reacts to the ERROR, HACK, and DEFENSE scene events along with his monitors. Make his look with **Office: Customize Your Guy…**."},{"key":"officeSim.yourLook","type":"object","default":{},"description":"Your guy's look. Make it with **Office: Customize Your Guy…** (or click your guy), which opens the character maker and saves here. Leave a field out for the default: a blonde ponytail with one side shaved, blue eyes, a thick orange beard, a black muscle shirt, white shorts, and black flip flops. Colors are `#rrggbb`; `race` takes a race id and `marks` its three colors."},{"key":"officeSim.claude.workers","type":"boolean","default":true,"description":"With Claude Code connected (**Office: Connect Claude Code…**), give each Claude session in this window's folders a worker of its own, busy while Claude works and idle when it stops. Your guy works while any of them does. An extension that sends its own workers (Overseer does) takes over from this."}],"commands":[{"id":"officeSim.switchScene","title":"Office: Switch Scene…"},{"id":"officeSim.playShow","title":"Office: Play Show…"},{"id":"officeSim.chatter","title":"Office: Chatter…"},{"id":"officeSim.playEvent","title":"Office: Play Scene Event…"},{"id":"officeSim.customizeYou","title":"Office: Customize Your Guy…"},{"id":"officeSim.connectClaude","title":"Office: Connect Claude Code…"},{"id":"officeSim.disconnectClaude","title":"Office: Disconnect Claude Code"}]});

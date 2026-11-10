@@ -2,6 +2,7 @@
 // into docs/siteData.js as the global OFFICE_SITE.
 import { applyClaudeEvent, mainGuyFor, workersFor } from "../claudeActivity";
 import { HOOK_COMMAND, HOOK_EVENTS, withOfficeHooks } from "../claudeHooks";
+import { ACTIVITIES, ACTIVITY_KINDS } from "../officeActivities";
 import { BUBBLE_LOOKS, CHATTER_LABELS, CHATTER_STYLES, TALK_FREQUENCIES } from "../officeChatter";
 import { OFFICE_SCENES, OUTDOOR_SCENES } from "../officeLayout";
 import { PERFORMANCE_KINDS, PERFORMANCES } from "../officePerformances";
@@ -21,6 +22,8 @@ export const OFFICE_SITE = {
   visitorFrequencies: ["off", "rare", "normal", "often", "packed"],
   performanceFrequencies: ["off", "rare", "normal", "often"],
   visitorKinds: [...VISITOR_KINDS],
+  activities: ACTIVITY_KINDS.map((id) => ({ id, label: ACTIVITIES[id].label, play: ACTIVITIES[id].play })),
+  activityLevels: ["off", "few", "some", "lots"],
   races: RACES.map((race) => ({ id: race.id, label: race.label })),
   defaultLook: DEFAULT_YOUR_LOOK,
   // The Claude Code bridge's own logic, so the site's demo maps hook events exactly as the extension does.

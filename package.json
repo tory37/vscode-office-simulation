@@ -160,6 +160,23 @@
           "default": true,
           "description": "Every so often something for the scene flies over the Office: pigeons and paper planes in the office, drones and ghosts in the server room, owls and hawks in the forest, geese and hot-air balloons over the field, herons and dragonflies by the river, a dragon or a phoenix in the cave, rockets, meteors, and a space whale on the moon. Some only come out by day or by night. Idle guys look up."
         },
+        "officeSim.activities": {
+          "type": "string",
+          "enum": [
+            "off",
+            "few",
+            "some",
+            "lots"
+          ],
+          "enumDescriptions": [
+            "No activities.",
+            "One for about every four free desk spots, up to 3.",
+            "One for about every two or three free desk spots, up to 6.",
+            "Nearly every free spot, up to 10."
+          ],
+          "default": "some",
+          "description": "Things to do between jobs on the Office's empty desk spots: pinball, arcade cabinets, a claw machine, arcade hoops, darts, karaoke, a jukebox, ping pong, foosball, air hockey, chess, a punching bag, a treadmill, an exercise bike, a piano, an easel, yoga mats, weights, a trampoline, a beanbag, a massage chair, a meditation cushion, and VR. The maintenance crew carries them in and out now and then, so the room changes, and makes room when a new guy needs the spot. Idle guys go use them: some alone, some taking turns with a buddy, and the table games two at a time. How many stand depends on the free spots, so a bigger room or fewer guys gets more."
+        },
         "officeSim.dayNight": {
           "type": "boolean",
           "default": true,

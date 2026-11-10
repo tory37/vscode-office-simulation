@@ -32,7 +32,8 @@ export function officeSceneId(value: unknown): OfficeSceneId {
   return OFFICE_SCENES.some((scene) => scene.id === value) ? (value as OfficeSceneId) : "office";
 }
 
-export type TileKind = "floor" | "wall" | "door" | "desk" | "seat" | "prop" | "couch";
+// gear: an activity the crew brought in (a pinball machine, a ping pong table), standing on a desk spot.
+export type TileKind = "floor" | "wall" | "door" | "desk" | "seat" | "prop" | "couch" | "gear";
 
 export type PropKind =
   | "plant" | "cooler" | "coffee" | "couch" | "shelf" | "rack" | "vending"

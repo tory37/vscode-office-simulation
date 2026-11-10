@@ -14,7 +14,10 @@ export type Accessory = "none" | "glasses" | "headphones" | "cap" | "beard" | "f
 export type Facing = "down" | "up" | "left" | "right";
 // Carry walks with both arms up, holding something overhead; build stands working at something in front of him.
 // Cheer stands with his arms up (waving, on the second frame); eat holds something up to his mouth.
-export type Pose = "stand" | "walk" | "type" | "sit" | "stretch" | "drink" | "talk" | "sleep" | "carry" | "build" | "cheer" | "eat";
+export type Pose =
+  | "stand" | "walk" | "type" | "sit" | "stretch" | "drink" | "talk" | "sleep" | "carry" | "build" | "cheer" | "eat"
+  // The Office's activities: jabs at a bag, a barbell up and down, and yoga (arms up, then tree pose).
+  | "punch" | "lift" | "yoga";
 
 export interface PixelGuyLook {
   skin: string;
@@ -46,7 +49,7 @@ export const FRAME_WIDTH = INNER_WIDTH + 2;
 export const FRAME_HEIGHT = INNER_HEIGHT + 2;
 // Walk frames loop over four steps; type and talk over two.
 // Sleep breathes: the head sinks a pixel on the second frame.
-export const POSE_FRAMES: Record<Pose, number> = { stand: 1, walk: 4, type: 2, sit: 1, stretch: 1, drink: 1, talk: 2, sleep: 2, carry: 4, build: 2, cheer: 2, eat: 2 };
+export const POSE_FRAMES: Record<Pose, number> = { stand: 1, walk: 4, type: 2, sit: 1, stretch: 1, drink: 1, talk: 2, sleep: 2, carry: 4, build: 2, cheer: 2, eat: 2, punch: 2, lift: 2, yoga: 2 };
 
 const SKINS = ["#F9D4B4", "#EDB98A", "#D08B5B", "#AE5D29", "#8D4A28", "#614335"];
 const HAIRS = ["#2C1B12", "#5A3825", "#A0522D", "#D9A441", "#E8D9A0", "#B8B8B8", "#E2504B", "#7C5CE0", "#3FA7D6", "#2E2E2E"];
@@ -325,6 +328,14 @@ function drawFrontLegs(canvas: Canvas, pose: Pose, step: number): void {
     canvas.rect(6, 14, 2, 1, "shoes");
     return;
   }
+  if (pose === "yoga" && step === 1) {
+    // Tree pose: standing on the right leg, the left foot up against the knee.
+    canvas.rect(3, 13, 2, 1, "pants");
+    canvas.rect(4, 14, 1, 1, "shoes");
+    canvas.rect(5, 13, 2, 2, "pantsShade");
+    canvas.rect(5, 15, 3, 1, "shoes");
+    return;
+  }
   const leftUp = isStepping(pose) && step === 1;
   const rightUp = isStepping(pose) && step === 3;
   canvas.rect(3, 13, 2, leftUp ? 1 : 2, "pants");
@@ -340,6 +351,42 @@ function drawFrontArms(canvas: Canvas, pose: Pose, step: number, isBack: boolean
     canvas.rect(8, 7, 1, 2, "sleeve");
     canvas.set(isBack ? 1 : 2, step === 0 ? 8 : 9, "skin");
     canvas.set(isBack ? 8 : 7, step === 1 ? 8 : 9, "skin");
+    return;
+  }
+  if (pose === "punch") {
+    // One fist up and in for a jab, the other up on guard; they swap.
+    const [jab, guard] = step === 0 ? [1, 8] : [8, 1];
+    canvas.rect(jab, 6, 1, 2, "sleeve");
+    canvas.set(jab === 1 ? 2 : 7, 5, "skin");
+    canvas.rect(guard, 7, 1, 2, "sleeve");
+    canvas.set(guard, 6, "skin");
+    return;
+  }
+  if (pose === "lift") {
+    // A barbell pressed overhead, then down at the shoulders.
+    const top = step === 0 ? 1 : 4;
+    canvas.rect(1, top + 1, 1, 7 - top, "sleeve");
+    canvas.rect(8, top + 1, 1, 7 - top, "sleeve");
+    canvas.set(1, top, "skin");
+    canvas.set(8, top, "skin");
+    return;
+  }
+  if (pose === "yoga") {
+    if (step === 0) {
+      // Arms straight up, palms together over the head.
+      canvas.rect(1, 1, 1, 7, "sleeve");
+      canvas.rect(8, 1, 1, 7, "sleeve");
+      canvas.set(2, -1, "skin");
+      canvas.set(7, -1, "skin");
+      canvas.set(1, 0, "skin");
+      canvas.set(8, 0, "skin");
+      return;
+    }
+    // Arms out wide.
+    canvas.rect(0, 7, 2, 1, "sleeve");
+    canvas.rect(8, 7, 2, 1, "sleeve");
+    canvas.set(0, 8, "skin");
+    canvas.set(9, 8, "skin");
     return;
   }
   if (pose === "cheer") {
@@ -586,6 +633,22 @@ function drawSideArm(canvas: Canvas, pose: Pose, step: number): void {
     canvas.rect(4, 7, 2, 2, "sleeveShade");
     canvas.set(6, step === 0 ? 6 : 7, "sleeveShade");
     canvas.set(7, step === 0 ? 5 : 7, "skin");
+    return;
+  }
+  if (pose === "punch") {
+    // Out straight for the jab, then back in at the chin.
+    if (step === 0) {
+      canvas.rect(5, 7, 3, 1, "sleeveShade");
+      canvas.set(8, 7, "skin");
+    } else {
+      canvas.rect(5, 7, 1, 2, "sleeveShade");
+      canvas.set(6, 6, "skin");
+    }
+    return;
+  }
+  if (pose === "lift" || pose === "yoga") {
+    canvas.rect(5, step === 0 ? 2 : 5, 1, step === 0 ? 6 : 3, "sleeveShade");
+    canvas.set(5, step === 0 ? 1 : 4, "skin");
     return;
   }
   if (pose === "carry") {

@@ -1562,6 +1562,271 @@
     return CHAT_EXCHANGES[Math.min(CHAT_EXCHANGES.length - 1, Math.floor(random2() * CHAT_EXCHANGES.length))][0];
   }
 
+  // src/officeActivities.ts
+  var TURN_CHEERS = ["my turn next", "go go go", "ooh, close", "nice!", "you got this", "come on\u2026", "lemme try"];
+  var ACTIVITIES = {
+    pinball: {
+      label: "Pinball",
+      shape: "machine",
+      play: "turns",
+      pose: "build",
+      seconds: [40, 80],
+      glow: "#FF7AD9",
+      lines: ["multiball!", "TILT\u2014no no no", "come on, come on", "extra ball!", "the flippers hate me", "jackpot!", "nudge it\u2026"],
+      cheer: [...TURN_CHEERS, "hit the ramp!", "multiball, do it"]
+    },
+    arcade: {
+      label: "Arcade cabinet",
+      shape: "machine",
+      play: "turns",
+      pose: "build",
+      seconds: [35, 70],
+      glow: "#6EE7FF",
+      lines: ["new high score", "one more life\u2026", "boss fight", "pew pew", "hadouken!", "insert coin"],
+      cheer: [...TURN_CHEERS, "jump! JUMP!", "behind you"]
+    },
+    arcadeDuo: {
+      label: "Two arcade cabinets",
+      shape: "pair",
+      play: "side",
+      pose: "build",
+      seconds: [30, 60],
+      glow: "#B98CFF",
+      lines: ["race you", "level 9!", "pew pew", "co-op time", "dodge!", "game over? again?"]
+    },
+    clawMachine: {
+      label: "Claw machine",
+      shape: "machine",
+      play: "turns",
+      pose: "build",
+      seconds: [25, 45],
+      glow: "#FFD25E",
+      lines: ["got it\u2026 got it\u2026", "it dropped it!", "rigged", "the pink one", "one more try", "YES. a duck."],
+      cheer: [...TURN_CHEERS, "left, left!", "it's rigged, man"]
+    },
+    hoops: {
+      label: "Arcade hoops",
+      shape: "machine",
+      play: "turns",
+      pose: "punch",
+      seconds: [25, 45],
+      glow: "#FF9A4D",
+      lines: ["swish", "nothing but net", "brick.", "on fire!", "buzzer beater", "three!"],
+      cheer: [...TURN_CHEERS, "from downtown"]
+    },
+    dartboard: {
+      label: "Dartboard",
+      shape: "machine",
+      play: "turns",
+      pose: "punch",
+      seconds: [30, 55],
+      lines: ["bullseye!", "triple twenty", "missed the board", "oops, the wall", "double out", "lucky shot"],
+      cheer: [...TURN_CHEERS, "watch the wall"]
+    },
+    karaoke: {
+      label: "Karaoke",
+      shape: "machine",
+      play: "turns",
+      pose: "talk",
+      seconds: [30, 50],
+      glow: "#FF6FAE",
+      lines: ["\u266A don't stop believin' \u266A", "\u266A la la laaa \u266A", "\u266A is this the real life \u266A", "\u266A ooh baby \u266A", "*hits the high note*", "\u266A we will rock you \u266A"],
+      cheer: [...TURN_CHEERS, "encore!", "duet next"]
+    },
+    jukebox: {
+      label: "Jukebox",
+      shape: "machine",
+      play: "solo",
+      pose: "build",
+      seconds: [12, 20],
+      glow: "#FFB347",
+      lines: ["this one's a banger", "B-7, the classic", "something chill", "who picked that last one", "\u266A"]
+    },
+    pingPong: {
+      label: "Ping pong",
+      shape: "table",
+      play: "versus",
+      pose: "build",
+      seconds: [35, 70],
+      lines: ["ping", "pong", "spin serve", "net!", "11\u20139", "rally!", "smash!", "edge ball, sorry"],
+      win: ["game!", "too easy", "rematch?"],
+      lose: ["best of three", "lucky", "ugh, the net"]
+    },
+    foosball: {
+      label: "Foosball",
+      shape: "table",
+      play: "versus",
+      pose: "build",
+      seconds: [35, 60],
+      lines: ["no spinning!", "goal!", "the goalie!", "*rattle rattle*", "nice pass", "own goal\u2026"],
+      win: ["GOAL! game!", "foos master"],
+      lose: ["you spun", "rematch."]
+    },
+    airHockey: {
+      label: "Air hockey",
+      shape: "table",
+      play: "versus",
+      pose: "build",
+      seconds: [30, 50],
+      glow: "#7FE3FF",
+      lines: ["*clack*", "bank shot!", "goal!", "blocked", "it went off the table", "so fast"],
+      win: ["7\u20135, done", "too slow"],
+      lose: ["next time", "my wrist"]
+    },
+    chess: {
+      label: "Chess",
+      shape: "table",
+      play: "versus",
+      pose: "build",
+      seconds: [60, 110],
+      lines: ["hmm.", "your move", "check.", "interesting\u2026", "en passant!", "*taps clock*", "wait, no"],
+      win: ["checkmate.", "good game"],
+      lose: ["I resign", "good game"]
+    },
+    punchingBag: {
+      label: "Punching bag",
+      shape: "machine",
+      play: "turns",
+      pose: "punch",
+      seconds: [25, 45],
+      lines: ["hya!", "one-two", "that's for the merge conflict", "pow", "that's for the flaky test", "huff\u2026 huff\u2026"],
+      cheer: ["hold the bag", "your form!", "harder!", "rocky!"]
+    },
+    treadmill: {
+      label: "Treadmill",
+      shape: "machine",
+      play: "solo",
+      pose: "walk",
+      seconds: [30, 60],
+      lines: ["one more mile", "cardio", "walking meeting", "10,000 steps", "huff\u2026"]
+    },
+    exerciseBike: {
+      label: "Exercise bike",
+      shape: "machine",
+      play: "solo",
+      pose: "type",
+      seated: true,
+      seconds: [30, 60],
+      lines: ["climbing a hill", "spin class", "legs. burning.", "tour de office", "pedal pedal"]
+    },
+    piano: {
+      label: "Piano",
+      shape: "machine",
+      play: "turns",
+      pose: "type",
+      seated: true,
+      seconds: [30, 60],
+      lines: ["\u266A chopsticks \u266A", "\u266A plink plonk \u266A", "\u266A heart and soul \u266A", "*dramatic chord*", "\u266A moonlight\u2026 \u266A"],
+      cheer: ["play the other part", "do the bit!", "bravo", "my turn on keys"]
+    },
+    easel: {
+      label: "Easel",
+      shape: "machine",
+      play: "solo",
+      pose: "build",
+      seconds: [30, 60],
+      lines: ["happy little trees", "it's abstract", "a self-portrait", "needs more blue", "art."]
+    },
+    yogaMat: {
+      label: "Yoga mat",
+      shape: "floor",
+      play: "solo",
+      pose: "yoga",
+      facing: "down",
+      seconds: [30, 60],
+      lines: ["namaste", "tree pose", "breathe in\u2026", "\u2026and out", "inner peace", "my back cracked"]
+    },
+    weights: {
+      label: "Weights",
+      shape: "floor",
+      play: "turns",
+      pose: "lift",
+      facing: "down",
+      seconds: [25, 45],
+      lines: ["one more rep", "feel the burn", "light weight!", "hnngh", "leg day? never"],
+      cheer: ["spot me next", "push!", "you got it", "two more!"]
+    },
+    trampoline: {
+      label: "Trampoline",
+      shape: "floor",
+      play: "solo",
+      pose: "cheer",
+      facing: "down",
+      hop: true,
+      seconds: [20, 35],
+      lines: ["boing", "wheee", "higher!", "don't tell facilities", "boing boing"]
+    },
+    beanbag: {
+      label: "Beanbag",
+      shape: "floor",
+      play: "solo",
+      pose: "type",
+      facing: "down",
+      seated: true,
+      seconds: [40, 80],
+      lines: ["just one more level", "handheld time", "*beep boop*", "save point", "comfy"]
+    },
+    massageChair: {
+      label: "Massage chair",
+      shape: "floor",
+      play: "solo",
+      pose: "sit",
+      facing: "down",
+      seated: true,
+      shake: true,
+      seconds: [35, 60],
+      lines: ["ahhh", "right there", "brrrrr", "best chair", "the knots\u2026"]
+    },
+    meditation: {
+      label: "Meditation cushion",
+      shape: "floor",
+      play: "solo",
+      pose: "sit",
+      facing: "down",
+      seated: true,
+      seconds: [40, 70],
+      lines: ["ommm", "\u2026", "clearing the cache", "be the code", "zen"]
+    },
+    vr: {
+      label: "VR headset",
+      shape: "floor",
+      play: "solo",
+      pose: "cheer",
+      facing: "down",
+      seconds: [25, 45],
+      lines: ["whoa", "there's a dragon!", "am I near a wall?", "it's so real", "duck!", "I'm flying"]
+    }
+  };
+  var ACTIVITY_KINDS = Object.keys(ACTIVITIES);
+  function activityWidth(kind) {
+    const shape = ACTIVITIES[kind].shape;
+    return shape === "table" || shape === "pair" ? 2 : 1;
+  }
+  function activityLevel(value) {
+    return value === "off" || value === "few" || value === "lots" ? value : "some";
+  }
+  function activityTarget(level, freeSpots) {
+    if (level === "off" || freeSpots < 2) {
+      return 0;
+    }
+    const share = { few: 4, some: 2.5, lots: 1.5 }[level];
+    const cap = { few: 3, some: 6, lots: 10 }[level];
+    return Math.min(cap, Math.max(1, Math.floor(freeSpots / share)));
+  }
+  function activityStay(random2) {
+    return 120 + random2() * 180;
+  }
+  function activityTripGap(random2) {
+    return 15 + random2() * 25;
+  }
+  function pickActivityKind(random2, standing, fits) {
+    const fitting = ACTIVITY_KINDS.filter(fits);
+    const fresh = fitting.filter((kind) => !standing.includes(kind));
+    const pool = fresh.length > 0 ? fresh : fitting;
+    return pool.length === 0 ? void 0 : pool[Math.floor(random2() * pool.length) % pool.length];
+  }
+  var CREW_ITEM_LINES = ["delivery!", "where's this one go?", "one, as ordered", "watch your toes", "facilities says hi", "fun's here"];
+
   // src/officePerformances.ts
   var PERFORMANCE_KINDS = ["guitarist", "band", "lunch", "snacks", "comedian", "magician", "dj"];
   var FOOD_NAMES = {
@@ -2953,7 +3218,7 @@
   // src/pixelGuy.ts
   var FRAME_WIDTH = INNER_WIDTH + 2;
   var FRAME_HEIGHT = INNER_HEIGHT + 2;
-  var POSE_FRAMES = { stand: 1, walk: 4, type: 2, sit: 1, stretch: 1, drink: 1, talk: 2, sleep: 2, carry: 4, build: 2, cheer: 2, eat: 2 };
+  var POSE_FRAMES = { stand: 1, walk: 4, type: 2, sit: 1, stretch: 1, drink: 1, talk: 2, sleep: 2, carry: 4, build: 2, cheer: 2, eat: 2, punch: 2, lift: 2, yoga: 2 };
   var SKINS = ["#F9D4B4", "#EDB98A", "#D08B5B", "#AE5D29", "#8D4A28", "#614335"];
   var HAIRS = ["#2C1B12", "#5A3825", "#A0522D", "#D9A441", "#E8D9A0", "#B8B8B8", "#E2504B", "#7C5CE0", "#3FA7D6", "#2E2E2E"];
   var SHIRTS = ["#E4572E", "#F3A712", "#4C6EF5", "#2E86AB", "#4CB944", "#A23B72", "#F06595", "#12B886", "#7950F2", "#FAB005", "#E03131", "#E9ECEF"];
@@ -3189,6 +3454,13 @@
       canvas2.rect(6, 14, 2, 1, "shoes");
       return;
     }
+    if (pose === "yoga" && step === 1) {
+      canvas2.rect(3, 13, 2, 1, "pants");
+      canvas2.rect(4, 14, 1, 1, "shoes");
+      canvas2.rect(5, 13, 2, 2, "pantsShade");
+      canvas2.rect(5, 15, 3, 1, "shoes");
+      return;
+    }
     const leftUp = isStepping(pose) && step === 1;
     const rightUp = isStepping(pose) && step === 3;
     canvas2.rect(3, 13, 2, leftUp ? 1 : 2, "pants");
@@ -3202,6 +3474,38 @@
       canvas2.rect(8, 7, 1, 2, "sleeve");
       canvas2.set(isBack ? 1 : 2, step === 0 ? 8 : 9, "skin");
       canvas2.set(isBack ? 8 : 7, step === 1 ? 8 : 9, "skin");
+      return;
+    }
+    if (pose === "punch") {
+      const [jab, guard] = step === 0 ? [1, 8] : [8, 1];
+      canvas2.rect(jab, 6, 1, 2, "sleeve");
+      canvas2.set(jab === 1 ? 2 : 7, 5, "skin");
+      canvas2.rect(guard, 7, 1, 2, "sleeve");
+      canvas2.set(guard, 6, "skin");
+      return;
+    }
+    if (pose === "lift") {
+      const top = step === 0 ? 1 : 4;
+      canvas2.rect(1, top + 1, 1, 7 - top, "sleeve");
+      canvas2.rect(8, top + 1, 1, 7 - top, "sleeve");
+      canvas2.set(1, top, "skin");
+      canvas2.set(8, top, "skin");
+      return;
+    }
+    if (pose === "yoga") {
+      if (step === 0) {
+        canvas2.rect(1, 1, 1, 7, "sleeve");
+        canvas2.rect(8, 1, 1, 7, "sleeve");
+        canvas2.set(2, -1, "skin");
+        canvas2.set(7, -1, "skin");
+        canvas2.set(1, 0, "skin");
+        canvas2.set(8, 0, "skin");
+        return;
+      }
+      canvas2.rect(0, 7, 2, 1, "sleeve");
+      canvas2.rect(8, 7, 2, 1, "sleeve");
+      canvas2.set(0, 8, "skin");
+      canvas2.set(9, 8, "skin");
       return;
     }
     if (pose === "cheer") {
@@ -3433,6 +3737,21 @@
       canvas2.rect(4, 7, 2, 2, "sleeveShade");
       canvas2.set(6, step === 0 ? 6 : 7, "sleeveShade");
       canvas2.set(7, step === 0 ? 5 : 7, "skin");
+      return;
+    }
+    if (pose === "punch") {
+      if (step === 0) {
+        canvas2.rect(5, 7, 3, 1, "sleeveShade");
+        canvas2.set(8, 7, "skin");
+      } else {
+        canvas2.rect(5, 7, 1, 2, "sleeveShade");
+        canvas2.set(6, 6, "skin");
+      }
+      return;
+    }
+    if (pose === "lift" || pose === "yoga") {
+      canvas2.rect(5, step === 0 ? 2 : 5, 1, step === 0 ? 6 : 3, "sleeveShade");
+      canvas2.set(5, step === 0 ? 1 : 4, "skin");
       return;
     }
     if (pose === "carry") {
@@ -4374,6 +4693,9 @@
     const newcomers = inputs.filter((input) => !known.has(input.id)).map((input) => newAgent(state2, input, random2));
     state2.agents.push(...newcomers);
     assignWorkSpots(state2);
+    if (entrance === "seated") {
+      furnishActivities(state2, newcomers, random2);
+    }
     for (const agent of newcomers) {
       if (entrance === "seated") {
         if (agent.deskIndex !== void 0) {
@@ -4559,7 +4881,7 @@
     }
     if (state2.youStatus === "idle" && agent.status === "idle") {
       agent.nextBreakAt = state2.time + between(random2, 20, 40);
-      if (agent.goal?.kind !== "show") {
+      if (agent.goal?.kind !== "show" && agent.goal?.kind !== "activity") {
         pickIdleActivity(state2, agent, random2);
       }
       return;
@@ -4590,6 +4912,9 @@
     const hadDesk = new Set(state2.agents.filter((agent) => isSession(agent) && !agent.leaving && hasDesk(state2, agent)).map((agent) => agent.id));
     const wantedBefore = new Set(state2.agents.flatMap((agent) => isSession(agent) && !agent.leaving && agent.deskIndex !== void 0 ? [agent.deskIndex] : []));
     const leftovers = [...state2.placed].filter(([index]) => !wantedBefore.has(index));
+    const activitiesBefore = state2.activities ?? [];
+    state2.activities = [];
+    state2.activityOrders = [];
     clearDeskSpots(layout);
     state2.layout = layout;
     state2.placed = /* @__PURE__ */ new Map();
@@ -4623,6 +4948,12 @@
       placeDesk(state2, index, seed);
       movedLeftovers.set(oldIndex, index);
     }
+    for (const activity of activitiesBefore) {
+      const index = activityFitsAt(state2, activity.kind, activity.index, void 0) ? activity.index : pickActivitySpot(state2, activity.kind, void 0);
+      if (index !== void 0) {
+        standActivity(state2, { ...activity, index, endsAt: void 0 });
+      }
+    }
     for (const agent of state2.agents) {
       if (agent.crew !== void 0) {
         remapCrewJob(state2, agent.crew, movedLeftovers);
@@ -4645,7 +4976,9 @@
   function stepOffice(state2, seconds, random2) {
     const dt = Math.max(0, Math.min(seconds, 0.25));
     state2.time += dt;
+    manageActivities(state2, random2);
     manageCrew(state2, random2);
+    stepActivities(state2, random2);
     stepShow(state2, random2);
     for (const agent of [...state2.agents]) {
       if (agent.bubble !== void 0 && state2.time >= agent.bubble.until) {
@@ -4739,12 +5072,22 @@
         continue;
       }
       say(state2, agent, lines[Math.floor(random2() * lines.length) % lines.length], 1.6);
-      if (!SEATED_MODES.has(agent.mode)) {
+      if (!SEATED_MODES.has(agent.mode) && agent.mode !== "play") {
         const facing = Math.abs(dx) >= Math.abs(dy) ? dx < 0 ? "left" : "right" : dy < 0 ? "up" : "down";
         agent.watch = { facing, until: state2.time + between(random2, 1.2, 2) };
       }
     }
     return watchers;
+  }
+  var ACTIVITY_FRAME_RATE = { build: 3, punch: 2.5, lift: 0.7, yoga: 0.25, walk: 7, type: 5, cheer: 3, talk: 4 };
+  function activityPose(agent, kind, time, phase) {
+    const spec = ACTIVITIES[kind];
+    if (agent.mode === "wait") {
+      return { pose: agent.bubble === void 0 ? "stand" : "talk", facing: agent.facing, frame: Math.floor(time * 5), seated: false };
+    }
+    const frame = Math.floor(time * (ACTIVITY_FRAME_RATE[spec.pose] ?? 1) + phase * 2);
+    const offset = spec.hop === true ? { x: 0, y: -Math.round(Math.abs(Math.sin(time * 4 + phase * 6)) * 5) } : spec.shake === true ? { x: Math.floor(time * 14) % 2, y: 0 } : void 0;
+    return { pose: spec.pose, facing: agent.facing, frame, seated: spec.seated === true, ...offset === void 0 ? {} : { offset } };
   }
   function agentPose(agent, time) {
     const phase = agent.id.length * 0.37 % 1;
@@ -4762,6 +5105,9 @@
     }
     if (agent.watch !== void 0 && time < agent.watch.until && !SEATED_MODES.has(agent.mode)) {
       return { pose: "stand", facing: agent.watch.facing, frame: 0, seated: false };
+    }
+    if (agent.path.length === 0 && agent.goal?.kind === "activity" && (agent.mode === "play" || agent.mode === "wait")) {
+      return activityPose(agent, agent.goal.activity, time, phase);
     }
     const carrying = agent.crew !== void 0 && (agent.crew.carrying !== void 0 || agent.crew.chair);
     if (agent.path.length > 0) {
@@ -4849,7 +5195,8 @@
         agent.deskIndex = void 0;
       }
     }
-    const freeDesks = desks.map((_, index) => index).filter((index) => !takenDesks.has(index)).sort((first, second) => Number(state2.placed.has(second)) - Number(state2.placed.has(first)) || first - second);
+    const covered = activityCovered(state2);
+    const freeDesks = desks.map((_, index) => index).filter((index) => !takenDesks.has(index)).sort((first, second) => Number(state2.placed.has(second)) - Number(state2.placed.has(first)) || Number(covered.has(first)) - Number(covered.has(second)) || first - second);
     const overflowSpots = [...couchSeats, ...openFloorTiles(state2.layout).filter((tile) => tile.y >= state2.layout.rows - 2)];
     let overflowIndex = 0;
     for (const agent of present) {
@@ -4963,6 +5310,10 @@
     if (freeCouch.length > 0) {
       options.push({ weight: 1, run: () => goTo(state2, agent, freeCouch[Math.floor(random2() * freeCouch.length)], { kind: "couch" }, false, random2) });
     }
+    const games = activityChoices(state2, agent, partners);
+    if (games.length > 0) {
+      options.push({ weight: agent.you ? 3 : 4, run: () => startActivity(state2, agent, games[Math.floor(random2() * games.length)], random2) });
+    }
     if (partners.length > 0 && talkOf(state2) > 0) {
       options.push({ weight: (agent.you ? 6 : 3) * talkOf(state2), run: () => startChat(state2, agent, partners[Math.floor(random2() * partners.length)], random2) });
     }
@@ -4990,7 +5341,7 @@
     options[options.length - 1].run();
   }
   function canChat(agent) {
-    return !agent.leaving && agent.status === "idle" && agent.performer === void 0 && agent.goal?.kind !== "chat" && agent.goal?.kind !== "show" && agent.mode !== "chat" && agent.mode !== "wait" && agent.mode !== "watch";
+    return !agent.leaving && agent.status === "idle" && agent.performer === void 0 && agent.goal?.kind !== "chat" && agent.goal?.kind !== "show" && agent.goal?.kind !== "activity" && agent.crew === void 0 && agent.mode !== "chat" && agent.mode !== "wait" && agent.mode !== "watch";
   }
   function startChat(state2, agent, partner, random2) {
     const pairs = openFloorTiles(state2.layout).filter(
@@ -5147,6 +5498,9 @@
       case "crew":
         crewArrive(state2, agent, random2);
         return;
+      case "activity":
+        arriveAtActivity(state2, agent, goal, random2);
+        return;
       case "perform":
         agent.facing = "down";
         setMode(state2, agent, state2.show === void 0 ? "loiter" : "perform", state2.show === void 0 ? 0.3 : FOREVER);
@@ -5279,10 +5633,18 @@
       }
     }
     let crew = crewAgents(state2);
-    const claimed = new Set(crew.flatMap((member) => member.crew?.job === void 0 ? [] : [member.crew.job.deskIndex]));
+    const deskJobs = crew.flatMap((member) => member.crew?.job === void 0 || member.crew.job.item !== void 0 ? [] : [member.crew.job]);
+    const claimed = new Set(deskJobs.map((job) => job.deskIndex));
+    const claimedActivities = new Set(crew.flatMap((member) => member.crew?.job?.activityId === void 0 ? [] : [member.crew.job.activityId]));
+    const covered = activityCovered(state2);
     const jobs = [];
+    for (const activity of state2.activities ?? []) {
+      if (activity.going && !claimedActivities.has(activity.id) && activityIndexes(activity).some((index) => wanted.has(index))) {
+        jobs.push({ kind: "remove", deskIndex: activity.index, seed: "", item: activity.kind, activityId: activity.id });
+      }
+    }
     for (const [deskIndex, seed] of wanted) {
-      if (!state2.placed.has(deskIndex) && !claimed.has(deskIndex)) {
+      if (!state2.placed.has(deskIndex) && !claimed.has(deskIndex) && !covered.has(deskIndex)) {
         jobs.push({ kind: "deliver", deskIndex, seed });
       }
     }
@@ -5291,6 +5653,12 @@
         jobs.push({ kind: "remove", deskIndex, seed });
       }
     }
+    for (const activity of state2.activities ?? []) {
+      if (activity.going && !claimedActivities.has(activity.id) && !jobs.some((job) => job.activityId === activity.id)) {
+        jobs.push({ kind: "remove", deskIndex: activity.index, seed: "", item: activity.kind, activityId: activity.id });
+      }
+    }
+    jobs.push(...state2.activityOrders ?? []);
     if (jobs.length > 0 && crew.length === 0) {
       crew = [newCrew(state2, 0, random2), newCrew(state2, 1, random2)];
       state2.crewDueAt = state2.time + CREW_SPACING_SECONDS;
@@ -5300,6 +5668,7 @@
       const free = member.crew !== void 0 && member.crew.job === void 0 && (member.crew.phase === "idle" || member.crew.phase === "out" || member.crew.phase === "help");
       if (job !== void 0 && free && !(member.crew?.phase === "help" && member.crew.chair)) {
         jobs.shift();
+        takeOrder(state2, job);
         startJob(state2, member, job, random2);
       }
     }
@@ -5310,7 +5679,13 @@
       while (used.has(`crew-${number + 1}`)) {
         number += 1;
       }
+      takeOrder(state2, jobs[0]);
       startJob(state2, newCrew(state2, number, random2), jobs[0], random2);
+    }
+  }
+  function takeOrder(state2, job) {
+    if (state2.activityOrders !== void 0) {
+      state2.activityOrders = state2.activityOrders.filter((order) => order !== job);
     }
   }
   function remapCrewJob(state2, crew, movedLeftovers) {
@@ -5323,6 +5698,25 @@
     }
     if (crew.phase === "haul") {
       job.deskIndex = -1;
+      return;
+    }
+    if (job.item !== void 0) {
+      const activityId = job.activityId;
+      const itemIndex = activityId !== void 0 ? state2.activities?.find((activity) => activity.id === activityId)?.index : pickActivitySpot(state2, job.item, void 0, job);
+      if (itemIndex === void 0) {
+        if (crew.carrying !== void 0) {
+          job.deskIndex = -1;
+          crew.phase = "haul";
+        } else {
+          crew.job = void 0;
+          crew.phase = "idle";
+        }
+        return;
+      }
+      job.deskIndex = itemIndex;
+      if (crew.phase === "build") {
+        crew.phase = "toSlot";
+      }
       return;
     }
     const index = job.kind === "remove" ? movedLeftovers.get(job.deskIndex) : state2.agents.find((other) => isSession(other) && !other.leaving && other.seed === job.seed && other.deskIndex !== void 0 && !hasDesk(state2, other))?.deskIndex;
@@ -5357,6 +5751,9 @@
     agent.leaving = false;
     if (job.kind === "remove") {
       crew.phase = "toSlot";
+      if (job.activityId !== void 0) {
+        endActivity(state2, job.activityId, random2, false);
+      }
       say(state2, agent, pickPhrase(CREW_REMOVE_LINES, random2), 1.6);
       goTo(state2, agent, state2.layout.desks[job.deskIndex].seat, { kind: "crew" }, false, random2);
       return;
@@ -5373,10 +5770,13 @@
           crewDecide(state2, agent, random2);
           return;
         }
-        crew.carrying = job.seed;
+        crew.carrying = job.item ?? job.seed;
         crew.phase = "toSlot";
-        say(state2, agent, pickPhrase(CREW_START_LINES, random2), 1.6);
+        say(state2, agent, pickPhrase(job.item === void 0 ? CREW_START_LINES : CREW_ITEM_LINES, random2), 1.6);
         goTo(state2, agent, state2.layout.desks[job.deskIndex].seat, { kind: "crew" }, false, random2);
+        if (job.item !== void 0) {
+          return;
+        }
         const partner = crewAgents(state2).find((other) => other !== agent && other.crew?.job === void 0 && other.path.length === 0 && isAt(other, state2.layout.door));
         if (partner?.crew !== void 0) {
           partner.crew.chair = true;
@@ -5416,6 +5816,29 @@
     const crew = agent.crew;
     const job = crew.job;
     agent.running = false;
+    if (crew.phase === "build" && job !== void 0 && job.item !== void 0) {
+      if (job.kind === "remove") {
+        const activityId = job.activityId;
+        const activity = state2.activities?.find((candidate) => candidate.id === activityId);
+        if (activity !== void 0) {
+          removeActivity(state2, activity);
+        }
+        crew.carrying = job.item;
+      } else if (activityFitsAt(state2, job.item, job.deskIndex, job)) {
+        placeActivity(state2, job.item, job.deskIndex, random2);
+        crew.carrying = void 0;
+        crew.job = void 0;
+        crew.phase = "idle";
+        say(state2, agent, pickPhrase(CREW_DONE_LINES, random2), 1.4);
+        setMode(state2, agent, "loiter", 0.6);
+        return;
+      } else {
+        say(state2, agent, pickPhrase(CREW_NEVER_MIND_LINES, random2), 1.4);
+      }
+      crew.phase = "haul";
+      goTo(state2, agent, state2.layout.door, { kind: "crew" }, false, random2);
+      return;
+    }
     if (crew.phase === "build" && job !== void 0) {
       if (job.kind === "remove") {
         removeDesk(state2, job.deskIndex);
@@ -5511,6 +5934,430 @@
     const dx = point.x - agent.x;
     const dy = point.y - agent.y;
     return Math.abs(dx) >= Math.abs(dy) ? dx < 0 ? "left" : "right" : dy < 0 ? "up" : "down";
+  }
+  var ACTIVITY_WAIT_SECONDS = 12;
+  var TURN_SECONDS = [8, 13];
+  function activityIndexes(activity) {
+    return activityWidth(activity.kind) === 2 ? [activity.index, activity.index + 1] : [activity.index];
+  }
+  function activityCovered(state2) {
+    const covered = /* @__PURE__ */ new Set();
+    for (const activity of state2.activities ?? []) {
+      activityIndexes(activity).forEach((index) => covered.add(index));
+    }
+    for (const job of incomingActivities(state2)) {
+      activityIndexes({ kind: job.item, index: job.deskIndex }).forEach((index) => covered.add(index));
+    }
+    return covered;
+  }
+  function incomingActivities(state2) {
+    const carried = crewAgents(state2).flatMap((member) => {
+      const job = member.crew?.job;
+      return job !== void 0 && job.item !== void 0 && job.kind === "deliver" && job.deskIndex >= 0 && member.crew?.phase !== "haul" ? [job] : [];
+    });
+    return [...state2.activityOrders ?? [], ...carried];
+  }
+  var samePoint = (first, second) => first.x === second.x && first.y === second.y;
+  function activityFit(layout, kind, index) {
+    const spec = ACTIVITIES[kind];
+    const desk = layout.desks[index];
+    if (desk === void 0) {
+      return void 0;
+    }
+    const deskTile = (point) => layout.desks.some((other) => samePoint(other.desk, point) || samePoint(other.seat, point));
+    const open2 = (point) => layout.tiles[point.y]?.[point.x] === "floor" && !deskTile(point) && !samePoint(point, { x: layout.door.x, y: layout.door.y + 1 });
+    const waitSpot = (seat) => {
+      const beside = [{ x: seat.x - 1, y: seat.y }, { x: seat.x + 1, y: seat.y }].find(open2);
+      if (beside !== void 0) {
+        return { at: beside, facing: beside.x < seat.x ? "right" : "left", wait: true };
+      }
+      const below = { x: seat.x, y: seat.y + 1 };
+      return open2(below) ? { at: below, facing: "up", wait: true } : void 0;
+    };
+    const withWait = (spots, seat) => {
+      const wait = spec.play === "turns" ? waitSpot(seat) : void 0;
+      return wait === void 0 ? spots : [...spots, wait];
+    };
+    if (spec.shape === "machine" || spec.shape === "floor") {
+      return {
+        indexes: [index],
+        blocked: spec.shape === "machine" ? [desk.desk] : [],
+        seats: [desk.seat],
+        spots: withWait([{ at: desk.seat, facing: spec.shape === "machine" ? "up" : spec.facing ?? "down", wait: false }], desk.seat)
+      };
+    }
+    const right = layout.desks[index + 1];
+    if (right === void 0 || right.desk.y !== desk.desk.y || right.desk.x !== desk.desk.x + 1) {
+      return void 0;
+    }
+    if (spec.shape === "pair") {
+      return {
+        indexes: [index, index + 1],
+        blocked: [desk.desk, right.desk],
+        seats: [desk.seat, right.seat],
+        spots: [{ at: desk.seat, facing: "up", wait: false }, { at: right.seat, facing: "up", wait: false }]
+      };
+    }
+    const leftEnd = { x: desk.desk.x - 1, y: desk.desk.y };
+    const rightEnd = { x: right.desk.x + 1, y: right.desk.y };
+    if (!open2(leftEnd) || !open2(rightEnd)) {
+      return void 0;
+    }
+    return {
+      indexes: [index, index + 1],
+      blocked: [desk.desk, right.desk],
+      seats: [],
+      spots: [{ at: leftEnd, facing: "right", wait: false }, { at: rightEnd, facing: "left", wait: false }]
+    };
+  }
+  function fitTiles(fit) {
+    return [...fit.blocked, ...fit.seats, ...fit.spots.map((spot) => spot.at)];
+  }
+  function activityFitsAt(state2, kind, index, ignore) {
+    const fit = activityFit(state2.layout, kind, index);
+    if (fit === void 0) {
+      return false;
+    }
+    const wanted = new Set(state2.agents.flatMap((agent) => isSession(agent) && !agent.leaving && agent.deskIndex !== void 0 ? [agent.deskIndex] : []));
+    if (fit.indexes.some((spot) => wanted.has(spot) || state2.placed.has(spot))) {
+      return false;
+    }
+    const taken = /* @__PURE__ */ new Set();
+    const others = [
+      ...(state2.activities ?? []).filter((activity) => activity.id !== ignore),
+      ...incomingActivities(state2).filter((job) => job !== ignore).map((job) => ({ kind: job.item, index: job.deskIndex }))
+    ];
+    for (const other of others) {
+      const otherFit = activityFit(state2.layout, other.kind, other.index);
+      otherFit?.indexes.forEach((spot) => taken.add(`i${spot}`));
+      if (otherFit !== void 0) {
+        fitTiles(otherFit).forEach((point) => taken.add(`${point.x},${point.y}`));
+      }
+    }
+    if (fit.indexes.some((spot) => taken.has(`i${spot}`)) || fitTiles(fit).some((point) => taken.has(`${point.x},${point.y}`))) {
+      return false;
+    }
+    const show = state2.show;
+    if (show !== void 0 && fitTiles(fit).some((point) => show.spots.some((spot) => samePoint(spot, point)))) {
+      return false;
+    }
+    return !fit.spots.some((spot) => state2.agents.some((agent) => isSession(agent) && samePoint(agent.workSpot, spot.at)));
+  }
+  function pickActivitySpot(state2, kind, random2, ignore) {
+    const fitting = state2.layout.desks.map((_, index) => index).filter((index) => activityFitsAt(state2, kind, index, ignore)).reverse();
+    if (fitting.length === 0) {
+      return void 0;
+    }
+    return fitting[random2 === void 0 ? 0 : Math.floor(random2() * Math.min(3, fitting.length))];
+  }
+  function standActivity(state2, activity) {
+    const fit = activityFit(state2.layout, activity.kind, activity.index);
+    if (fit === void 0) {
+      return;
+    }
+    state2.activities = [...state2.activities ?? [], activity];
+    for (const point of fit.blocked) {
+      state2.layout.tiles[point.y][point.x] = "gear";
+    }
+    for (const point of fit.seats) {
+      state2.layout.tiles[point.y][point.x] = "seat";
+    }
+    const changed = [...fit.blocked, ...fit.seats];
+    for (const agent of state2.agents) {
+      const onIt = fit.blocked.some((point) => isAt(agent, point));
+      const passing = agent.path.slice(0, -1).some((step) => changed.some((point) => samePoint(point, step)));
+      if (onIt || passing) {
+        if (onIt) {
+          const moved = nearestWalkable(state2.layout, here(agent));
+          agent.x = moved.x;
+          agent.y = moved.y;
+        }
+        agent.path = [];
+        agent.modeUntil = state2.time;
+      }
+    }
+  }
+  function placeActivity(state2, kind, index, random2) {
+    state2.activityCount = (state2.activityCount ?? 0) + 1;
+    standActivity(state2, {
+      id: `activity-${state2.activityCount}`,
+      kind,
+      index,
+      until: state2.time + activityStay(random2),
+      going: false,
+      endsAt: void 0,
+      nextTurnAt: 0
+    });
+  }
+  function removeActivity(state2, activity) {
+    endActivity(state2, activity.id, void 0, false);
+    state2.activities = (state2.activities ?? []).filter((other) => other !== activity);
+    const fit = activityFit(state2.layout, activity.kind, activity.index);
+    for (const point of fit === void 0 ? [] : [...fit.blocked, ...fit.seats]) {
+      state2.layout.tiles[point.y][point.x] = "floor";
+    }
+  }
+  function freeDeskSpots(state2) {
+    const wanted = new Set(state2.agents.flatMap((agent) => isSession(agent) && !agent.leaving && agent.deskIndex !== void 0 ? [agent.deskIndex] : []));
+    return state2.layout.desks.filter((_, index) => !wanted.has(index) && !state2.placed.has(index)).length;
+  }
+  function orderActivity(state2, random2) {
+    const standing = [...(state2.activities ?? []).map((activity) => activity.kind), ...incomingActivities(state2).map((job) => job.item)];
+    const kind = pickActivityKind(random2, standing, (candidate) => pickActivitySpot(state2, candidate, void 0) !== void 0);
+    const index = kind === void 0 ? void 0 : pickActivitySpot(state2, kind, random2);
+    if (kind === void 0 || index === void 0) {
+      return false;
+    }
+    state2.activityOrders = [...state2.activityOrders ?? [], { kind: "deliver", deskIndex: index, seed: "", item: kind }];
+    return true;
+  }
+  function furnishActivities(state2, newcomers, random2) {
+    if (newcomers.length === 0 && (state2.activities ?? []).length > 0) {
+      return;
+    }
+    const target = activityTarget(state2.activityLevel ?? "off", freeDeskSpots(state2));
+    for (let tries = 0; (state2.activities ?? []).length < target && tries < target * 3; tries++) {
+      const standing = (state2.activities ?? []).map((activity) => activity.kind);
+      const kind = pickActivityKind(random2, standing, (candidate) => pickActivitySpot(state2, candidate, void 0) !== void 0);
+      const index = kind === void 0 ? void 0 : pickActivitySpot(state2, kind, random2);
+      if (kind === void 0 || index === void 0) {
+        break;
+      }
+      placeActivity(state2, kind, index, random2);
+    }
+    state2.nextActivityTripAt = state2.time + activityTripGap(random2);
+  }
+  function manageActivities(state2, random2) {
+    const activities = state2.activities ?? [];
+    const level = state2.activityLevel ?? "off";
+    if (activities.length === 0 && (state2.activityOrders ?? []).length === 0 && level === "off") {
+      return;
+    }
+    const wanted = new Set(state2.agents.flatMap((agent) => isSession(agent) && !agent.leaving && agent.deskIndex !== void 0 ? [agent.deskIndex] : []));
+    for (const activity of activities) {
+      if (!activity.going && (level === "off" || activityIndexes(activity).some((index) => wanted.has(index) || state2.placed.has(index)))) {
+        activity.going = true;
+      }
+    }
+    state2.activityOrders = (state2.activityOrders ?? []).filter((order) => level !== "off" && activityFitsAt(state2, order.item, order.deskIndex, order));
+    if (level === "off" || state2.time < (state2.nextActivityTripAt ?? 0)) {
+      return;
+    }
+    const staying = activities.filter((activity) => !activity.going);
+    const count = staying.length + incomingActivities(state2).length;
+    const target = activityTarget(level, freeDeskSpots(state2));
+    let tripped = false;
+    if (count > target) {
+      const oldest = [...staying].sort((first, second) => first.until - second.until)[0];
+      if (oldest !== void 0) {
+        oldest.going = true;
+        tripped = true;
+      }
+    } else {
+      const stale = staying.find((activity) => state2.time >= activity.until && activityPlayers(state2, activity.id).length === 0);
+      if (stale !== void 0) {
+        stale.going = true;
+        tripped = true;
+      } else if (count < target) {
+        tripped = orderActivity(state2, random2);
+      }
+    }
+    state2.nextActivityTripAt = state2.time + (tripped ? activityTripGap(random2) : 3);
+  }
+  function activityPlayers(state2, activityId) {
+    return state2.agents.filter((agent) => agent.goal?.kind === "activity" && agent.goal.activityId === activityId);
+  }
+  function canPlay(agent) {
+    return canChat(agent) && !agent.you && agent.visitor === void 0;
+  }
+  function activityChoices(state2, agent, partners) {
+    const choices = [];
+    const free = partners.filter((partner) => canPlay(partner) || partner.you || partner.visitor !== void 0);
+    for (const activity of state2.activities ?? []) {
+      if (activity.going) {
+        continue;
+      }
+      const fit = activityFit(state2.layout, activity.kind, activity.index);
+      if (fit === void 0) {
+        continue;
+      }
+      const spec = ACTIVITIES[activity.kind];
+      const players = activityPlayers(state2, activity.id);
+      const taken = new Set(players.map((player) => player.goal.spot));
+      const openSpots = fit.spots.map((_, index) => index).filter((index) => !taken.has(index) && !isTargeted(state2, agent, fit.spots[index].at));
+      if (openSpots.length === 0) {
+        continue;
+      }
+      const partner = free.length === 0 ? void 0 : free[(activity.index * 7 + players.length) % free.length];
+      if (spec.play === "versus") {
+        if (players.length === 1 && openSpots.length === 1 && players[0].mode === "wait") {
+          choices.push({ activity, spot: openSpots[0], partner: void 0, partnerSpot: void 0 }, { activity, spot: openSpots[0], partner: void 0, partnerSpot: void 0 });
+        } else if (players.length === 0 && partner !== void 0 && openSpots.length === 2) {
+          choices.push({ activity, spot: openSpots[0], partner, partnerSpot: openSpots[1] });
+        }
+        continue;
+      }
+      const playSpot = openSpots.find((index) => !fit.spots[index].wait);
+      if (spec.play === "turns") {
+        if (players.length === 0 && playSpot !== void 0) {
+          const waitSpot = openSpots.find((index) => fit.spots[index].wait);
+          choices.push({ activity, spot: playSpot, partner: void 0, partnerSpot: void 0 });
+          if (partner !== void 0 && waitSpot !== void 0) {
+            choices.push({ activity, spot: playSpot, partner, partnerSpot: waitSpot });
+          }
+        } else if (players.length === 1 && openSpots.length === 1 && fit.spots[openSpots[0]].wait) {
+          choices.push({ activity, spot: openSpots[0], partner: void 0, partnerSpot: void 0 });
+        }
+        continue;
+      }
+      if (playSpot !== void 0) {
+        choices.push({ activity, spot: playSpot, partner: void 0, partnerSpot: void 0 });
+        if (spec.play === "side" && partner !== void 0 && openSpots.length === 2) {
+          choices.push({ activity, spot: openSpots[0], partner, partnerSpot: openSpots[1] });
+        }
+      }
+    }
+    return choices;
+  }
+  function startActivity(state2, agent, choice, random2) {
+    const { activity } = choice;
+    const fit = activityFit(state2.layout, activity.kind, activity.index);
+    if (fit === void 0) {
+      wander(state2, agent, random2);
+      return;
+    }
+    goTo(state2, agent, fit.spots[choice.spot].at, { kind: "activity", activityId: activity.id, activity: activity.kind, spot: choice.spot }, false, random2);
+    const partner = choice.partner;
+    if (partner !== void 0 && choice.partnerSpot !== void 0) {
+      endChat(state2, partner);
+      if (random2() < 0.5) {
+        say(state2, agent, ACTIVITIES[activity.kind].play === "versus" ? "rematch?" : "c'mon", 1.2);
+      }
+      goTo(state2, partner, fit.spots[choice.partnerSpot].at, { kind: "activity", activityId: activity.id, activity: activity.kind, spot: choice.partnerSpot }, false, random2);
+    }
+  }
+  function arriveAtActivity(state2, agent, goal, random2) {
+    const activity = state2.activities?.find((candidate) => candidate.id === goal.activityId);
+    const fit = activity === void 0 || activity.going ? void 0 : activityFit(state2.layout, activity.kind, activity.index);
+    const spot = fit?.spots[goal.spot];
+    if (activity === void 0 || spot === void 0 || !isAt(agent, spot.at)) {
+      agent.goal = void 0;
+      setMode(state2, agent, "loiter", between(random2, 1, 2));
+      return;
+    }
+    agent.facing = spot.facing;
+    const spec = ACTIVITIES[activity.kind];
+    setMode(state2, agent, spot.wait || spec.play === "versus" ? "wait" : "play", FOREVER);
+    agent.nextBubbleAt = state2.time + between(random2, 1.5, 4);
+    if (spot.wait && agent.bubble === void 0 && random2() < 0.5) {
+      say(state2, agent, pickPhrase(spec.cheer ?? ["my turn next"], random2), 1.4);
+    }
+  }
+  function endActivity(state2, activityId, random2, lines) {
+    const activity = state2.activities?.find((candidate) => candidate.id === activityId);
+    const players = activityPlayers(state2, activityId);
+    if (activity !== void 0) {
+      activity.endsAt = void 0;
+    }
+    const spec = activity === void 0 ? void 0 : ACTIVITIES[activity.kind];
+    const playing = players.filter((player) => player.mode === "play" && player.path.length === 0);
+    const winner = random2 === void 0 || playing.length < 2 ? void 0 : playing[Math.floor(random2() * playing.length)];
+    for (const player of players) {
+      if (lines && random2 !== void 0 && spec !== void 0) {
+        if (winner !== void 0 && spec.win !== void 0 && spec.lose !== void 0) {
+          say(state2, player, pickPhrase(player === winner ? spec.win : spec.lose, random2), 1.8);
+        } else if (random2() < 0.3) {
+          say(state2, player, pickPhrase(["that was fun", "ok, back to it", "nice", "again later"], random2), 1.4);
+        }
+      }
+      player.goal = void 0;
+      player.target = void 0;
+      if (player.path.length === 0) {
+        player.mode = "loiter";
+      }
+      player.modeUntil = state2.time + (lines ? 0.8 : 0);
+    }
+  }
+  function stepActivities(state2, random2) {
+    for (const activity of state2.activities ?? []) {
+      if (activity.going) {
+        continue;
+      }
+      const spec = ACTIVITIES[activity.kind];
+      const fit = activityFit(state2.layout, activity.kind, activity.index);
+      if (fit === void 0) {
+        continue;
+      }
+      const coming = activityPlayers(state2, activity.id);
+      const here2 = coming.filter((agent) => agent.path.length === 0 && (agent.mode === "play" || agent.mode === "wait"));
+      if (here2.length === 0) {
+        activity.endsAt = void 0;
+        continue;
+      }
+      const spotOf = (agent) => fit.spots[agent.goal.spot];
+      if (spec.play === "versus") {
+        if (here2.length < 2) {
+          const waiter = here2[0];
+          waiter.mode = "wait";
+          activity.endsAt ??= state2.time + ACTIVITY_WAIT_SECONDS;
+          if (coming.length < 2 && state2.time >= activity.endsAt) {
+            endActivity(state2, activity.id, random2, false);
+          } else if (coming.length >= 2) {
+            activity.endsAt = state2.time + ACTIVITY_WAIT_SECONDS;
+          }
+          continue;
+        }
+        if (here2.some((agent) => agent.mode === "wait")) {
+          here2.forEach((agent) => {
+            agent.mode = "play";
+          });
+          activity.endsAt = state2.time + between(random2, spec.seconds[0], spec.seconds[1]);
+        }
+      } else {
+        activity.endsAt ??= state2.time + between(random2, spec.seconds[0], spec.seconds[1]);
+        for (const agent of here2) {
+          agent.mode = spotOf(agent)?.wait === true ? "wait" : "play";
+        }
+        if (spec.play === "turns") {
+          stepTurns(state2, activity, fit, coming, here2, random2);
+        }
+      }
+      if (activity.endsAt !== void 0 && state2.time >= activity.endsAt) {
+        endActivity(state2, activity.id, random2, true);
+        continue;
+      }
+      for (const agent of here2) {
+        if (state2.time < agent.nextBubbleAt || agent.bubble !== void 0) {
+          continue;
+        }
+        agent.nextBubbleAt = state2.time + between(random2, 4, 10) * Math.max(1, 1 / Math.sqrt(Math.max(0.05, talkOf(state2))));
+        if (talkOf(state2) > 0 && random2() < Math.min(0.9, 0.5 * talkOf(state2))) {
+          say(state2, agent, pickPhrase(agent.mode === "wait" ? spec.cheer ?? ["my turn next"] : spec.lines, random2), 1.6);
+        }
+      }
+    }
+  }
+  function stepTurns(state2, activity, fit, coming, here2, random2) {
+    const playIndex = fit.spots.findIndex((spot) => !spot.wait);
+    const waitIndex = fit.spots.findIndex((spot) => spot.wait);
+    const atSpot = (index) => coming.find((agent) => agent.goal.spot === index);
+    const player = atSpot(playIndex);
+    const waiter = waitIndex < 0 ? void 0 : atSpot(waitIndex);
+    const go = (agent, index) => goTo(state2, agent, fit.spots[index].at, { kind: "activity", activityId: activity.id, activity: activity.kind, spot: index }, false, random2);
+    if (player === void 0 && waiter !== void 0 && here2.includes(waiter)) {
+      go(waiter, playIndex);
+      return;
+    }
+    if (player === void 0 || waiter === void 0 || !here2.includes(player) || !here2.includes(waiter)) {
+      activity.nextTurnAt = state2.time + between(random2, TURN_SECONDS[0], TURN_SECONDS[1]);
+      return;
+    }
+    if (state2.time >= activity.nextTurnAt) {
+      activity.nextTurnAt = state2.time + between(random2, TURN_SECONDS[0], TURN_SECONDS[1]) + 1;
+      say(state2, player, pickPhrase(["your turn", "all yours", "ok go", "beat that"], random2), 1.2);
+      go(player, waitIndex);
+      go(waiter, playIndex);
+    }
   }
   function startShow(state2, input, random2) {
     if (state2.show !== void 0 || input.performers.length === 0) {
@@ -6186,6 +7033,407 @@
   };
   function deskStyleFor(race) {
     return DESK_STYLES[DESK_STYLE_BY_RACE[race ?? "human"] ?? "standard"];
+  }
+
+  // src/officeView/activities.ts
+  var TILE = 16;
+  var FRAME = 12;
+  var CRATE_COLORS = {
+    pinball: "#7B3FB5",
+    arcade: "#2E4C9E",
+    arcadeDuo: "#6A3FB5",
+    clawMachine: "#D64545",
+    hoops: "#FF7A1A",
+    dartboard: "#2E8B57",
+    karaoke: "#E0457B",
+    jukebox: "#C8641A",
+    pingPong: "#1F7A4D",
+    foosball: "#8B5A2B",
+    airHockey: "#2D5BD0",
+    chess: "#E8E0C8",
+    punchingBag: "#B22222",
+    treadmill: "#3A3A3A",
+    exerciseBike: "#D0D0D0",
+    piano: "#2B1B14",
+    easel: "#C8A46A",
+    yogaMat: "#7B5CD6",
+    weights: "#555555",
+    trampoline: "#3D7BE0",
+    beanbag: "#E07A2E",
+    massageChair: "#5A4636",
+    meditation: "#C94F7C",
+    vr: "#22D3EE"
+  };
+  function activityLight(kind) {
+    const color = ACTIVITIES[kind].glow;
+    if (color === void 0) {
+      return void 0;
+    }
+    return { dx: kind === "arcadeDuo" || kind === "airHockey" ? 16 : 8, dy: kind === "airHockey" ? 8 : -1, radius: kind === "arcadeDuo" ? 22 : 14, color };
+  }
+  function drawActivity(kit2, kind, fit, playing, seconds, index) {
+    const desk = fit.blocked[0] ?? { x: fit.seats[0].x, y: fit.seats[0].y - 1 };
+    const left = desk.x * TILE;
+    const top = desk.y * TILE;
+    const seatTop = top + TILE;
+    const r = kit2.rect;
+    const t = playing ? seconds : 0;
+    const blink = Math.floor(seconds * 3 + index) % 2 === 0;
+    switch (kind) {
+      case "pinball": {
+        r(left + 3, top - 8, 10, 9, "#2A1640");
+        r(left + 4, top - 7, 8, 6, blink ? "#FF7AD9" : "#B24FA0");
+        r(left + 5, top - 5, 6, 2, "#FFE08A");
+        r(left + 2, top + 1, 12, 11, "#4A2380");
+        r(left + 3, top + 2, 10, 9, "#1D6FA3");
+        for (const [x, y, color] of [[5, 3, "#F5C542"], [9, 4, "#FF5C5C"], [7, 6, "#5CFF9D"]]) {
+          r(left + x, top + y, 2, 2, blink ? color : "#0E3F63");
+        }
+        const ballX = left + 4 + Math.round((Math.sin(t * 3.1) + 1) * 3.5);
+        const ballY = top + 3 + Math.round((Math.cos(t * 2.3) + 1) * 3.5);
+        r(ballX, ballY, 1, 1, "#FFFFFF");
+        r(left + 5, top + 10, 2, 1, "#FFFFFF");
+        r(left + 9, top + 10, 2, 1, "#FFFFFF");
+        r(left + 3, top + 12, 1, 4, "#2A1640");
+        r(left + 12, top + 12, 1, 4, "#2A1640");
+        return;
+      }
+      case "arcade":
+        drawCabinet(kit2, left, top, "#24304F", "#F5C542", t, index);
+        return;
+      case "arcadeDuo":
+        drawCabinet(kit2, left, top, "#4A2380", "#5CFFB0", t, index);
+        drawCabinet(kit2, left + TILE, top, "#7A1F3D", "#6EC8FF", t * 1.3, index + 3);
+        return;
+      case "clawMachine": {
+        r(left + 2, top - 8, 12, 24, "#D64545");
+        r(left + 3, top - 7, 10, 12, "#BFE8FF");
+        r(left + 3, top - 7, 10, 1, "#FFFFFF");
+        for (const [x, color] of [[3, "#F48FB1"], [5, "#F5C542"], [8, "#7BD389"], [10, "#8CB8FF"]]) {
+          r(left + x, top + 2, 2, 3, color);
+        }
+        const clawX = left + 4 + Math.round((Math.sin(t * 1.4) + 1) * 3);
+        const drop = playing ? Math.max(0, Math.round(Math.sin(t * 0.7) * 4)) : 0;
+        r(clawX + 1, top - 7, 1, 2 + drop, "#888888");
+        r(clawX, top - 5 + drop, 3, 1, "#C0C0C0");
+        r(clawX, top - 4 + drop, 1, 1, "#C0C0C0");
+        r(clawX + 2, top - 4 + drop, 1, 1, "#C0C0C0");
+        r(left + 2, top + 6, 12, 2, "#A12E2E");
+        r(left + 5, top + 8, 2, 1, "#222222");
+        r(left + 9, top + 7, 2, 2, blink ? "#F5C542" : "#8A6A1A");
+        r(left + 3, top + 13, 3, 3, "#7A1F1F");
+        r(left + 10, top + 13, 3, 3, "#7A1F1F");
+        return;
+      }
+      case "hoops": {
+        r(left + 3, top - 8, 10, 7, "#F2F2F2");
+        r(left + 6, top - 6, 4, 3, "#D64545");
+        r(left + 7, top - 5, 2, 1, "#F2F2F2");
+        r(left + 6, top - 1, 4, 1, "#FF6A00");
+        r(left + 6, top, 1, 2, "#DDDDDD");
+        r(left + 9, top, 1, 2, "#DDDDDD");
+        r(left + 2, top + 2, 12, 10, "#2E6FD8");
+        r(left + 3, top + 3, 10, 7, "#1A4FA8");
+        const ballY = top + 3 + Math.round(t * 1.5 % 1 * 6);
+        r(left + 7, ballY, 2, 2, "#FF7A1A");
+        r(left + 4, top + 8, 2, 2, "#FF7A1A");
+        r(left + 2, top + 12, 12, 4, "#244E9E");
+        r(left + 4, top + 13, 3, 1, blink ? "#FF5C5C" : "#5C1A1A");
+        r(left + 9, top + 13, 3, 1, blink ? "#5CFF9D" : "#1A5C2E");
+        return;
+      }
+      case "dartboard": {
+        r(left + 7, top + 2, 2, 14, "#5A4636");
+        r(left + 4, top + 14, 8, 2, "#5A4636");
+        r(left + 3, top - 7, 10, 10, "#1E1E1E");
+        r(left + 4, top - 6, 8, 8, "#D64545");
+        r(left + 5, top - 5, 6, 6, "#F2E6C8");
+        r(left + 6, top - 4, 4, 4, "#2E8B57");
+        r(left + 7, top - 3, 2, 2, "#D64545");
+        if (playing) {
+          r(left + 5 + Math.floor(seconds * 0.8) % 4, top - 4 + Math.floor(seconds * 1.3) % 3, 1, 1, "#F5C542");
+          r(left + 8, top - 2 + Math.floor(seconds * 0.6) % 2, 1, 1, "#4FA3F7");
+        }
+        return;
+      }
+      case "karaoke": {
+        r(left + 1, top - 7, 14, 10, "#111111");
+        r(left + 2, top - 6, 12, 7, "#2A1A4A");
+        const sung = Math.floor(t * 4) % 10;
+        r(left + 3, top - 3, 10, 1, "#8888AA");
+        r(left + 3, top - 3, Math.max(1, sung), 1, "#FF6FAE");
+        r(left + 4, top - 1, 8, 1, "#666688");
+        r(left + 1, top + 4, 3, 8, "#222222");
+        r(left + 12, top + 4, 3, 8, "#222222");
+        r(left + 2, top + 6, 1, 1, "#555555");
+        r(left + 13, top + 6, 1, 1, "#555555");
+        r(left + 7, top + 8, 1, 8, "#888888");
+        r(left + 6, top + 6, 3, 2, "#333333");
+        return;
+      }
+      case "jukebox": {
+        r(left + 3, top - 7, 10, 3, "#F5A623");
+        r(left + 2, top - 5, 12, 21, "#8B3A1A");
+        r(left + 4, top - 3, 8, 5, "#FFE08A");
+        for (let bar = 0; bar < 4; bar++) {
+          r(left + 4 + bar * 2, top + 4, 1, 6, ["#FF5C5C", "#F5C542", "#5CFF9D", "#6EC8FF"][(bar + Math.floor(seconds * 2)) % 4]);
+        }
+        r(left + 4, top + 11, 8, 3, "#5A2410");
+        return;
+      }
+      case "pingPong": {
+        r(left + 1, top + 4, 30, 8, "#1F7A4D");
+        r(left + 1, top + 4, 30, 1, "#FFFFFF");
+        r(left + 1, top + 11, 30, 1, "#FFFFFF");
+        r(left + 15, top + 2, 2, 10, "#EEEEEE");
+        r(left + 3, top + 12, 1, 4, "#333333");
+        r(left + 28, top + 12, 1, 4, "#333333");
+        if (playing) {
+          const across = (Math.sin(seconds * 3.2) + 1) / 2;
+          const hop = Math.round(Math.abs(Math.sin(seconds * 6.4)) * 4);
+          r(left + 3 + Math.round(across * 25), top + 5 - hop, 1, 1, "#FFB347");
+        }
+        return;
+      }
+      case "foosball": {
+        r(left + 2, top + 3, 28, 10, "#8B5A2B");
+        r(left + 4, top + 4, 24, 8, "#2E8B3E");
+        r(left + 15, top + 4, 1, 8, "#E8F5E8");
+        for (let rod = 0; rod < 4; rod++) {
+          const x = left + 7 + rod * 6;
+          const slide = playing ? Math.round(Math.sin(seconds * 4 + rod) * 1.5) : 0;
+          r(x, top + 2, 1, 12, "#C0C0C0");
+          r(x, top + 5 + slide, 1, 2, rod % 2 === 0 ? "#D64545" : "#2D5BD0");
+          r(x, top + 9 + slide, 1, 2, rod % 2 === 0 ? "#D64545" : "#2D5BD0");
+        }
+        if (playing) {
+          r(left + 5 + Math.round((Math.sin(seconds * 2.5) + 1) * 11), top + 7 + Math.round(Math.sin(seconds * 3.7)), 1, 1, "#FFFFFF");
+        }
+        r(left + 4, top + 13, 2, 3, "#5A3A1A");
+        r(left + 26, top + 13, 2, 3, "#5A3A1A");
+        return;
+      }
+      case "airHockey": {
+        r(left + 1, top + 4, 30, 9, "#1E3A8A");
+        r(left + 2, top + 5, 28, 7, "#E8F4FF");
+        r(left + 15, top + 5, 2, 7, "#8CB8FF");
+        r(left + 2, top + 7, 1, 3, "#D64545");
+        r(left + 29, top + 7, 1, 3, "#D64545");
+        if (playing) {
+          r(left + 4 + Math.round((Math.sin(seconds * 4.1) + 1) * 11.5), top + 7 + Math.round(Math.sin(seconds * 5.3) * 1.5), 2, 2, "#D64545");
+        }
+        r(left + 3, top + 13, 2, 3, "#14285E");
+        r(left + 27, top + 13, 2, 3, "#14285E");
+        return;
+      }
+      case "chess": {
+        r(left + 3, top + 5, 26, 7, "#7A5230");
+        r(left + 3, top + 11, 26, 1, "#5A3A1A");
+        r(left + 4, top + 6, 3, 2, "#222222");
+        r(left + 5, top + 6, 1, 1, Math.floor(seconds) % 2 === 0 ? "#FF5C5C" : "#555555");
+        for (let y = 0; y < 3; y++) {
+          for (let x = 0; x < 6; x++) {
+            r(left + 10 + x * 2, top + 6 + y * 2, 2, 2, (x + y) % 2 === 0 ? "#F2E6C8" : "#3B2716");
+          }
+        }
+        r(left + 11, top + 4, 1, 2, "#FFFFFF");
+        r(left + 14, top + 4, 1, 2, "#FFFFFF");
+        r(left + 19, top + 4, 1, 2, "#111111");
+        r(left + 21, top + 4, 1, 2, "#111111");
+        r(left + 5, top + 12, 2, 4, "#5A3A1A");
+        r(left + 25, top + 12, 2, 4, "#5A3A1A");
+        return;
+      }
+      case "punchingBag": {
+        r(left + 13, top - 8, 1, 24, "#555555");
+        r(left + 7, top - 8, 7, 1, "#555555");
+        r(left + 11, top + 14, 4, 2, "#444444");
+        const swing = playing ? Math.round(Math.sin(seconds * 7)) : 0;
+        r(left + 8 + swing, top - 7, 1, 2, "#999999");
+        r(left + 5 + swing, top - 5, 7, 13, "#B22222");
+        r(left + 5 + swing, top - 5, 7, 1, "#7A1515");
+        r(left + 5 + swing, top + 7, 7, 1, "#7A1515");
+        r(left + 6 + swing, top - 3, 1, 8, "#D64545");
+        return;
+      }
+      case "treadmill": {
+        r(left + 3, top + 1, 10, 5, "#333333");
+        r(left + 4, top + 2, 8, 2, playing ? "#5CFF9D" : "#1A3A2A");
+        r(left + 2, top + 5, 1, 14, "#888888");
+        r(left + 13, top + 5, 1, 14, "#888888");
+        r(left + 2, seatTop + 6, 12, 9, "#222222");
+        for (let stripe = 0; stripe < 3; stripe++) {
+          r(left + 3, seatTop + 6 + (stripe * 3 + Math.floor(t * 8)) % 9, 10, 1, "#3A3A3A");
+        }
+        r(left + 2, seatTop + 14, 12, 2, "#555555");
+        return;
+      }
+      case "exerciseBike": {
+        r(left + 5, top + 9, 6, 4, "#333333");
+        r(left + 6, top + 10, 4, 1, playing ? "#6EC8FF" : "#1A2A3A");
+        r(left + 3, top + 12, 10, 1, "#888888");
+        r(left + 7, top + 13, 2, 8, "#C0C0C0");
+        r(left + 4, seatTop + 8, 8, 6, "#3A3A3A");
+        r(left + 7, seatTop + 10, 2, 2, Math.floor(t * 6) % 2 === 0 ? "#888888" : "#555555");
+        r(left + 3, seatTop + 14, 10, 2, "#555555");
+        return;
+      }
+      case "piano": {
+        r(left + 1, top - 5, 14, 16, "#2B1B14");
+        r(left + 2, top - 4, 12, 3, "#3E2A20");
+        r(left + 1, top + 9, 14, 3, "#F8F8F0");
+        for (const x of [3, 5, 8, 10, 12]) {
+          r(left + x, top + 9, 1, 2, "#111111");
+        }
+        if (playing) {
+          r(left + 2 + Math.floor(seconds * 6) % 12, top + 11, 1, 1, "#C8C8C0");
+        }
+        r(left + 2, top + 12, 2, 4, "#2B1B14");
+        r(left + 12, top + 12, 2, 4, "#2B1B14");
+        r(left + 3, seatTop + 7, 10, 3, "#3B2716");
+        r(left + 4, seatTop + 10, 1, 4, "#3B2716");
+        r(left + 11, seatTop + 10, 1, 4, "#3B2716");
+        return;
+      }
+      case "easel": {
+        r(left + 4, top + 2, 1, 14, "#8B6A3A");
+        r(left + 11, top + 2, 1, 14, "#8B6A3A");
+        r(left + 7, top - 2, 2, 16, "#A07A44");
+        r(left + 3, top - 7, 10, 10, "#FFFFFF");
+        const strokes = playing ? 1 + Math.floor(seconds / 2) % 7 : 3;
+        const colors = ["#6EC8FF", "#5DBB46", "#F5C542", "#D64545", "#7B5CD6", "#FF9A4D", "#3E8E41"];
+        for (let stroke = 0; stroke < strokes; stroke++) {
+          r(left + 4 + stroke * 3 % 7, top - 6 + stroke * 5 % 7, 2 + stroke % 2, 2, colors[(stroke + index) % colors.length]);
+        }
+        r(left + 3, top + 3, 10, 1, "#8B6A3A");
+        return;
+      }
+      case "yogaMat":
+        r(left + 2, seatTop + 2, 12, 13, "#7B5CD6");
+        r(left + 2, seatTop + 2, 12, 1, "#9C82E8");
+        r(left + 2, seatTop + 14, 12, 1, "#5A3FB0");
+        r(left + 12, top + 12, 3, 4, "#4FA3F7");
+        r(left + 12, top + 11, 3, 1, "#FFFFFF");
+        return;
+      case "weights": {
+        r(left + 2, top + 3, 1, 12, "#444444");
+        r(left + 13, top + 3, 1, 12, "#444444");
+        r(left + 2, top + 6, 12, 1, "#666666");
+        r(left + 2, top + 11, 12, 1, "#666666");
+        for (const x of [4, 7, 10]) {
+          r(left + x, top + 4, 2, 2, "#2A2A2A");
+          r(left + x, top + 9, 2, 2, "#2A2A2A");
+        }
+        r(left + 1, seatTop + 11, 14, 4, "#333333");
+        return;
+      }
+      case "trampoline":
+        r(left + 1, seatTop + 8, 14, 6, "#1E1E1E");
+        r(left + 1, seatTop + 8, 14, 1, "#3D7BE0");
+        r(left + 1, seatTop + 13, 14, 1, "#3D7BE0");
+        r(left + 2, seatTop + 14, 1, 2, "#888888");
+        r(left + 13, seatTop + 14, 1, 2, "#888888");
+        return;
+      case "beanbag":
+        r(left + 3, seatTop + 3, 10, 12, "#E07A2E");
+        r(left + 2, seatTop + 6, 12, 8, "#E07A2E");
+        r(left + 4, seatTop + 4, 4, 2, "#F29A52");
+        r(left + 3, seatTop + 13, 10, 2, "#B85E1E");
+        return;
+      case "massageChair":
+        r(left + 2, seatTop - 7, 12, 14, "#4A3A30");
+        r(left + 3, seatTop - 6, 10, 11, "#5A4636");
+        r(left + 5, seatTop - 4, 6, 1, "#6E5A48");
+        r(left + 1, seatTop + 4, 3, 7, "#3A2D23");
+        r(left + 12, seatTop + 4, 3, 7, "#3A2D23");
+        r(left + 4, seatTop + 12, 8, 4, "#3A2D23");
+        r(left + 13, seatTop + 6, 1, 1, blink ? "#5CFF9D" : "#1A5C2E");
+        return;
+      case "meditation": {
+        r(left + 3, seatTop + 11, 10, 4, "#C94F7C");
+        r(left + 4, seatTop + 10, 8, 1, "#E06A96");
+        r(left + 13, seatTop + 8, 1, 6, "#8B5A2B");
+        r(left + 13, seatTop + 7, 1, 1, "#FF6A00");
+        for (let puff = 0; puff < 3; puff++) {
+          const rise = (seconds * 2 + puff * 2) % 6;
+          r(left + 13 + Math.round(Math.sin(seconds + puff) * 1), seatTop + 6 - Math.round(rise), 1, 1, "#BBBBBB");
+        }
+        return;
+      }
+      case "vr": {
+        r(left + 1, seatTop + 3, 14, 12, "#2A2A3A");
+        r(left + 1, seatTop + 3, 14, 1, "#22D3EE");
+        r(left + 1, seatTop + 14, 14, 1, "#22D3EE");
+        r(left + 1, top + 4, 2, 10, "#333333");
+        r(left + 13, top + 4, 2, 10, "#333333");
+        r(left + 1, top + 4, 2, 1, blink ? "#FF3B3B" : "#5C1A1A");
+        r(left + 13, top + 4, 2, 1, blink ? "#5C1A1A" : "#FF3B3B");
+        return;
+      }
+    }
+  }
+  function drawCabinet(kit2, left, top, body, marquee, t, index) {
+    const r = kit2.rect;
+    r(left + 2, top - 8, 12, 24, body);
+    r(left + 3, top - 7, 10, 3, marquee);
+    r(left + 4, top - 3, 8, 7, "#0B1020");
+    const hero = Math.round((Math.sin(t * 2 + index) + 1) * 2.5);
+    r(left + 5 + hero, top + 1, 1, 2, "#5CFF9D");
+    r(left + 10 - (Math.floor(t * 3) + index) % 5, top - 2, 1, 1, "#FF5C5C");
+    r(left + 4, top + 3, 8, 1, "#2A3A6A");
+    r(left + 2, top + 5, 12, 3, "#3B4A75");
+    r(left + 5, top + 5, 1, 2, "#D64545");
+    r(left + 9, top + 6, 1, 1, "#F5C542");
+    r(left + 11, top + 6, 1, 1, "#4FA3F7");
+  }
+  function drawCrate(kit2, kind, box, headRoom, bob) {
+    const left = box.left - 1;
+    const top = box.top - headRoom - 7 + bob;
+    kit2.rect(left, top, 14, 7, "#B98A55");
+    kit2.rect(left, top, 14, 1, "#D8AE78");
+    kit2.rect(left + 1, top + 6, 12, 1, "#8A6235");
+    kit2.rect(left + 4, top + 2, 6, 3, CRATE_COLORS[kind]);
+    kit2.rect(left + 6, top + 3, 2, 1, "#FFFFFF");
+  }
+  function drawHeld(kit2, kind, box, facing, frame) {
+    const r = kit2.rect;
+    switch (kind) {
+      case "pingPong":
+      case "airHockey": {
+        if (facing !== "left" && facing !== "right") {
+          return;
+        }
+        const x = facing === "right" ? box.left + 10 : box.left;
+        const y = box.top + 7 + frame % 2;
+        r(x, y, 2, 3, kind === "pingPong" ? "#D64545" : "#2D5BD0");
+        return;
+      }
+      case "weights": {
+        const y = box.top + 1 + (frame % 2 === 0 ? 1 : 4);
+        r(box.left - 2, y, FRAME + 4, 1, "#9A9A9A");
+        r(box.left - 3, y - 2, 2, 5, "#2A2A2A");
+        r(box.left + FRAME + 1, y - 2, 2, 5, "#2A2A2A");
+        return;
+      }
+      case "vr":
+        if (facing === "down") {
+          r(box.left + 3, box.top + 4, 6, 3, "#222222");
+          r(box.left + 4, box.top + 5, 4, 1, "#22D3EE");
+        }
+        return;
+      case "beanbag":
+        if (facing === "down") {
+          r(box.left + 4, box.top + 10, 4, 2, "#555555");
+          r(box.left + 5, box.top + 10, 2, 1, "#9AE66E");
+        }
+        return;
+      case "karaoke":
+        if (facing === "up") {
+          r(box.left + 8, box.top + 6, 1, 3, "#888888");
+        }
+        return;
+      default:
+    }
   }
 
   // src/officeView/critters.ts
@@ -7669,10 +8917,10 @@
   };
 
   // src/officeView/shows.ts
-  var TILE = 16;
-  var FRAME = 12;
+  var TILE2 = 16;
+  var FRAME2 = 12;
   function painter(kit2, box, mirror) {
-    return (x, y, w, h, color) => kit2.rect(mirror ? box.left + FRAME - x - w : box.left + x, box.top + y, w, h, color);
+    return (x, y, w, h, color) => kit2.rect(mirror ? box.left + FRAME2 - x - w : box.left + x, box.top + y, w, h, color);
   }
   var FOOD_ART = {
     pizza: { rows: ["cccc", "ysry", ".yy.", ".s.."], colors: { c: "#C8873A", y: "#F5C542", s: "#F5C542", r: "#C0392B" } },
@@ -7702,11 +8950,11 @@
     }
     const x = step === 0 ? 7 : 7;
     const y = step === 0 ? 4 : 6;
-    drawFood(kit2, food, facing === "right" ? box.left + x : box.left + FRAME - x - 4, box.top + y);
+    drawFood(kit2, food, facing === "right" ? box.left + x : box.left + FRAME2 - x - 4, box.top + y);
   }
   function drawDeskPlate(kit2, food, deskX, deskY) {
-    const left = deskX * TILE;
-    const top = deskY * TILE;
+    const left = deskX * TILE2;
+    const top = deskY * TILE2;
     kit2.rect(left, top + 10, 5, 1, "#F4F4F4");
     kit2.rect(left + 1, top + 11, 3, 1, "#C8C8C8");
     drawFood(kit2, food, left, top + 10 - FOOD_ART[food].rows.length);
@@ -7825,7 +9073,7 @@
     }
   }
   function drawSetPiece(kit2, role, spot, show, now) {
-    const box = { left: spot.x * TILE + (TILE - FRAME) / 2, top: spot.y * TILE + TILE - 18 };
+    const box = { left: spot.x * TILE2 + (TILE2 - FRAME2) / 2, top: spot.y * TILE2 + TILE2 - 18 };
     switch (role) {
       case "singer":
       case "comic":
@@ -7952,7 +9200,7 @@
       const players = performers.filter((performer) => performer.performing);
       if (playing && players.length > 0 && now >= this.nextEmitAt) {
         const performer = players[Math.floor(random2() * players.length)];
-        const centerX = performer.box.left + FRAME / 2;
+        const centerX = performer.box.left + FRAME2 / 2;
         if (effect === "notes" || effect === "disco") {
           this.nextEmitAt = now + (effect === "disco" ? 0.5 : 0.32);
           this.particles.push({
@@ -7996,7 +9244,7 @@
           }
         }
         if (effect === "sparkles" && lead !== void 0 && (cue.cue === "gasp" || cue.cue === "applause")) {
-          const centerX = lead.box.left + FRAME / 2 + 4;
+          const centerX = lead.box.left + FRAME2 / 2 + 4;
           const centerY = lead.box.top + 8;
           for (let star = 0; star < 12; star++) {
             const angle = star / 12 * Math.PI * 2;
@@ -8064,8 +9312,8 @@
       return;
     }
     const context2 = kit2.context;
-    const centerX = show.stage.x * TILE + TILE / 2;
-    const feetY = show.stage.y * TILE + TILE - 1;
+    const centerX = show.stage.x * TILE2 + TILE2 / 2;
+    const feetY = show.stage.y * TILE2 + TILE2 - 1;
     const poolX = 11;
     const poolY = 3;
     const halfWidth = (y) => {
@@ -8101,7 +9349,7 @@
       return;
     }
     const context2 = kit2.context;
-    const centerX = show.stage.x * TILE + TILE / 2;
+    const centerX = show.stage.x * TILE2 + TILE2 / 2;
     context2.globalAlpha = 0.3 * level;
     kit2.rect(0, 0, roomWidth, roomHeight, "#14062A");
     context2.globalAlpha = level;
@@ -8132,7 +9380,7 @@
   }
 
   // src/officeView/scenery.ts
-  var TILE2 = 16;
+  var TILE3 = 16;
   var noise = (value) => {
     const wave = Math.sin(value * 12.9898) * 43758.5453;
     return wave - Math.floor(wave);
@@ -8179,7 +9427,7 @@
   var SEA_HORIZON = 6;
   function drawSea(kit2, palette2, width2, seconds) {
     const { rect: rect2 } = kit2;
-    rect2(0, SEA_HORIZON, width2, TILE2 - SEA_HORIZON, palette2.wall);
+    rect2(0, SEA_HORIZON, width2, TILE3 - SEA_HORIZON, palette2.wall);
     rect2(0, SEA_HORIZON, width2, 1, "#1E7AA8");
     for (let glint = 0; glint < width2 / 8; glint++) {
       const x = Math.floor((noise(glint) * width2 + seconds * (3 + glint % 3 * 2)) % width2);
@@ -8216,7 +9464,7 @@
     }
     for (let x = 0; x < width2; x += 2) {
       const top = peakTop(x);
-      rect2(x, top, 2, TILE2 - top, palette2.wall);
+      rect2(x, top, 2, TILE3 - top, palette2.wall);
       rect2(x, top, 2, top < 6 ? 2 : 1, "#FFFFFF");
       if (noise(x) > 0.6) {
         rect2(x, top + 3, 1, 2, "#6E86A8");
@@ -8224,7 +9472,7 @@
     }
     for (let x = 0; x < width2; x += 2) {
       const top = snowHill(x);
-      rect2(x, top, 2, TILE2 - top, "#F4F8FC");
+      rect2(x, top, 2, TILE3 - top, "#F4F8FC");
       rect2(x, top, 2, 1, "#FFFFFF");
     }
     for (let x = 5; x < width2; x += 13) {
@@ -8253,7 +9501,7 @@
     for (let x = 0; x < width2; x += 2) {
       const top = mesaTop(x);
       if (top < 13) {
-        rect2(x, top, 2, TILE2 - top, palette2.wall);
+        rect2(x, top, 2, TILE3 - top, palette2.wall);
         rect2(x, top, 2, 1, "#E09A6A");
         rect2(x, top + 3, 2, 1, "#B0603A");
         rect2(x, top + 5, 2, 1, "#D8885A");
@@ -8261,7 +9509,7 @@
     }
     for (let x = 0; x < width2; x += 2) {
       const top = duneTop(x);
-      rect2(x, top, 2, TILE2 - top, palette2.wallTrim);
+      rect2(x, top, 2, TILE3 - top, palette2.wallTrim);
       rect2(x, top, 2, 1, "#F4D8A8");
     }
     for (let x = 23; x < width2; x += 47) {
@@ -8273,7 +9521,7 @@
   }
   function drawWater(kit2, palette2, width2, seconds) {
     const { rect: rect2, context: context2 } = kit2;
-    rect2(0, 0, width2, TILE2, palette2.wall);
+    rect2(0, 0, width2, TILE3, palette2.wall);
     rect2(0, 0, width2, 4, "#2A78B0");
     for (let x = 0; x < width2; x += 4) {
       const shimmer = Math.round(Math.sin(seconds * 2 + x / 5) * 1.5);
@@ -8289,19 +9537,19 @@
     context2.globalAlpha = 1;
     for (let x = 0; x < width2; x += 2) {
       const top = 10 + Math.round(noise(Math.floor(x / 6)) * 3);
-      rect2(x, top, 2, TILE2 - top, palette2.wallTrim);
+      rect2(x, top, 2, TILE3 - top, palette2.wallTrim);
     }
     for (let x = 9; x < width2; x += 17) {
       const sway2 = Math.round(Math.sin(seconds * 1.1 + x) * 1);
       rect2(x + sway2, 4, 1, 8, "#174A70");
       rect2(x + sway2 + 1, 6, 1, 2, "#174A70");
     }
-    rect2(0, TILE2 - 2, width2, 2, "#0B3254");
+    rect2(0, TILE3 - 2, width2, 2, "#0B3254");
   }
   var LIBRARY_WINDOW_EVERY = 5;
   function drawBookcases(kit2, palette2, width2, light2) {
     const { rect: rect2 } = kit2;
-    rect2(0, 0, width2, TILE2, palette2.wall);
+    rect2(0, 0, width2, TILE3, palette2.wall);
     const colors = ["#8A2E2E", "#2E5A8A", "#3E7A3E", "#8A6A2E", "#5A2E7A", "#2E2E3A", "#A8743A"];
     for (const shelfTop of [0, 5, 10]) {
       for (let x = 0; x < width2; x += 2) {
@@ -8310,8 +9558,8 @@
       }
       rect2(0, shelfTop + 4, width2, 1, palette2.wallTrim);
     }
-    for (let column = 3; column * TILE2 < width2 - TILE2; column += LIBRARY_WINDOW_EVERY) {
-      const left = column * TILE2 + 1;
+    for (let column = 3; column * TILE3 < width2 - TILE3; column += LIBRARY_WINDOW_EVERY) {
+      const left = column * TILE3 + 1;
       rect2(left, 0, 14, 13, palette2.wallTrim);
       rect2(left + 1, 2, 12, 10, light2.sky);
       rect2(left + 3, 1, 8, 1, light2.sky);
@@ -8325,8 +9573,8 @@
       rect2(left + 7, 1, 1, 11, palette2.wallTrim);
       rect2(left + 1, 6, 12, 1, palette2.wallTrim);
     }
-    rect2(0, TILE2 - 3, width2, 3, palette2.wallTrim);
-    rect2(0, TILE2 - 3, width2, 1, "#7A5232");
+    rect2(0, TILE3 - 3, width2, 3, palette2.wallTrim);
+    rect2(0, TILE3 - 3, width2, 1, "#7A5232");
   }
   function skylineTowers(width2) {
     const towers = [];
@@ -8354,7 +9602,7 @@
     const { rect: rect2 } = kit2;
     for (const tower of skylineTowers(width2)) {
       const color = tower.near ? palette2.wall : "#9AA8BC";
-      rect2(tower.left, tower.top, tower.width, TILE2 - tower.top, color);
+      rect2(tower.left, tower.top, tower.width, TILE3 - tower.top, color);
       if (tower.near) {
         for (let y = tower.top + 2; y < 13; y += 2) {
           for (let x = tower.left + 1; x < tower.left + tower.width - 1; x += 2) {
@@ -8846,7 +10094,7 @@
   }
 
   // src/officeView/main.ts
-  var TILE3 = 16;
+  var TILE4 = 16;
   var SEATED_LIFT = 5;
   var GUY_HEIGHT = FRAME_HEIGHT - HEAD_ROOM;
   var vscode = acquireVsCodeApi();
@@ -8910,19 +10158,19 @@
   }
   function fitLayout() {
     const withStation = youKey !== void 0;
-    const roomHeight = Math.max(TILE3 * 4, height - (chatterSetting === "log" ? LOG_RESERVE : 0));
-    const shape = officeShape(desksNeeded(latestInputs.length) + (withStation ? STATION_DESKS : 0), width, roomHeight, TILE3, withStation);
+    const roomHeight = Math.max(TILE4 * 4, height - (chatterSetting === "log" ? LOG_RESERVE : 0));
+    const shape = officeShape(desksNeeded(latestInputs.length) + (withStation ? STATION_DESKS : 0), width, roomHeight, TILE4, withStation);
     const layout = state.layout;
     if (shape.cols !== layout.cols || shape.rows !== layout.rows || sceneChanged || layout.station !== void 0 !== withStation) {
       sceneChanged = false;
       relayoutOffice(state, buildOfficeLayout(shape.cols, shape.rows, sceneId, withStation), random);
     }
     const pixelRatio = window.devicePixelRatio || 1;
-    const fit = Math.min(width / (state.layout.cols * TILE3), roomHeight / (state.layout.rows * TILE3));
+    const fit = Math.min(width / (state.layout.cols * TILE4), roomHeight / (state.layout.rows * TILE4));
     const snapped = Math.floor(fit * pixelRatio) / pixelRatio;
     scale = snapped >= fit * 0.85 ? snapped : fit;
-    originX = Math.floor((width - state.layout.cols * TILE3 * scale) / 2);
-    originY = Math.floor(height - state.layout.rows * TILE3 * scale);
+    originX = Math.floor((width - state.layout.cols * TILE4 * scale) / 2);
+    originY = Math.floor(height - state.layout.rows * TILE4 * scale);
   }
   var sceneChanged = false;
   new ResizeObserver(() => {
@@ -8997,6 +10245,7 @@
     }
     performancesSetting = nextPerformances;
     state.talk = talkFactor(talkFrequency(data.talk));
+    state.activityLevel = activityLevel(data.activities);
     bubbleLookSetting = bubbleLook(data.bubbleLook);
     const nextChatter = chatterStyle(data.chatter);
     if (nextChatter !== chatterSetting) {
@@ -9256,28 +10505,28 @@
   function drawFloor(layout, palette2) {
     for (let y = 1; y < layout.rows; y++) {
       for (let x = 0; x < layout.cols; x++) {
-        const left = x * TILE3;
-        const top = y * TILE3;
+        const left = x * TILE4;
+        const top = y * TILE4;
         if (palette2.floorStyle === "planks" || palette2.floorStyle === "tiles") {
-          rect(left, top, TILE3, TILE3, (x + y) % 2 === 0 ? palette2.floor : palette2.floorAlt);
-          rect(left, top + TILE3 - 1, TILE3, 1, palette2.floorLine);
+          rect(left, top, TILE4, TILE4, (x + y) % 2 === 0 ? palette2.floor : palette2.floorAlt);
+          rect(left, top + TILE4 - 1, TILE4, 1, palette2.floorLine);
           if (palette2.floorStyle === "planks") {
-            rect(left + y * 5 % TILE3, top, 1, TILE3 - 1, palette2.floorLine);
+            rect(left + y * 5 % TILE4, top, 1, TILE4 - 1, palette2.floorLine);
           } else {
-            rect(left + TILE3 - 1, top, 1, TILE3, palette2.floorLine);
+            rect(left + TILE4 - 1, top, 1, TILE4, palette2.floorLine);
           }
         } else {
           drawGround(left, top, x * 31 + y * 17, palette2);
         }
       }
     }
-    rect(0, TILE3, layout.cols * TILE3, 2, palette2.shadow);
+    rect(0, TILE4, layout.cols * TILE4, 2, palette2.shadow);
   }
   function drawGround(left, top, seed, palette2) {
-    rect(left, top, TILE3, TILE3, palette2.floor);
+    rect(left, top, TILE4, TILE4, palette2.floor);
     const at = (salt) => ({
-      x: left + Math.floor(noise2(seed + salt) * (TILE3 - 2)),
-      y: top + Math.floor(noise2(seed * 3 + salt) * (TILE3 - 2))
+      x: left + Math.floor(noise2(seed + salt) * (TILE4 - 2)),
+      y: top + Math.floor(noise2(seed * 3 + salt) * (TILE4 - 2))
     });
     const patch = at(1);
     rect(patch.x, patch.y, 5, 3, palette2.floorAlt);
@@ -9327,21 +10576,21 @@
     }
   }
   function drawWall(layout, palette2, seconds) {
-    const width2 = layout.cols * TILE3;
+    const width2 = layout.cols * TILE4;
     context.save();
     context.beginPath();
-    context.rect(0, 0, width2, TILE3);
+    context.rect(0, 0, width2, TILE4);
     context.clip();
     switch (palette2.backdrop) {
       case "windows":
       case "panels":
-        rect(0, 0, width2, TILE3, palette2.wall);
-        rect(0, TILE3 - 3, width2, 3, palette2.wallTrim);
+        rect(0, 0, width2, TILE4, palette2.wall);
+        rect(0, TILE4 - 3, width2, 3, palette2.wallTrim);
         for (let x = 3; x < layout.cols - 1; x += 5) {
           if (palette2.backdrop === "windows") {
-            drawWindow(x * TILE3 + 1, 2, palette2);
+            drawWindow(x * TILE4 + 1, 2, palette2);
           } else {
-            drawWallPanel(x * TILE3 + 1, 2, palette2, seconds, x);
+            drawWallPanel(x * TILE4 + 1, 2, palette2, seconds, x);
           }
         }
         break;
@@ -9367,7 +10616,7 @@
         drawBackdrop(kit, palette2, width2, seconds, light);
     }
     context.restore();
-    drawLuckyCat(rect, TILE3 + 8, 1, seconds, /* @__PURE__ */ new Date(), currentEvent() !== void 0);
+    drawLuckyCat(rect, TILE4 + 8, 1, seconds, /* @__PURE__ */ new Date(), currentEvent() !== void 0);
     drawDoor(layout.door, palette2);
   }
   function drawWindow(left, top, palette2) {
@@ -9397,7 +10646,7 @@
     }
   }
   function drawTrees(width2, palette2) {
-    rect(0, 0, width2, TILE3, palette2.wall);
+    rect(0, 0, width2, TILE4, palette2.wall);
     for (let x = 2; x < width2; x += 7) {
       const shift = Math.floor(noise2(x) * 3);
       rect(x + shift, 5, 2, 9, "#4A3220");
@@ -9428,7 +10677,7 @@
     drawSkyBodies(width2, seconds);
     for (let x = 0; x < width2; x += 2) {
       const hill = hillTop(x);
-      rect(x, hill, 2, TILE3 - hill, "#6FA84A");
+      rect(x, hill, 2, TILE4 - hill, "#6FA84A");
     }
     rect(0, 12, width2, 1, palette2.wallTrim);
     rect(0, 14, width2, 1, palette2.wallTrim);
@@ -9438,7 +10687,7 @@
   }
   function drawSkyBodies(width2, seconds) {
     const sky = currentSky();
-    rect(0, 0, width2, TILE3, light.sky);
+    rect(0, 0, width2, TILE4, light.sky);
     if (light.stars > 0) {
       context.globalAlpha = light.stars;
       for (let star = 0; star < width2 / 10; star++) {
@@ -9503,7 +10752,7 @@
     }
   }
   function drawRockWall(width2, palette2, seconds) {
-    rect(0, 0, width2, TILE3, palette2.wall);
+    rect(0, 0, width2, TILE4, palette2.wall);
     for (let x = 0; x < width2; x += 5) {
       rect(x, Math.floor(noise2(x) * 10), 4, 3, palette2.wallTrim);
     }
@@ -9522,10 +10771,10 @@
       rect(x + 2, 8, 1, 3, color);
       rect(x - 1, 9, 1, 2, color);
     }
-    rect(0, TILE3 - 3, width2, 3, "#1E1B19");
+    rect(0, TILE4 - 3, width2, 3, "#1E1B19");
   }
   function drawSpace(width2, palette2, seconds) {
-    rect(0, 0, width2, TILE3, palette2.wall);
+    rect(0, 0, width2, TILE4, palette2.wall);
     for (let star = 0; star < width2 / 6; star++) {
       const twinkle = noise2(star * 5 + Math.floor(seconds * 1.5 + star)) > 0.15;
       rect(Math.floor(noise2(star * 3) * width2), Math.floor(noise2(star * 7) * 11), 1, 1, twinkle ? "#FFFFFF" : "#555A70");
@@ -9557,27 +10806,27 @@
     context.globalAlpha = 1;
     for (let x = 0; x < width2; x += 3) {
       const ridge = ridgeTop(x);
-      rect(x, ridge, 3, TILE3 - ridge, palette2.wallTrim);
+      rect(x, ridge, 3, TILE4 - ridge, palette2.wallTrim);
     }
-    rect(0, TILE3 - 1, width2, 1, "#6A6A72");
+    rect(0, TILE4 - 1, width2, 1, "#6A6A72");
   }
   function ridgeTop(x) {
     return 11 + Math.round(Math.sin(x / 13) * 1.2 + noise2(x) * 0.8);
   }
   function drawDoor(door, palette2) {
     const open2 = state.agents.some((agent) => Math.abs(agent.x - door.x) + Math.abs(agent.y - door.y) < 1.2);
-    const left = door.x * TILE3 + 2;
+    const left = door.x * TILE4 + 2;
     switch (palette2.doorStyle) {
       case "door":
-        rect(left, 1, 12, TILE3 - 1, palette2.doorFrame);
-        rect(left + 1, 2, 10, TILE3 - 2, open2 ? "#121212" : palette2.door);
+        rect(left, 1, 12, TILE4 - 1, palette2.doorFrame);
+        rect(left + 1, 2, 10, TILE4 - 2, open2 ? "#121212" : palette2.door);
         if (!open2) {
           rect(left + 8, 9, 1, 1, "#F1C24B");
         }
         return;
       case "trail":
-        for (let row = 0; row < TILE3; row++) {
-          const half = 2 + Math.floor(row * 4 / TILE3);
+        for (let row = 0; row < TILE4; row++) {
+          const half = 2 + Math.floor(row * 4 / TILE4);
           rect(left + 6 - half - 1, row, half * 2 + 2, 1, palette2.doorFrame);
           rect(left + 6 - half, row, half * 2, 1, palette2.door);
         }
@@ -9585,9 +10834,9 @@
         rect(left + 7, 10, 2, 1, palette2.doorFrame);
         return;
       case "gate": {
-        rect(left, 6, 1, TILE3 - 6, palette2.doorFrame);
-        rect(left + 11, 6, 1, TILE3 - 6, palette2.doorFrame);
-        rect(left + 1, 7, 10, TILE3 - 7, "#6FA84A");
+        rect(left, 6, 1, TILE4 - 6, palette2.doorFrame);
+        rect(left + 11, 6, 1, TILE4 - 6, palette2.doorFrame);
+        rect(left + 1, 7, 10, TILE4 - 7, "#6FA84A");
         const span = open2 ? 3 : 10;
         rect(left + 1, 9, span, 1, palette2.door);
         rect(left + 1, 13, span, 1, palette2.door);
@@ -9595,14 +10844,14 @@
         return;
       }
       case "tunnel":
-        rect(left - 1, 3, 14, TILE3 - 3, palette2.doorFrame);
+        rect(left - 1, 3, 14, TILE4 - 3, palette2.doorFrame);
         rect(left + 1, 2, 10, 2, palette2.doorFrame);
-        rect(left + 1, 5, 10, TILE3 - 5, palette2.door);
+        rect(left + 1, 5, 10, TILE4 - 5, palette2.door);
         rect(left + 2, 4, 8, 1, palette2.door);
         return;
       case "hatch":
-        rect(left, 2, 12, TILE3 - 2, palette2.doorFrame);
-        rect(left + 1, 3, 10, TILE3 - 3, open2 ? "#05060C" : palette2.door);
+        rect(left, 2, 12, TILE4 - 2, palette2.doorFrame);
+        rect(left + 1, 3, 10, TILE4 - 3, open2 ? "#05060C" : palette2.door);
         if (!open2) {
           rect(left + 4, 5, 4, 3, "#1B2340");
           rect(left + 4, 5, 1, 1, "#7FD1FF");
@@ -9626,8 +10875,8 @@
     return event.age >= EVENT_SECONDS.defense ? void 0 : ["#FF5A4F", "#F1C24B", "#F1C24B", "#4FC3F7"][beat];
   }
   function drawDesk(desk, owner, palette2, seconds, index, eventColor, style) {
-    const left = desk.desk.x * TILE3;
-    const top = desk.desk.y * TILE3;
+    const left = desk.desk.x * TILE4;
+    const top = desk.desk.y * TILE4;
     rect(left + 3, top, 10, 8, palette2.monitor);
     const typing2 = owner !== void 0 && owner.mode === "type" && owner.path.length === 0;
     const present = owner !== void 0 && !owner.leaving && owner.status !== "asleep";
@@ -9646,11 +10895,11 @@
     rect(left + 7, top + 8, 2, 1, palette2.monitor);
     const deskTop = style.top ?? palette2.deskTop;
     const deskFront = style.front ?? palette2.deskFront;
-    rect(left, top + 9, TILE3, 3, deskTop);
+    rect(left, top + 9, TILE4, 3, deskTop);
     rect(left + 4, top + 10, 8, 1, palette2.keyboard);
-    rect(left, top + 12, TILE3, 4, deskFront);
+    rect(left, top + 12, TILE4, 4, deskFront);
     rect(left + 1, top + 12, 1, 4, deskTop);
-    rect(left + TILE3 - 2, top + 12, 1, 4, deskTop);
+    rect(left + TILE4 - 2, top + 12, 1, 4, deskTop);
     drawDeskDecor(left, top, style, palette2, seconds, index);
   }
   function drawDeskDecor(left, top, style, palette2, seconds, index) {
@@ -9663,7 +10912,7 @@
         }
         return;
       case "planks":
-        rect(left, top + 14, TILE3, 1, edge);
+        rect(left, top + 14, TILE4, 1, edge);
         [3, 12].forEach((x) => rect(left + x, top + 12, 1, 1, accent));
         [3, 12].forEach((x) => rect(left + x, top + 15, 1, 1, accent));
         rect(left + 6, top + 12, 1, 1, edge);
@@ -9678,11 +10927,11 @@
         [4, 8, 11].forEach((x) => rect(left + x, top + 12, 1, 4, edge));
         rect(left, top + 8, 2, 1, accent);
         rect(left + 1, top + 7, 1, 1, accent);
-        rect(left + TILE3 - 2, top + 8, 2, 1, accent);
+        rect(left + TILE4 - 2, top + 8, 2, 1, accent);
         rect(left + 14, top + 13, 1, 1, "#F28FB8");
         return;
       case "candle": {
-        rect(left + 1, top + 12, TILE3 - 2, 1, edge);
+        rect(left + 1, top + 12, TILE4 - 2, 1, edge);
         rect(left + 13, top + 5, 2, 4, "#EDE6D8");
         const flicker = Math.floor(seconds * 8 + index) % 3;
         rect(left + 13 + (flicker === 2 ? 1 : 0), top + 3, 1, 2, accent);
@@ -9691,16 +10940,16 @@
       }
       case "glowStrip": {
         rect(left, top + 15, 1, 1, palette2.floor);
-        rect(left + TILE3 - 1, top + 15, 1, 1, palette2.floor);
+        rect(left + TILE4 - 1, top + 15, 1, 1, palette2.floor);
         const pulse = 0.55 + Math.sin(seconds * 2 + index) * 0.3;
         context.globalAlpha = pulse;
-        rect(left + 2, top + 13, TILE3 - 4, 1, accent);
+        rect(left + 2, top + 13, TILE4 - 4, 1, accent);
         context.globalAlpha = 1;
         return;
       }
       case "led": {
-        const lit = Math.floor(seconds * 3 + index) % (TILE3 - 4);
-        rect(left + 2, top + 13, TILE3 - 4, 1, edge);
+        const lit = Math.floor(seconds * 3 + index) % (TILE4 - 4);
+        rect(left + 2, top + 13, TILE4 - 4, 1, edge);
         rect(left + 2 + lit, top + 13, 2, 1, accent);
         return;
       }
@@ -9738,7 +10987,7 @@
         rect(left + 10, top + 10, 1, 1, accent);
         return;
       case "egg":
-        [12, 14].forEach((y) => rect(left + 1, top + y, TILE3 - 2, 1, edge));
+        [12, 14].forEach((y) => rect(left + 1, top + y, TILE4 - 2, 1, edge));
         rect(left + 12, top + 6, 2, 3, accent);
         rect(left + 13, top + 7, 1, 1, "#C9BFAE");
         return;
@@ -9822,9 +11071,9 @@
     }
   }
   function drawStation(station, reaction, palette2, seconds) {
-    const left = station.desk.x * TILE3;
-    const top = station.desk.y * TILE3;
-    const width2 = TILE3 * STATION_DESKS;
+    const left = station.desk.x * TILE4;
+    const top = station.desk.y * TILE4;
+    const width2 = TILE4 * STATION_DESKS;
     rect(left + 1, top + 2, 4, 2, palette2.monitor);
     rect(left + 2, top + 4, 1, 5, palette2.monitor);
     context.globalAlpha = 0.25;
@@ -9955,16 +11204,16 @@
     }
   }
   function drawChairBack(seat, palette2, shiftX = 0) {
-    const left = seat.x * TILE3 + shiftX;
-    const top = seat.y * TILE3;
+    const left = seat.x * TILE4 + shiftX;
+    const top = seat.y * TILE4;
     rect(left + 3, top + 6, 10, 6, palette2.chair);
     rect(left + 4, top + 7, 8, 1, palette2.chairLight);
     rect(left + 7, top + 12, 2, 3, palette2.chairLeg);
     rect(left + 4, top + 15, 8, 1, palette2.chairLeg);
   }
   function drawProp(prop, palette2, seconds, index) {
-    const left = prop.at.x * TILE3;
-    const top = prop.at.y * TILE3;
+    const left = prop.at.x * TILE4;
+    const top = prop.at.y * TILE4;
     switch (prop.kind) {
       case "plant":
         rect(left + 4, top + 9, 8, 7, palette2.pot);
@@ -10023,18 +11272,18 @@
         return;
       case "couch":
         if (palette2.couchStyle === "towel") {
-          for (let x = 1; x < TILE3 * 2 - 1; x++) {
+          for (let x = 1; x < TILE4 * 2 - 1; x++) {
             rect(left + x, top + 5, 1, 9, Math.floor((x - 1) / 3) % 2 === 0 ? palette2.couch : palette2.couchLight);
           }
-          rect(left + 1, top + 13, TILE3 * 2 - 2, 1, palette2.shadow);
+          rect(left + 1, top + 13, TILE4 * 2 - 2, 1, palette2.shadow);
           return;
         }
-        rect(left + 1, top + 4, TILE3 * 2 - 2, 6, palette2.couch);
+        rect(left + 1, top + 4, TILE4 * 2 - 2, 6, palette2.couch);
         if (palette2.couchStyle === "sofa") {
-          rect(left + 2, top + 5, TILE3 - 3, 4, palette2.couchLight);
-          rect(left + TILE3 + 1, top + 5, TILE3 - 3, 4, palette2.couchLight);
+          rect(left + 2, top + 5, TILE4 - 3, 4, palette2.couchLight);
+          rect(left + TILE4 + 1, top + 5, TILE4 - 3, 4, palette2.couchLight);
         } else {
-          rect(left + 2, top + 4, TILE3 * 2 - 4, 1, palette2.couchLight);
+          rect(left + 2, top + 4, TILE4 * 2 - 4, 1, palette2.couchLight);
         }
         return;
       case "pine":
@@ -10221,32 +11470,32 @@
     context.globalAlpha = 1;
   }
   function drawCouchBack(prop, palette2) {
-    const left = prop.at.x * TILE3;
-    const top = prop.at.y * TILE3;
+    const left = prop.at.x * TILE4;
+    const top = prop.at.y * TILE4;
     if (palette2.couchStyle === "towel") {
       return;
     }
     if (palette2.couchStyle !== "sofa") {
-      rect(left + 1, top + 9, TILE3 * 2 - 2, 6, shadeColor(palette2.couch));
-      rect(left + 1, top + 15, TILE3 * 2 - 2, 1, palette2.shadow);
+      rect(left + 1, top + 9, TILE4 * 2 - 2, 6, shadeColor(palette2.couch));
+      rect(left + 1, top + 15, TILE4 * 2 - 2, 1, palette2.shadow);
       if (palette2.couchStyle === "log") {
-        for (let x = 5; x < TILE3 * 2 - 4; x += 6) {
+        for (let x = 5; x < TILE4 * 2 - 4; x += 6) {
           rect(left + x, top + 11, 3, 1, palette2.couch);
         }
         rect(left, top + 5, 3, 10, palette2.couchLight);
         rect(left + 1, top + 8, 1, 3, palette2.couch);
-        rect(left + TILE3 * 2 - 3, top + 5, 3, 10, palette2.couchLight);
-        rect(left + TILE3 * 2 - 2, top + 8, 1, 3, palette2.couch);
+        rect(left + TILE4 * 2 - 3, top + 5, 3, 10, palette2.couchLight);
+        rect(left + TILE4 * 2 - 2, top + 8, 1, 3, palette2.couch);
       } else {
         rect(left + 6, top + 11, 4, 1, palette2.couchLight);
         rect(left + 18, top + 12, 3, 1, palette2.couchLight);
       }
       return;
     }
-    rect(left, top + 9, TILE3 * 2, 7, shadeColor(palette2.couch));
+    rect(left, top + 9, TILE4 * 2, 7, shadeColor(palette2.couch));
     rect(left, top + 4, 3, 12, palette2.couch);
-    rect(left + TILE3 * 2 - 3, top + 4, 3, 12, palette2.couch);
-    rect(left + 3, top + 10, TILE3 * 2 - 6, 1, palette2.couchLight);
+    rect(left + TILE4 * 2 - 3, top + 4, 3, 12, palette2.couch);
+    rect(left + 3, top + 10, TILE4 * 2 - 6, 1, palette2.couchLight);
   }
   function shadeColor(color) {
     const match = /^#([0-9a-f]{6})$/i.exec(color);
@@ -10257,8 +11506,8 @@
     return "rgb(" + [value >> 16 & 255, value >> 8 & 255, value & 255].map((channel) => Math.round(channel * 0.75)).join(",") + ")";
   }
   function agentBox(agent, seated) {
-    const left = Math.round((agent.x + stationSlide(agent)) * TILE3 + (TILE3 - FRAME_WIDTH) / 2);
-    const top = Math.round(agent.y * TILE3 + TILE3 - GUY_HEIGHT - (seated ? SEATED_LIFT : 0));
+    const left = Math.round((agent.x + stationSlide(agent)) * TILE4 + (TILE4 - FRAME_WIDTH) / 2);
+    const top = Math.round(agent.y * TILE4 + TILE4 - GUY_HEIGHT - (seated ? SEATED_LIFT : 0));
     return { agent, left, top };
   }
   function stationSlide(agent) {
@@ -10270,10 +11519,11 @@
   }
   function drawAgent(agent, seconds) {
     const pose = agentPose(agent, seconds);
-    const box = agentBox(agent, pose.seated);
+    const baseBox = agentBox(agent, pose.seated);
+    const box = pose.offset === void 0 ? baseBox : { ...baseBox, left: baseBox.left + pose.offset.x, top: baseBox.top + pose.offset.y };
     if (!pose.seated) {
       context.globalAlpha = 0.25;
-      rect(box.left + 2, Math.round(agent.y * TILE3) + TILE3 - 2, FRAME_WIDTH - 4, 2, "#000");
+      rect(box.left + 2, Math.round(agent.y * TILE4) + TILE4 - 2, FRAME_WIDTH - 4, 2, "#000");
       context.globalAlpha = 1;
     }
     const show = state.show;
@@ -10293,9 +11543,15 @@
     if (pose.pose === "eat" && agent.snack !== void 0) {
       drawSnack(kit, agent.snack, gearBox, pose.facing, pose.frame % 2);
     }
+    if (agent.goal?.kind === "activity" && agent.mode === "play" && agent.path.length === 0) {
+      drawHeld(kit, agent.goal.activity, gearBox, pose.facing, pose.frame);
+    }
     const crew = agent.crew;
     const settingDown = crew?.phase === "build" && crew.job?.kind === "deliver";
-    if (crew !== void 0 && (crew.carrying !== void 0 || crew.chair) && !settingDown) {
+    const item = crew?.job?.item;
+    if (crew !== void 0 && crew.carrying !== void 0 && item !== void 0 && !settingDown) {
+      drawCrate(kit, item, box, HEAD_ROOM, bob);
+    } else if (crew !== void 0 && (crew.carrying !== void 0 || crew.chair) && !settingDown) {
       drawCarried(box, crew.carrying === void 0 ? void 0 : deskStyleOf(crew.carrying), bob, SCENE_PALETTES[sceneId]);
     }
     return box;
@@ -10325,11 +11581,11 @@
     }
   }
   function drawYou(station, reaction) {
-    const left = Math.round(station.seat.x * TILE3 + TILE3 / 2 + (TILE3 - FRAME_WIDTH) / 2);
-    const top = Math.round(station.seat.y * TILE3 + TILE3 - GUY_HEIGHT - (reaction.seated ? SEATED_LIFT : 0) - reaction.hop);
+    const left = Math.round(station.seat.x * TILE4 + TILE4 / 2 + (TILE4 - FRAME_WIDTH) / 2);
+    const top = Math.round(station.seat.y * TILE4 + TILE4 - GUY_HEIGHT - (reaction.seated ? SEATED_LIFT : 0) - reaction.hop);
     if (!reaction.seated) {
       context.globalAlpha = 0.25;
-      rect(left + 2, station.seat.y * TILE3 + TILE3 - 2, FRAME_WIDTH - 4, 2, "#000");
+      rect(left + 2, station.seat.y * TILE4 + TILE4 - 2, FRAME_WIDTH - 4, 2, "#000");
       context.globalAlpha = 1;
     }
     if (youKey !== void 0) {
@@ -10342,11 +11598,11 @@
   function layoutBubble(box, text, bubbleTop = box.top - 11, hovered = false) {
     const { font, fill } = bubbleStyle(bubbleLookSetting, hovered);
     context.font = `${font}px monospace`;
-    const lines = wrapText(text, Math.min(BUBBLE_WRAP, state.layout.cols * TILE3 - 8));
+    const lines = wrapText(text, Math.min(BUBBLE_WRAP, state.layout.cols * TILE4 - 8));
     const textWidth = Math.max(...lines.map((line) => Math.ceil(context.measureText(line).width)));
     const width2 = textWidth + 6;
     const height2 = font + 2 + (lines.length - 1) * font;
-    const left = Math.max(1, Math.min(state.layout.cols * TILE3 - width2 - 1, Math.round(box.left + FRAME_WIDTH / 2 - width2 / 2)));
+    const left = Math.max(1, Math.min(state.layout.cols * TILE4 - width2 - 1, Math.round(box.left + FRAME_WIDTH / 2 - width2 / 2)));
     return { lines, left, top: bubbleTop + 9 - height2, width: width2, height: height2, tailX: box.left + FRAME_WIDTH / 2 - 1, tailY: bubbleTop + 9, font, fill };
   }
   function spreadBubbles(bubbles) {
@@ -10526,7 +11782,7 @@
     const text = box.agent.title.length > 28 ? box.agent.title.slice(0, 27) + "\u2026" : box.agent.title;
     context.font = "7px monospace";
     const textWidth = Math.ceil(context.measureText(text).width);
-    const tagLeft = Math.max(1, Math.min(state.layout.cols * TILE3 - textWidth - 5, Math.round(box.left + FRAME_WIDTH / 2 - textWidth / 2 - 2)));
+    const tagLeft = Math.max(1, Math.min(state.layout.cols * TILE4 - textWidth - 5, Math.round(box.left + FRAME_WIDTH / 2 - textWidth / 2 - 2)));
     const tagTop = box.top + GUY_HEIGHT + 1;
     rect(tagLeft, tagTop, textWidth + 4, 9, palette2.bubbleEdge);
     context.fillStyle = palette2.bubble;
@@ -10555,7 +11811,7 @@
       return;
     }
     context.globalAlpha = alpha;
-    rect(0, 0, layout.cols * TILE3, layout.rows * TILE3, color);
+    rect(0, 0, layout.cols * TILE4, layout.rows * TILE4, color);
     context.globalAlpha = 1;
   }
   var boxes = [];
@@ -10603,6 +11859,25 @@
         layers.push({ depth: desk.desk.y + 0.4, paint: () => drawDesk(desk, void 0, palette2, seconds, job.deskIndex, eventColor, style) });
       }
     }
+    const activityAt = (kind, index, playing, key) => {
+      const fit = activityFit(layout, kind, index);
+      if (fit === void 0) {
+        return;
+      }
+      const row = fit.blocked[0]?.y ?? fit.seats[0].y - 1;
+      const depth = fit.blocked.length > 0 ? row + 0.4 : row + 1.3;
+      layers.push({ depth, paint: () => drawActivity(kit, kind, fit, playing, seconds, key) });
+    };
+    (state.activities ?? []).forEach((activity) => {
+      const playing = state.agents.some((agent) => agent.goal?.kind === "activity" && agent.goal.activityId === activity.id && agent.mode === "play" && agent.path.length === 0);
+      activityAt(activity.kind, activity.index, playing, activity.index);
+    });
+    for (const member of state.agents) {
+      const job = member.crew?.job;
+      if (member.crew?.phase === "build" && job?.kind === "deliver" && job.item !== void 0) {
+        activityAt(job.item, job.deskIndex, false, job.deskIndex);
+      }
+    }
     layout.props.forEach((prop, index) => {
       layers.push({ depth: prop.at.y + (prop.kind === "couch" ? 0.3 : 0.8), paint: () => drawProp(prop, palette2, seconds, index) });
       if (prop.kind === "couch") {
@@ -10612,7 +11887,7 @@
     let youBox;
     if (station !== void 0 && you !== void 0) {
       layers.push({ depth: station.desk.y + 0.4, paint: () => drawStation(station, reaction, palette2, seconds) });
-      layers.push({ depth: station.seat.y + 0.7, paint: () => drawChairBack(station.seat, palette2, TILE3 / 2) });
+      layers.push({ depth: station.seat.y + 0.7, paint: () => drawChairBack(station.seat, palette2, TILE4 / 2) });
       if (atStation) {
         layers.push({ depth: station.seat.y + 0.5, paint: () => {
           youBox = drawYou(station, reaction);
@@ -10658,14 +11933,14 @@
     if (overhead !== void 0) {
       drawFlight(overhead, seconds, false);
     }
-    drawWeather(kit, sceneId, layout.cols * TILE3, layout.rows * TILE3, seconds);
+    drawWeather(kit, sceneId, layout.cols * TILE4, layout.rows * TILE4, seconds);
     drawLighting(layout, owners, atStation || event !== void 0, seconds);
-    drawAfterLight(kit, sceneId, layout.cols * TILE3, light);
+    drawAfterLight(kit, sceneId, layout.cols * TILE4, light);
     drawShowLights(seconds);
     if (overhead !== void 0) {
       drawFlight(overhead, seconds, true);
     }
-    drawFireflies(layout.cols * TILE3, seconds);
+    drawFireflies(layout.cols * TILE4, seconds);
     const lines = [];
     boxes.forEach((box) => {
       if (box.agent.mode === "sleep" && box.agent.path.length === 0 && box.agent.bubble === void 0) {
@@ -10684,7 +11959,7 @@
     youArea = youBox;
     const finalYouBox = youBox;
     if (finalYouBox !== void 0 && youKey !== void 0) {
-      const monitorsTop = station === void 0 ? finalYouBox.top : station.desk.y * TILE3 - 2;
+      const monitorsTop = station === void 0 ? finalYouBox.top : station.desk.y * TILE4 - 2;
       const bubbleTop = Math.min(finalYouBox.top, monitorsTop) - 11;
       if (reaction.bubble !== void 0) {
         lines.push({ id: "you", seed: youKey, key: {}, text: reaction.bubble, since: -Infinity, until: Infinity, priority: "must", box: finalYouBox, bubbleTop });
@@ -10705,8 +11980,8 @@
   }
   function drawShowLights(seconds) {
     const show = state.show;
-    const roomWidth = state.layout.cols * TILE3;
-    const roomHeight = state.layout.rows * TILE3;
+    const roomWidth = state.layout.cols * TILE4;
+    const roomHeight = state.layout.rows * TILE4;
     if (show !== void 0) {
       const level = showLightLevel(show, seconds);
       const effect = PERFORMANCES[show.kind].effect;
@@ -10731,8 +12006,8 @@
     if (light.darkness < 0.01) {
       return;
     }
-    const roomWidth = layout.cols * TILE3;
-    const roomHeight = layout.rows * TILE3;
+    const roomWidth = layout.cols * TILE4;
+    const roomHeight = layout.rows * TILE4;
     lightMap ??= document.createElement("canvas");
     if (lightMap.width !== roomWidth || lightMap.height !== roomHeight) {
       lightMap.width = roomWidth;
@@ -10761,21 +12036,29 @@
       const typing2 = owner !== void 0 && owner.mode === "type" && owner.path.length === 0;
       const present = owner !== void 0 && !owner.leaving && owner.status !== "asleep";
       if (typing2 || present) {
-        pool(desk.desk.x * TILE3 + 8, desk.desk.y * TILE3 + 5, typing2 ? 15 : 10, "#8CC8FF", typing2 ? 0.42 : 0.22);
+        pool(desk.desk.x * TILE4 + 8, desk.desk.y * TILE4 + 5, typing2 ? 15 : 10, "#8CC8FF", typing2 ? 0.42 : 0.22);
       }
     });
+    for (const activity of state.activities ?? []) {
+      const glowing = activityLight(activity.kind);
+      const fit = activityFit(layout, activity.kind, activity.index);
+      const at = fit?.blocked[0] ?? (fit === void 0 ? void 0 : { x: fit.seats[0].x, y: fit.seats[0].y - 1 });
+      if (glowing !== void 0 && at !== void 0) {
+        pool(at.x * TILE4 + glowing.dx, at.y * TILE4 + glowing.dy, glowing.radius, glowing.color, 0.45);
+      }
+    }
     const station = layout.station;
     if (station !== void 0) {
-      const left = station.desk.x * TILE3;
-      const top = station.desk.y * TILE3;
+      const left = station.desk.x * TILE4;
+      const top = station.desk.y * TILE4;
       pool(left + 3, top + 8, 14, "#FFD98A", 0.5);
       if (stationOn) {
         pool(left + 16, top + 3, 22, "#9AD0FF", 0.45);
       }
     }
     layout.props.forEach((prop, index) => {
-      const left = prop.at.x * TILE3;
-      const top = prop.at.y * TILE3;
+      const left = prop.at.x * TILE4;
+      const top = prop.at.y * TILE4;
       switch (prop.kind) {
         case "campfire":
           pool(left + 8, top + 9, 38 + Math.sin(seconds * 9) * 2 + noise2(Math.floor(seconds * 6) + index) * 3, "#FFB060", 0.85);
@@ -10802,14 +12085,14 @@
       }
     });
     if (layout.door !== void 0 && palette().doorStyle === "hatch") {
-      pool(layout.door.x * TILE3 + 8, 8, 14, "#9AD0FF", 0.4);
+      pool(layout.door.x * TILE4 + 8, 8, 14, "#9AD0FF", 0.4);
     }
     const show = state.show;
     const stageLevel = showLightLevel(show, seconds);
     if (show !== void 0 && stageLevel > 0 && PERFORMANCES[show.kind].effect !== "spotlight") {
       const spots = show.spots;
       const middleX = (Math.min(...spots.map((spot) => spot.x)) + Math.max(...spots.map((spot) => spot.x))) / 2;
-      pool(middleX * TILE3 + 8, show.stage.y * TILE3 + 6, 26 + spots.length * 6, "#FFE2B0", 0.75 * stageLevel);
+      pool(middleX * TILE4 + 8, show.stage.y * TILE4 + 6, 26 + spots.length * 6, "#FFE2B0", 0.75 * stageLevel);
     }
     map.globalCompositeOperation = "source-over";
     context.save();
@@ -10821,7 +12104,7 @@
     return SCENE_PALETTES[sceneId];
   }
   function paintOpenSky(map, layout) {
-    const roomWidth = layout.cols * TILE3;
+    const roomWidth = layout.cols * TILE4;
     const backdrop = palette().backdrop;
     if (backdropHasSky(backdrop)) {
       for (let x = 0; x < roomWidth; x++) {
@@ -10832,12 +12115,12 @@
     switch (backdrop) {
       case "windows":
         for (let x = 3; x < layout.cols - 1; x += 5) {
-          map.fillRect(x * TILE3 + 2, 3, 12, 8);
+          map.fillRect(x * TILE4 + 2, 3, 12, 8);
         }
         return;
       case "bookcases":
-        for (let x = 3; x * TILE3 < roomWidth - TILE3; x += LIBRARY_WINDOW_EVERY) {
-          map.fillRect(x * TILE3 + 2, 2, 12, 10);
+        for (let x = 3; x * TILE4 < roomWidth - TILE4; x += LIBRARY_WINDOW_EVERY) {
+          map.fillRect(x * TILE4 + 2, 2, 12, 10);
         }
         return;
       case "sky":
@@ -10864,7 +12147,7 @@
     }
     if (critterRun === void 0) {
       if (crittersOn && now >= nextCritterAt && width > 0) {
-        critterRun = planCritterRun(state.layout, sceneId, now, random, TILE3);
+        critterRun = planCritterRun(state.layout, sceneId, now, random, TILE4);
         critterWatchers = /* @__PURE__ */ new Set();
         if (critterRun === void 0) {
           nextCritterAt = now + critterGap(random);
@@ -10873,7 +12156,7 @@
       return;
     }
     for (const pose of critterPoses(critterRun, now)) {
-      const at = { x: pose.x / TILE3 - 0.5, y: pose.y / TILE3 - 0.9 };
+      const at = { x: pose.x / TILE4 - 0.5, y: pose.y / TILE4 - 0.9 };
       reactToCritter(state, at, critterLines(pose.kind), critterWatchers, random).forEach((id) => critterWatchers.add(id));
     }
   }
@@ -10881,7 +12164,7 @@
     const layout = state.layout;
     context.save();
     context.beginPath();
-    context.rect(0, 0, layout.cols * TILE3, layout.rows * TILE3);
+    context.rect(0, 0, layout.cols * TILE4, layout.rows * TILE4);
     context.clip();
     const flies = run.row >= layout.rows;
     critterPoses(run, seconds).forEach((pose) => drawCritter(rect, pose, run.groundY, flies ? void 0 : palette2.shadow));
@@ -10898,7 +12181,7 @@
     }
     if (flight === void 0) {
       if (fliersOn && now >= nextFlightAt && width > 0) {
-        flight = planFlight(state.layout, sceneId, now, random, TILE3, fliersNight());
+        flight = planFlight(state.layout, sceneId, now, random, TILE4, fliersNight());
         flightWatchers = /* @__PURE__ */ new Set();
         if (flight === void 0) {
           nextFlightAt = now + flierGap(random);
@@ -10907,14 +12190,14 @@
       return;
     }
     for (const pose of flierPoses(flight, now)) {
-      const at = { x: pose.x / TILE3 - 0.5, y: pose.y / TILE3 + 1 };
+      const at = { x: pose.x / TILE4 - 0.5, y: pose.y / TILE4 + 1 };
       reactToCritter(state, at, flierLines(pose.kind), flightWatchers, random).forEach((id) => flightWatchers.add(id));
     }
   }
   function clipToRoom() {
     context.save();
     context.beginPath();
-    context.rect(0, 0, state.layout.cols * TILE3, state.layout.rows * TILE3);
+    context.rect(0, 0, state.layout.cols * TILE4, state.layout.rows * TILE4);
     context.clip();
   }
   function drawFlightShadows(current, palette2, seconds) {
