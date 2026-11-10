@@ -58,3 +58,7 @@ npm run site
 ```
 
 `CLAUDE.md` maps the code.
+
+## License
+
+[MIT](LICENSE).
