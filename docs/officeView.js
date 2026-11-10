@@ -4294,8 +4294,9 @@
     clearDeskSpots(layout);
     return { layout, agents: [], time: 0, placed: /* @__PURE__ */ new Map() };
   }
-  var CREW_IDS = ["crew-1", "crew-2"];
   var CREW_TITLE = "Maintenance";
+  var MAX_CREW = 6;
+  var CREW_SPACING_SECONDS = 0.8;
   function isSession(agent) {
     return !agent.you && agent.visitor === void 0 && agent.crew === void 0 && agent.performer === void 0;
   }
@@ -4586,6 +4587,9 @@
     goTo(state2, agent, agent.workSpot, { kind: "work" }, false, random2);
   }
   function relayoutOffice(state2, layout, random2) {
+    const hadDesk = new Set(state2.agents.filter((agent) => isSession(agent) && !agent.leaving && hasDesk(state2, agent)).map((agent) => agent.id));
+    const wantedBefore = new Set(state2.agents.flatMap((agent) => isSession(agent) && !agent.leaving && agent.deskIndex !== void 0 ? [agent.deskIndex] : []));
+    const leftovers = [...state2.placed].filter(([index]) => !wantedBefore.has(index));
     clearDeskSpots(layout);
     state2.layout = layout;
     state2.placed = /* @__PURE__ */ new Map();
@@ -4604,11 +4608,24 @@
     }
     assignWorkSpots(state2);
     for (const agent of state2.agents) {
-      if (agent.deskIndex !== void 0 && isSession(agent) && !agent.leaving) {
+      if (agent.deskIndex !== void 0 && isSession(agent) && !agent.leaving && hadDesk.has(agent.id)) {
         placeDesk(state2, agent.deskIndex, agent.seed);
       }
+    }
+    const wanted = new Set(state2.agents.flatMap((agent) => isSession(agent) && !agent.leaving && agent.deskIndex !== void 0 ? [agent.deskIndex] : []));
+    const emptySpots = layout.desks.map((_, index) => index).filter((index) => !wanted.has(index) && !state2.placed.has(index));
+    const movedLeftovers = /* @__PURE__ */ new Map();
+    for (const [oldIndex, seed] of leftovers) {
+      const index = emptySpots.shift();
+      if (index === void 0) {
+        break;
+      }
+      placeDesk(state2, index, seed);
+      movedLeftovers.set(oldIndex, index);
+    }
+    for (const agent of state2.agents) {
       if (agent.crew !== void 0) {
-        agent.crew = { job: void 0, phase: "idle", carrying: void 0, chair: false };
+        remapCrewJob(state2, agent.crew, movedLeftovers);
       }
     }
     const show = state2.show;
@@ -5275,7 +5292,8 @@
       }
     }
     if (jobs.length > 0 && crew.length === 0) {
-      crew = CREW_IDS.map((id, index) => newCrew(state2, id, index, random2));
+      crew = [newCrew(state2, 0, random2), newCrew(state2, 1, random2)];
+      state2.crewDueAt = state2.time + CREW_SPACING_SECONDS;
     }
     for (const member of crew) {
       const job = jobs[0];
@@ -5285,10 +5303,47 @@
         startJob(state2, member, job, random2);
       }
     }
+    if (jobs.length > 0 && crew.length < MAX_CREW && state2.time >= (state2.crewDueAt ?? 0)) {
+      state2.crewDueAt = state2.time + CREW_SPACING_SECONDS;
+      const used = new Set(crew.map((member) => member.id));
+      let number = 0;
+      while (used.has(`crew-${number + 1}`)) {
+        number += 1;
+      }
+      startJob(state2, newCrew(state2, number, random2), jobs[0], random2);
+    }
   }
-  function newCrew(state2, id, index, random2) {
+  function remapCrewJob(state2, crew, movedLeftovers) {
+    const job = crew.job;
+    if (crew.phase === "help") {
+      crew.phase = "idle";
+    }
+    if (job === void 0) {
+      return;
+    }
+    if (crew.phase === "haul") {
+      job.deskIndex = -1;
+      return;
+    }
+    const index = job.kind === "remove" ? movedLeftovers.get(job.deskIndex) : state2.agents.find((other) => isSession(other) && !other.leaving && other.seed === job.seed && other.deskIndex !== void 0 && !hasDesk(state2, other))?.deskIndex;
+    if (index === void 0) {
+      if (crew.carrying !== void 0) {
+        job.deskIndex = -1;
+        crew.phase = "haul";
+      } else {
+        crew.job = void 0;
+        crew.phase = "idle";
+      }
+      return;
+    }
+    job.deskIndex = index;
+    if (crew.phase === "build") {
+      crew.phase = "toSlot";
+    }
+  }
+  function newCrew(state2, index, random2) {
     const agent = {
-      ...newAgent(state2, { id, seed: `crew|${index}`, status: "working", title: CREW_TITLE }, random2),
+      ...newAgent(state2, { id: `crew-${index + 1}`, seed: `crew|${index}`, status: "working", title: CREW_TITLE }, random2),
       crew: { job: void 0, phase: "idle", carrying: void 0, chair: false }
     };
     state2.agents.push(agent);

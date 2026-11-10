@@ -1,7 +1,7 @@
 import { SLEEP_LINES, WAKE_TO_WORK_LINES } from "../../src/officePhrases";
 import { describe, expect, it } from "vitest";
 import { buildOfficeLayout } from "../../src/officeLayout";
-import { Agent, AgentInput, agentPose, callYouBack, createOffice, crewAgents, endShow, hasDesk, isAtStation, officeCounts, OfficeState, relayoutOffice, setYouStatus, ShowInput, showPerformers, startShow, stepOffice, syncOffice, syncYou, youAgent } from "../../src/officeSim";
+import { Agent, AgentInput, agentPose, callYouBack, createOffice, crewAgents, endShow, hasDesk, isAtStation, MAX_CREW, officeCounts, OfficeState, relayoutOffice, setYouStatus, ShowInput, showPerformers, startShow, stepOffice, syncOffice, syncYou, youAgent } from "../../src/officeSim";
 import { PERFORMANCES, PerformanceKindId, planPerformance } from "../../src/officePerformances";
 import { seededRandom } from "../../src/pixelGuy";
 
@@ -254,14 +254,62 @@ describe("officeSim", () => {
       expect(hasDesk(state, agent(state, "c"))).toBe(true);
     });
 
-    it("puts everyone's desk in at once when the room changes shape", () => {
+    it("keeps standing desks through a relayout and leaves the rest for the crew", () => {
       const random = seededRandom(24);
       const state = createOffice(buildOfficeLayout(20, 12, "office"));
-      syncOffice(state, [input("a", "working"), input("b", "idle")], random);
+      syncOffice(state, [input("a", "working")], random, "seated");
+      syncOffice(state, [input("a", "working"), input("b", "idle"), input("c", "working")], random);
       run(state, 1, random);
       relayoutOffice(state, buildOfficeLayout(14, 9, "office"), random);
-      expect(state.agents.filter((guy) => guy.crew === undefined).every((guy) => hasDesk(state, guy))).toBe(true);
-      run(state, 30, random);
+      expect(hasDesk(state, agent(state, "a"))).toBe(true);
+      expect(hasDesk(state, agent(state, "b"))).toBe(false);
+      expect(hasDesk(state, agent(state, "c"))).toBe(false);
+      let sawCarried = false;
+      for (let elapsed = 0; elapsed < 90 && crewAgents(state).length + Number(!hasDesk(state, agent(state, "c"))) > 0; elapsed += 0.05) {
+        stepOffice(state, 0.05, random);
+        sawCarried ||= crewAgents(state).some((member) => member.crew?.carrying === "c");
+      }
+      expect(sawCarried).toBe(true);
+      expect(["a", "b", "c"].every((id) => hasDesk(state, agent(state, id)))).toBe(true);
+      expect(crewAgents(state)).toHaveLength(0);
+    });
+
+    it("hauls out a leftover desk after a relayout instead of dropping it", () => {
+      const random = seededRandom(26);
+      const state = createOffice(buildOfficeLayout(20, 12, "office"));
+      syncOffice(state, [input("a", "working"), input("b", "working")], random, "seated");
+      syncOffice(state, [input("b", "working")], random);
+      relayoutOffice(state, buildOfficeLayout(14, 9, "office"), random);
+      expect(state.placed.size).toBe(2);
+      let sawHauling = false;
+      for (let elapsed = 0; elapsed < 90 && crewAgents(state).length + state.placed.size > 1; elapsed += 0.05) {
+        stepOffice(state, 0.05, random);
+        sawHauling ||= crewAgents(state).some((member) => member.crew?.phase === "haul" && member.crew.carrying === "a");
+      }
+      expect(sawHauling).toBe(true);
+      expect(state.placed.size).toBe(1);
+    });
+
+    it("sends in more of the crew, one at a time, for a batch of desks", () => {
+      const random = seededRandom(25);
+      const state = createOffice(buildOfficeLayout(20, 12, "office"));
+      const ids = Array.from({ length: 8 }, (_, index) => `s${index}`);
+      syncOffice(state, ids.map((id) => input(id, "working")), random);
+      stepOffice(state, 0.05, random);
+      expect(crewAgents(state)).toHaveLength(2);
+      let most = 0;
+      let busiest = 0;
+      let sharedId = false;
+      for (let elapsed = 0; elapsed < 120 && !(ids.every((id) => hasDesk(state, agent(state, id))) && crewAgents(state).length === 0); elapsed += 0.05) {
+        stepOffice(state, 0.05, random);
+        most = Math.max(most, crewAgents(state).length);
+        busiest = Math.max(busiest, crewAgents(state).filter((member) => member.crew?.job !== undefined).length);
+        sharedId ||= new Set(crewAgents(state).map((member) => member.id)).size !== crewAgents(state).length;
+      }
+      expect(most).toBe(MAX_CREW);
+      expect(busiest).toBeGreaterThan(2);
+      expect(sharedId).toBe(false);
+      expect(ids.every((id) => hasDesk(state, agent(state, id)))).toBe(true);
       expect(crewAgents(state)).toHaveLength(0);
     });
   });

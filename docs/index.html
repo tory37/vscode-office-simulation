@@ -246,7 +246,7 @@
 
       <div class="demo">
         <h3>Workers</h3>
-        <p>Each agent an extension sends in gets a guy and a desk. Busy types, idle wanders, asleep naps at his desk. A new guy waits while two maintenance guys carry his desk in and build it. Click a guy: here that cycles his status.</p>
+        <p>Each agent an extension sends in gets a guy and a desk. Busy types, idle wanders, asleep naps at his desk. A new guy waits while the maintenance crew carries his desk in and builds it. Add or remove several at once and more of the crew come in to keep up. Click a guy: here that cycles his status.</p>
         <div id="demo-workers"></div>
         <div class="controls">
           <button data-add="working">+ busy</button>
@@ -337,7 +337,7 @@
     <p><code>officeLayout</code> builds a floor plan for a size in tiles: the back wall and door, desk spots in pairs with seats below, and props along the bottom, per scene. <code>officeShape</code> picks pairs per row and rows of desks for the biggest zoom the view allows, with room for ten desks at least, or the workers plus two. When you're in, the pair nearest the middle joins into your station. Paths are breadth-first searches that don't cut across seats.</p>
 
     <h3>The guys</h3>
-    <p><code>officeSim</code> runs everyone. A busy worker types at his desk. An idle one sits back, then goes to a prop, the couch, a walk, or a chat with another idle guy, and runs back when he's busy again. Asleep naps at his desk; a worker that goes away walks out the door. Desks are real objects: when one is missing, two maintenance guys fetch it from the door, carry it to its spot (the partner brings the chair), and build it, and the new guy waits beside the spot meanwhile. A desk with no worker gets taken apart and hauled out.</p>
+    <p><code>officeSim</code> runs everyone. A busy worker types at his desk. An idle one sits back, then goes to a prop, the couch, a walk, or a chat with another idle guy, and runs back when he's busy again. Asleep naps at his desk; a worker that goes away walks out the door. Desks are real objects: when one is missing, two maintenance guys fetch it from the door, carry it to its spot (the partner brings the chair), and build it, and the new guy waits beside the spot meanwhile. A desk with no worker gets taken apart and hauled out. While desks are still waiting, another maintenance guy comes in every moment or so, up to six, so a batch of new or ended sessions gets one job each. When the room grows or shrinks, desks already standing stay, and the crew still brings in or hauls out the rest.</p>
     <p>Looks come from a seed. <code>pixelGuy</code> hashes it into skin, hair, clothes, and an accessory, and a separate hash stream picks one of 36 races from <code>pixelRaces</code>, so re-rolling the race keeps his clothes. Each guy is drawn into outlined 12×18 frames per pose and facing, and cached.</p>
 
     <h3>Your guy</h3>

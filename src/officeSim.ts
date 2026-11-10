@@ -205,6 +205,8 @@ export interface OfficeState {
   // What your guy is up to: auto works at his station with a break now and then; busy stays at the station; idle stays
   // on a break. A host sets it (say, busy while Claude works).
   youStatus?: YouStatus;
+  // When the next maintenance guy may come in to help with a backlog of desks.
+  crewDueAt?: number;
 }
 
 export type YouStatus = "auto" | "busy" | "idle";
@@ -227,8 +229,10 @@ export function createOffice(layout: OfficeLayout): OfficeState {
   return { layout, agents: [], time: 0, placed: new Map() };
 }
 
-export const CREW_IDS = ["crew-1", "crew-2"] as const;
 const CREW_TITLE = "Maintenance";
+// Two come in for any job; more follow, one at a time, while desks are still waiting, up to this many.
+export const MAX_CREW = 6;
+const CREW_SPACING_SECONDS = 0.8;
 
 // A session's guy: not you, not a visitor, not the crew, not a performer.
 function isSession(agent: Agent): boolean {
@@ -579,6 +583,10 @@ function stepYou(state: OfficeState, agent: Agent, random: Random): void {
 
 // Swaps in a new floor plan after a resize, keeps desks where it can, and has everyone pick up again from where they are.
 export function relayoutOffice(state: OfficeState, layout: OfficeLayout, random: Random): void {
+  // What was standing before: the guys who had their desks, and desks still waiting to be hauled out.
+  const hadDesk = new Set(state.agents.filter((agent) => isSession(agent) && !agent.leaving && hasDesk(state, agent)).map((agent) => agent.id));
+  const wantedBefore = new Set(state.agents.flatMap((agent) => (isSession(agent) && !agent.leaving && agent.deskIndex !== undefined ? [agent.deskIndex] : [])));
+  const leftovers = [...state.placed].filter(([index]) => !wantedBefore.has(index));
   clearDeskSpots(layout);
   state.layout = layout;
   state.placed = new Map();
@@ -596,13 +604,27 @@ export function relayoutOffice(state: OfficeState, layout: OfficeLayout, random:
     }
   }
   assignWorkSpots(state);
-  // The room changed shape: everyone's desk is just there, and the crew has nothing left to carry.
+  // The room changed shape. Desks that were standing move with their guys, and leftovers waiting to go out move to
+  // empty spots; the crew still brings in or hauls out the rest, carrying on with what they had in hand.
   for (const agent of state.agents) {
-    if (agent.deskIndex !== undefined && isSession(agent) && !agent.leaving) {
+    if (agent.deskIndex !== undefined && isSession(agent) && !agent.leaving && hadDesk.has(agent.id)) {
       placeDesk(state, agent.deskIndex, agent.seed);
     }
+  }
+  const wanted = new Set(state.agents.flatMap((agent) => (isSession(agent) && !agent.leaving && agent.deskIndex !== undefined ? [agent.deskIndex] : [])));
+  const emptySpots = layout.desks.map((_, index) => index).filter((index) => !wanted.has(index) && !state.placed.has(index));
+  const movedLeftovers = new Map<number, number>();
+  for (const [oldIndex, seed] of leftovers) {
+    const index = emptySpots.shift();
+    if (index === undefined) {
+      break;
+    }
+    placeDesk(state, index, seed);
+    movedLeftovers.set(oldIndex, index);
+  }
+  for (const agent of state.agents) {
     if (agent.crew !== undefined) {
-      agent.crew = { job: undefined, phase: "idle", carrying: undefined, chair: false };
+      remapCrewJob(state, agent.crew, movedLeftovers);
     }
   }
   // The show goes on if its stage is still open floor; otherwise it's over.
@@ -1341,7 +1363,8 @@ function manageCrew(state: OfficeState, random: Random): void {
     }
   }
   if (jobs.length > 0 && crew.length === 0) {
-    crew = CREW_IDS.map((id, index) => newCrew(state, id, index, random));
+    crew = [newCrew(state, 0, random), newCrew(state, 1, random)];
+    state.crewDueAt = state.time + CREW_SPACING_SECONDS;
   }
   for (const member of crew) {
     const job = jobs[0];
@@ -1351,11 +1374,57 @@ function manageCrew(state: OfficeState, random: Random): void {
       startJob(state, member, job, random);
     }
   }
+  // Desks still waiting and everyone's busy: another guy comes in for the next one.
+  if (jobs.length > 0 && crew.length < MAX_CREW && state.time >= (state.crewDueAt ?? 0)) {
+    state.crewDueAt = state.time + CREW_SPACING_SECONDS;
+    const used = new Set(crew.map((member) => member.id));
+    let number = 0;
+    while (used.has(`crew-${number + 1}`)) {
+      number += 1;
+    }
+    startJob(state, newCrew(state, number, random), jobs[0], random);
+  }
 }
 
-function newCrew(state: OfficeState, id: string, index: number, random: Random): Agent {
+// After a relayout: points a crew member's job at the desk's new spot, or drops a job that has no spot anymore.
+function remapCrewJob(state: OfficeState, crew: CrewState, movedLeftovers: Map<number, number>): void {
+  const job = crew.job;
+  if (crew.phase === "help") {
+    // Finds his partner again from where he stands.
+    crew.phase = "idle";
+  }
+  if (job === undefined) {
+    return;
+  }
+  if (crew.phase === "haul") {
+    // The desk is already in his hands and headed out the door; its old spot doesn't matter.
+    job.deskIndex = -1;
+    return;
+  }
+  const index = job.kind === "remove"
+    ? movedLeftovers.get(job.deskIndex)
+    : state.agents.find((other) => isSession(other) && !other.leaving && other.seed === job.seed && other.deskIndex !== undefined && !hasDesk(state, other))?.deskIndex;
+  if (index === undefined) {
+    if (crew.carrying !== undefined) {
+      // Carrying a desk nobody has a spot for: out it goes.
+      job.deskIndex = -1;
+      crew.phase = "haul";
+    } else {
+      crew.job = undefined;
+      crew.phase = "idle";
+    }
+    return;
+  }
+  job.deskIndex = index;
+  if (crew.phase === "build") {
+    // Walks over to the new spot and starts again there.
+    crew.phase = "toSlot";
+  }
+}
+
+function newCrew(state: OfficeState, index: number, random: Random): Agent {
   const agent: Agent = {
-    ...newAgent(state, { id, seed: `crew|${index}`, status: "working", title: CREW_TITLE }, random),
+    ...newAgent(state, { id: `crew-${index + 1}`, seed: `crew|${index}`, status: "working", title: CREW_TITLE }, random),
     crew: { job: undefined, phase: "idle", carrying: undefined, chair: false },
   };
   state.agents.push(agent);
