@@ -104,6 +104,8 @@ export interface Agent {
   react?: { text: string; at: number; cheer: boolean };
   cheerUntil: number;
   snack?: FoodKind;
+  // Woken from a nap to watch a show; he answers it sleepily.
+  groggy?: boolean;
 }
 
 export interface PerformerState {
@@ -370,8 +372,9 @@ export function syncOffice(
       continue;
     }
     if (agent.status !== input.status) {
+      const previous = agent.status;
       agent.status = input.status;
-      onStatusChange(state, agent, random);
+      onStatusChange(state, agent, previous, random);
     }
   }
   const known = new Set(state.agents.filter(isSession).map((agent) => agent.id));
@@ -391,12 +394,13 @@ export function syncOffice(
       agent.x = agent.workSpot.x;
       agent.y = agent.workSpot.y;
       agent.facing = "up";
-      if (agent.status === "asleep") {
-        agent.goal = { kind: "sleep" };
-        setMode(state, agent, "sleep", FOREVER);
-        continue;
-      }
-      if (agent.status === "idle") {
+      if (agent.status !== "working") {
+        if (random() < OPEN_NAP_CHANCE && hasDesk(state, agent)) {
+          // A few are napping when the room opens.
+          agent.goal = { kind: "sleep" };
+          setMode(state, agent, "sleep", between(random, 10, NAP_SECONDS[1]));
+          continue;
+        }
         // Stagger when they get up, so the room doesn't stand up at once.
         agent.mode = agent.deskIndex === undefined ? "couch" : "sit";
         agent.modeUntil = state.time + between(random, 1, 12);
@@ -488,7 +492,7 @@ function isAddressing(agent: Agent): boolean {
 
 // Turns a standing idle guy to look at a point (a visitor, say) for a moment. Seated and busy guys stay put.
 export function lookToward(state: OfficeState, agent: Agent, at: { x: number; y: number }, seconds: number): void {
-  if (agent.status !== "idle" || agent.leaving || SEATED_MODES.has(agent.mode) || agent.mode === "chat") {
+  if (agent.status === "working" || agent.leaving || SEATED_MODES.has(agent.mode) || agent.mode === "chat") {
     return;
   }
   const dx = at.x - agent.x;
@@ -717,7 +721,7 @@ export function stepOffice(state: OfficeState, seconds: number, random: Random):
     if (agent.bubble !== undefined && state.time >= agent.bubble.until) {
       agent.bubble = undefined;
     }
-    if (agent.watch !== undefined && (state.time >= agent.watch.until || agent.status !== "idle" || agent.leaving)) {
+    if (agent.watch !== undefined && (state.time >= agent.watch.until || agent.status === "working" || agent.leaving)) {
       agent.watch = undefined;
     }
     if (agent.watch !== undefined) {
@@ -789,6 +793,11 @@ export function stepOffice(state: OfficeState, seconds: number, random: Random):
   }
 }
 
+// How often a free guy picks a nap among his idle choices, how long one lasts, and the share napping when the room opens.
+const NAP_WEIGHT = 1;
+const NAP_SECONDS = [25, 75] as const;
+const OPEN_NAP_CHANCE = 0.25;
+
 const SEATED_MODES: ReadonlySet<AgentMode> = new Set<AgentMode>(["type", "sit", "couch", "stretch", "sleep"]);
 
 // A critter is passing at (x, y) in tiles. Idle guys within reach who haven't reacted to it yet (ids in reacted)
@@ -798,7 +807,7 @@ export const CRITTER_REACH = { x: 3, y: 2 };
 export function reactToCritter(state: OfficeState, at: { x: number; y: number }, lines: readonly string[], reacted: ReadonlySet<string>, random: Random): string[] {
   const watchers: string[] = [];
   for (const agent of state.agents) {
-    if (reacted.has(agent.id) || agent.status !== "idle" || agent.leaving || agent.bubble !== undefined) {
+    if (reacted.has(agent.id) || agent.status === "working" || agent.mode === "sleep" || agent.leaving || agent.bubble !== undefined) {
       continue;
     }
     const dx = at.x - agent.x;
@@ -975,21 +984,15 @@ function assignWorkSpots(state: OfficeState): void {
   }
 }
 
-function onStatusChange(state: OfficeState, agent: Agent, random: Random): void {
+// Idle and asleep (a suspended session) look the same in the room: both do idle things, naps among them. Going
+// between the two changes nothing he's doing.
+function onStatusChange(state: OfficeState, agent: Agent, previous: AgentStatus, random: Random): void {
+  if (agent.status !== "working" && previous !== "working") {
+    return;
+  }
   endChat(state, agent);
-  const wasAsleep = agent.mode === "sleep";
-  if (wasAsleep) {
-    say(state, agent, pickPhrase(agent.status === "working" ? WAKE_TO_WORK_LINES : WAKE_IDLE_LINES, random), 1.6);
-  }
-  if (agent.status === "asleep") {
-    say(state, agent, pickPhrase(SLEEP_LINES, random), 1.6);
-    goTo(state, agent, agent.workSpot, { kind: "sleep" }, false, random);
-    return;
-  }
-  if (wasAsleep && agent.status === "idle") {
-    // Waking up slow: a few seconds at the desk before getting up.
-    setMode(state, agent, agent.deskIndex === undefined ? "couch" : "sit", between(random, 3, 6));
-    return;
+  if (agent.mode === "sleep") {
+    say(state, agent, pickPhrase(WAKE_TO_WORK_LINES, random), 1.6);
   }
   if (agent.status === "working") {
     const atWork = agent.path.length === 0 && isAt(agent, agent.workSpot);
@@ -1045,15 +1048,14 @@ function decide(state: OfficeState, agent: Agent, random: Random): void {
     goTo(state, agent, agent.workSpot, { kind: "work" }, false, random);
     return;
   }
-  if (agent.status === "asleep") {
-    goTo(state, agent, agent.workSpot, { kind: "sleep" }, false, random);
-    return;
-  }
   endChat(state, agent);
   pickIdleActivity(state, agent, random);
 }
 
 function pickIdleActivity(state: OfficeState, agent: Agent, random: Random): void {
+  if (agent.mode === "sleep" && random() < 0.5 * Math.min(1, talkOf(state))) {
+    say(state, agent, pickPhrase(WAKE_IDLE_LINES, random), 1.6);
+  }
   const atDesk = hasDesk(state, agent) && agent.path.length === 0 && isAt(agent, agent.workSpot);
   const freeProps = state.layout.props
     .map((prop, propIndex) => ({ prop, propIndex }))
@@ -1081,6 +1083,10 @@ function pickIdleActivity(state: OfficeState, agent: Agent, random: Random): voi
   }
   if (freeCouch.length > 0) {
     options.push({ weight: 1, run: () => goTo(state, agent, freeCouch[Math.floor(random() * freeCouch.length)], { kind: "couch" }, false, random) });
+  }
+  if (!agent.you && agent.visitor === undefined && agent.mode !== "sleep" && (hasDesk(state, agent) || agent.deskIndex === undefined)) {
+    // Now and then he naps at his desk (or his couch seat, with no desk), then gets up again.
+    options.push({ weight: NAP_WEIGHT, run: () => goTo(state, agent, agent.workSpot, { kind: "sleep" }, false, random) });
   }
   const games = activityChoices(state, agent, partners);
   if (games.length > 0) {
@@ -1118,7 +1124,7 @@ function pickIdleActivity(state: OfficeState, agent: Agent, random: Random): voi
 }
 
 function canChat(agent: Agent): boolean {
-  return !agent.leaving && agent.status === "idle" && agent.performer === undefined && agent.goal?.kind !== "chat" && agent.goal?.kind !== "show" &&
+  return !agent.leaving && agent.status !== "working" && agent.mode !== "sleep" && agent.performer === undefined && agent.goal?.kind !== "chat" && agent.goal?.kind !== "show" &&
     agent.goal?.kind !== "activity" && agent.crew === undefined &&
     agent.mode !== "chat" && agent.mode !== "wait" && agent.mode !== "watch";
 }
@@ -1229,11 +1235,14 @@ function arrive(state: OfficeState, agent: Agent, random: Random): void {
       return;
     case "sleep":
       agent.facing = "up";
-      if (agent.status !== "asleep") {
+      if (agent.status === "working") {
         setMode(state, agent, "loiter", 0.5);
         return;
       }
-      setMode(state, agent, "sleep", FOREVER);
+      if (random() < 0.5 * Math.min(1, talkOf(state))) {
+        say(state, agent, pickPhrase(SLEEP_LINES, random), 1.4);
+      }
+      setMode(state, agent, "sleep", between(random, NAP_SECONDS[0], NAP_SECONDS[1]));
       return;
     case "desk":
       agent.facing = "up";
@@ -1374,7 +1383,7 @@ function say(state: OfficeState, agent: Agent, text: string, seconds: number): v
 
 // What an idle session guy (or you, on a break) is doing that he might say something to nobody about.
 function museMode(agent: Agent): MuseMode | undefined {
-  if (agent.status !== "idle" || agent.visitor !== undefined || agent.crew !== undefined || agent.leaving || agent.path.length > 0) {
+  if (agent.status === "working" || agent.visitor !== undefined || agent.crew !== undefined || agent.leaving || agent.path.length > 0) {
     return undefined;
   }
   switch (agent.mode) {
@@ -2195,7 +2204,10 @@ function stepActivities(state: OfficeState, random: Random): void {
     const coming = activityPlayers(state, activity.id);
     const here = coming.filter((agent) => agent.path.length === 0 && (agent.mode === "play" || agent.mode === "wait"));
     if (here.length === 0) {
-      activity.endsAt = undefined;
+      // Nobody at it. Only clear the clock when nobody is on the way either: taking turns, both walk for a moment.
+      if (coming.length === 0) {
+        activity.endsAt = undefined;
+      }
       continue;
     }
     const spotOf = (agent: Agent) => fit.spots[(agent.goal as { spot: number }).spot];
@@ -2341,6 +2353,7 @@ function releaseWatcher(state: OfficeState, agent: Agent, random: Random): void 
   agent.goal = undefined;
   agent.target = undefined;
   agent.snack = undefined;
+  agent.groggy = undefined;
   agent.react = undefined;
   agent.cheerUntil = 0;
   // Stagger it, so the crowd doesn't move as one.
@@ -2430,8 +2443,12 @@ function joinShow(state: OfficeState, agent: Agent, random: Random): boolean {
   }
   endChat(state, agent);
   agent.watch = undefined;
-  if (agent.mode === "sleep" && random() < 0.6) {
-    say(state, agent, random() < 0.5 ? "huh? a show?" : "*yawn* …ooh!", 1.6);
+  if (agent.mode === "sleep") {
+    // Woken from a nap for it: a little groggy through the show.
+    agent.groggy = true;
+    if (random() < 0.6) {
+      say(state, agent, random() < 0.5 ? "huh? a show?" : "*yawn* …ooh!", 1.6);
+    }
   }
   goTo(state, agent, spot, { kind: "show" }, false, random);
   return true;
@@ -2440,7 +2457,7 @@ function joinShow(state: OfficeState, agent: Agent, random: Random): boolean {
 // Everyone free to watch heads for the crowd.
 function gatherCrowd(state: OfficeState, random: Random): void {
   for (const agent of state.agents) {
-    if (agent.goal?.kind !== "show" && (agent.status === "idle" || agent.status === "asleep") && agent.watch === undefined) {
+    if (agent.goal?.kind !== "show" && agent.status !== "working" && agent.watch === undefined) {
       joinShow(state, agent, random);
     }
   }
@@ -2528,7 +2545,7 @@ function sayShowLine(state: OfficeState, show: ShowState, lead: Agent, line: Sho
     // Most of the crowd answers out loud; the rest just cheer.
     const speaks = random() < 0.65;
     agent.react = {
-      text: speaks ? audienceLine(show.kind, line.cue, personality, agent.status === "asleep", random, agent.snack) : "",
+      text: speaks ? audienceLine(show.kind, line.cue, personality, agent.groggy === true, random, agent.snack) : "",
       at: state.time + between(random, 0.4, 1.3),
       cheer: line.cue !== "gasp" && (line.cue !== "laugh" || random() < 0.4),
     };
@@ -2556,7 +2573,7 @@ function stepWatcher(state: OfficeState, agent: Agent, random: Random): void {
   if (state.time >= agent.nextBubbleAt && agent.bubble === undefined) {
     agent.nextBubbleAt = state.time + between(random, 6, 14);
     if (random() < 0.45) {
-      say(state, agent, audienceLine(show.kind, "idle", personalityOf(agent.seed), agent.status === "asleep", random, agent.snack), 1.6);
+      say(state, agent, audienceLine(show.kind, "idle", personalityOf(agent.seed), agent.groggy === true, random, agent.snack), 1.6);
     }
   }
 }

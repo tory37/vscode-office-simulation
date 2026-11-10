@@ -114,34 +114,64 @@ describe("officeSim", () => {
     expect(agent(state, "a").goal).toEqual({ kind: "work" });
   });
 
-  it("puts a suspended session's guy to sleep at his desk, and wakes him when it resumes", () => {
+  it("lets a suspended session's guy do idle things, napping now and then, and wakes him when it resumes", () => {
     const random = seededRandom(10);
     const state = createOffice(buildOfficeLayout(12, 8, "office"));
-    syncOffice(state, [input("a", "idle")], random);
+    syncOffice(state, [input("a", "idle"), input("b", "asleep")], random);
     run(state, 20, random);
-    syncOffice(state, [input("a", "asleep")], random);
+    syncOffice(state, [input("a", "asleep"), input("b", "asleep")], random);
     const guy = agent(state, "a");
-    expect(SLEEP_LINES).toContain(guy.bubble?.text);
-    run(state, 20, random);
-    expect(atWorkSpot(guy)).toBe(true);
-    expect(guy.mode).toBe("sleep");
-    expect(agentPose(guy, state.time)).toMatchObject({ pose: "sleep", facing: "up", seated: true });
-    run(state, 60, random);
-    expect(guy.mode).toBe("sleep");
-    expect(officeCounts(state)).toEqual({ working: 0, idle: 0, asleep: 1 });
-    syncOffice(state, [input("a", "working")], random);
+    const modes = new Map<string, number>();
+    let napped = false;
+    for (let step = 0; step < 600 / 0.05; step++) {
+      stepOffice(state, 0.05, random);
+      modes.set(guy.mode, (modes.get(guy.mode) ?? 0) + 1);
+      if (guy.mode === "sleep" && guy.path.length === 0) {
+        napped = true;
+        expect(atWorkSpot(guy)).toBe(true);
+        expect(agentPose(guy, state.time)).toMatchObject({ pose: "sleep", facing: "up", seated: true });
+      }
+    }
+    expect(napped).toBe(true);
+    // Mostly up and about: naps are a short part of it.
+    expect((modes.get("sleep") ?? 0) / (600 / 0.05)).toBeLessThan(0.5);
+    expect(modes.size).toBeGreaterThan(3);
+    expect(officeCounts(state)).toEqual({ working: 0, idle: 0, asleep: 2 });
+    while (guy.mode !== "sleep" || guy.path.length > 0) {
+      stepOffice(state, 0.05, random);
+    }
+    syncOffice(state, [input("a", "working"), input("b", "asleep")], random);
     expect(WAKE_TO_WORK_LINES).toContain(guy.bubble?.text);
     expect(guy.mode).toBe("type");
   });
 
-  it("starts sleepers asleep when the view opens, and keeps them out of chats", () => {
+  it("lets idle guys nap too, with a line as they drop off", () => {
+    const random = seededRandom(3);
+    const state = createOffice(buildOfficeLayout(12, 8, "office"));
+    syncOffice(state, [input("a", "idle")], random, "seated");
+    let line = false;
+    let napped = false;
+    for (let step = 0; step < 900 / 0.05; step++) {
+      stepOffice(state, 0.05, random);
+      const guy = agent(state, "a");
+      napped ||= guy.mode === "sleep";
+      line ||= guy.mode === "sleep" && SLEEP_LINES.includes(guy.bubble?.text ?? "");
+    }
+    expect(napped).toBe(true);
+    expect(line).toBe(true);
+  });
+
+  it("keeps a napping guy out of chats", () => {
     const random = seededRandom(11);
     const state = createOffice(buildOfficeLayout(10, 6, "office"));
     syncOffice(state, [input("a", "asleep"), input("b", "idle")], random, "seated");
-    expect(agent(state, "a").mode).toBe("sleep");
-    run(state, 120, random);
-    expect(agent(state, "a").mode).toBe("sleep");
-    expect(agent(state, "b").mode).not.toBe("chat");
+    for (let step = 0; step < 300 / 0.05; step++) {
+      stepOffice(state, 0.05, random);
+      const [a, b] = [agent(state, "a"), agent(state, "b")];
+      if (a.mode === "sleep") {
+        expect(b.goal?.kind === "chat" && b.mode === "chat" && Math.abs(b.x - a.x) + Math.abs(b.y - a.y) <= 1).toBe(false);
+      }
+    }
   });
 
   it("walks an ended session's guy out the door", () => {
@@ -469,7 +499,8 @@ describe("officeSim", () => {
       expect(state.show).toBeUndefined();
       run(state, 30, random);
       expect(showPerformers(state)).toHaveLength(0);
-      expect(agent(state, "sleepy").mode).toBe("sleep");
+      expect(agent(state, "sleepy").mode).not.toBe("watch");
+      expect(agent(state, "sleepy").groggy).toBeUndefined();
       expect(agent(state, "idle").mode).not.toBe("watch");
     });
 

@@ -108,7 +108,7 @@ describe("officeActivities", () => {
   });
 
   it("has two idle guys face off at a table game", () => {
-    const random = seededRandom(7);
+    const random = seededRandom(1);
     const state = createOffice(buildOfficeLayout(13, 8, "office"));
     syncOffice(state, ["a", "b"].map(idle), random, "seated");
     state.activityLevel = "few";
@@ -129,7 +129,7 @@ describe("officeActivities", () => {
   });
 
   it("has a buddy wait beside the pinball machine and take his turn", () => {
-    const random = seededRandom(8);
+    const random = seededRandom(5);
     const state = createOffice(buildOfficeLayout(13, 8, "office"));
     syncOffice(state, ["a", "b"].map(idle), random, "seated");
     state.activityLevel = "few";

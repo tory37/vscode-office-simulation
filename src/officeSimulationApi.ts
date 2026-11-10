@@ -77,6 +77,7 @@ export interface OfficeSimulationApi {
 
 export interface OfficeAgent {
   id: string;
+  // Asleep (a suspended session) does the same idle things as idle, naps included.
   status: "busy" | "idle" | "asleep";
   // What his tooltip says.
   title?: string;
