@@ -1,7 +1,7 @@
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as vscode from "vscode";
-import { activityLevel } from "./officeActivities";
+import { activityLevel, activitySwaps } from "./officeActivities";
 import { BUBBLE_LOOKS, BubbleLook, bubbleLook, CHATTER_LABELS, CHATTER_STYLES, chatterStyle, TALK_FREQUENCIES, TalkFrequency, talkFrequency } from "./officeChatter";
 import { OFFICE_SCENES, officeSceneId } from "./officeLayout";
 import type { AgentInput, YouStatus } from "./officeSim";
@@ -28,6 +28,7 @@ const PERFORMANCES_SETTING = "officeSim.performances";
 const CHATTER_SETTING = "officeSim.chatter";
 const TALK_SETTING = "officeSim.talk";
 const ACTIVITIES_SETTING = "officeSim.activities";
+const ACTIVITY_SWAPS_SETTING = "officeSim.activitySwaps";
 const BUBBLE_LOOK_SETTING = "officeSim.bubbleLook";
 
 export interface OfficePanelDeps {
@@ -70,7 +71,7 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
   constructor(private readonly deps: OfficePanelDeps) {
     this.listeners = [
       vscode.workspace.onDidChangeConfiguration((change) => {
-        if ([SCENE_SETTING, YOU_SETTING, YOUR_LOOK_SETTING, CRITTERS_SETTING, FLIERS_SETTING, DAY_NIGHT_SETTING, VISITORS_SETTING, PERFORMANCES_SETTING, CHATTER_SETTING, TALK_SETTING, BUBBLE_LOOK_SETTING, RACES_SETTING, ACTIVITIES_SETTING].some((setting) => change.affectsConfiguration(setting))) {
+        if ([SCENE_SETTING, YOU_SETTING, YOUR_LOOK_SETTING, CRITTERS_SETTING, FLIERS_SETTING, DAY_NIGHT_SETTING, VISITORS_SETTING, PERFORMANCES_SETTING, CHATTER_SETTING, TALK_SETTING, BUBBLE_LOOK_SETTING, RACES_SETTING, ACTIVITIES_SETTING, ACTIVITY_SWAPS_SETTING].some((setting) => change.affectsConfiguration(setting))) {
           this.postAll();
         }
       }),
@@ -246,6 +247,7 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
     chatter: string;
     talk: string;
     activities: string;
+    activitySwaps: string;
     bubbleLook: string;
     races: boolean;
     focusedId: string | null;
@@ -266,6 +268,7 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
       chatter: chatterStyle(configuration.get<unknown>(CHATTER_SETTING)),
       talk: talkFrequency(configuration.get<unknown>(TALK_SETTING)),
       activities: activityLevel(configuration.get<unknown>(ACTIVITIES_SETTING)),
+      activitySwaps: activitySwaps(configuration.get<unknown>(ACTIVITY_SWAPS_SETTING)),
       bubbleLook: bubbleLook(configuration.get<unknown>(BUBBLE_LOOK_SETTING)),
       races: configuration.get<boolean>(RACES_SETTING, true),
       focusedId: this.focusedId ?? null,

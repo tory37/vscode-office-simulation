@@ -20,7 +20,7 @@ import {
   WAIT_LINES, WAKE_IDLE_LINES, WAKE_TO_WORK_LINES,
 } from "./officePhrases";
 import {
-  ACTIVITIES, ActivityKindId, ActivityLevel, activityStay, activityTarget, activityTripGap, activityWidth, CREW_ITEM_LINES, pickActivityKind,
+  ACTIVITIES, ActivityKindId, ActivityLevel, ActivitySwaps, activityStay, activityTarget, activityTripGap, activityWidth, CREW_ITEM_LINES, pickActivityKind,
 } from "./officeActivities";
 import { audienceLine, FoodKind, PERFORMANCES, PerformanceKindId, ShowCue, ShowLine, ShowRole } from "./officePerformances";
 import { MAX_VISITORS, personalityOf, visitorReaction } from "./officeVisitors";
@@ -254,6 +254,10 @@ export interface OfficeState {
   // crew hasn't picked up yet, when the crew next comes for one, and a counter for their ids.
   activities?: ActivityState[];
   activityLevel?: ActivityLevel;
+  // How often the crew swaps one out (officeSim.activitySwaps; normal when unset), and the setting the standing ones'
+  // stays were rolled for.
+  activitySwaps?: ActivitySwaps;
+  activitySwapsRolled?: ActivitySwaps;
   activityOrders?: CrewJob[];
   nextActivityTripAt?: number;
   activityCount?: number;
@@ -1964,7 +1968,7 @@ export function addActivity(state: OfficeState, kind: ActivityKindId, index: num
 function placeActivity(state: OfficeState, kind: ActivityKindId, index: number, random: Random): void {
   state.activityCount = (state.activityCount ?? 0) + 1;
   standActivity(state, {
-    id: `activity-${state.activityCount}`, kind, index, until: state.time + activityStay(random), going: false, endsAt: undefined, nextTurnAt: 0,
+    id: `activity-${state.activityCount}`, kind, index, until: state.time + activityStay(random, state.activitySwaps), going: false, endsAt: undefined, nextTurnAt: 0,
   });
 }
 
@@ -2009,12 +2013,21 @@ function furnishActivities(state: OfficeState, newcomers: readonly Agent[], rand
     }
     placeActivity(state, kind, index, random);
   }
-  state.nextActivityTripAt = state.time + activityTripGap(random);
+  state.nextActivityTripAt = state.time + activityTripGap(random, state.activitySwaps);
 }
 
 // Decides what the crew brings in or takes out: one on a spot a guy needs goes at once; otherwise, one trip every
 // so often, the room keeps its count for its free spots and swaps out ones that have stood a while.
 function manageActivities(state: OfficeState, random: Random): void {
+  const swaps = state.activitySwaps ?? "normal";
+  if ((state.activitySwapsRolled ?? "normal") !== swaps) {
+    // The frequency changed: give the standing ones new stays from now, and the next trip sooner if it should be.
+    state.activitySwapsRolled = swaps;
+    for (const activity of state.activities ?? []) {
+      activity.until = state.time + activityStay(random, swaps);
+    }
+    state.nextActivityTripAt = Math.min(state.nextActivityTripAt ?? 0, state.time + activityTripGap(random, swaps));
+  }
   const activities = state.activities ?? [];
   const level = state.activityLevel ?? "off";
   if (activities.length === 0 && (state.activityOrders ?? []).length === 0 && level === "off") {
@@ -2052,7 +2065,7 @@ function manageActivities(state: OfficeState, random: Random): void {
       tripped = orderActivity(state, random);
     }
   }
-  state.nextActivityTripAt = state.time + (tripped ? activityTripGap(random) : 3);
+  state.nextActivityTripAt = state.time + (tripped ? activityTripGap(random, state.activitySwaps) : 3);
 }
 
 // The guys headed for or at an activity.

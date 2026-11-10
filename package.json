@@ -177,6 +177,23 @@
           "default": "some",
           "description": "Things to do between jobs on the Office's empty desk spots: pinball, arcade cabinets, a claw machine, arcade hoops, darts, karaoke, a jukebox, ping pong, foosball, air hockey, chess, a punching bag, a treadmill, an exercise bike, a piano, an easel, yoga mats, weights, a trampoline, a beanbag, a massage chair, a meditation cushion, and VR. The maintenance crew carries them in and out now and then, so the room changes, and makes room when a new guy needs the spot. Idle guys go use them: some alone, some taking turns with a buddy, and the table games two at a time. How many stand depends on the free spots, so a bigger room or fewer guys gets more."
         },
+        "officeSim.activitySwaps": {
+          "type": "string",
+          "enum": [
+            "never",
+            "rare",
+            "normal",
+            "often"
+          ],
+          "enumDescriptions": [
+            "They stay put. The crew only comes for one when a new guy needs its spot, or when the room has room for more or fewer.",
+            "Each stays 6 to 12 minutes.",
+            "Each stays 2 to 5 minutes.",
+            "Each stays under 2 minutes, and the crew is in and out all the time."
+          ],
+          "default": "normal",
+          "description": "How often the maintenance crew swaps an activity out for something new. How many there are is officeSim.activities. The crew waits for nobody to be on one before taking it out."
+        },
         "officeSim.dayNight": {
           "type": "boolean",
           "default": true,
