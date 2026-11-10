@@ -7,7 +7,7 @@ import { DAYTIME_SKY, discLit, earthIllumination, lunarSunElevation, mix, SceneL
 import { critterGap, critterLines, critterPoses, CritterRun, critterRunDone, planCritterRun } from "../officeCritters";
 import { FLIERS, flierGap, flierLines, flierPoses, Flight, flightDone, planFlight } from "../officeFliers";
 import {
-  Agent, AgentInput, agentPose, callYouBack, createOffice, endShow, isAtStation, lookToward, officeCounts, reactToCritter, relayoutOffice, setYouStatus, startShow,
+  activityFit, Agent, AgentInput, agentPose, callYouBack, createOffice, endShow, isAtStation, lookToward, officeCounts, reactToCritter, relayoutOffice, setYouStatus, startShow,
   stepOffice, syncOffice, syncYou, visitorAgents, visitorArrives, youAgent,
 } from "../officeSim";
 import {
@@ -21,6 +21,8 @@ import {
 import { Facing, FRAME_HEIGHT, FRAME_WIDTH, HEAD_ROOM, pixelGuyFrame, pixelGuyLook, PixelGuyLook, Pose } from "../pixelGuy";
 import { DeskStyle, deskStyleFor } from "../deskStyles";
 import { DEFENSE_BEATS, ERROR_BEAT_SECONDS, ERROR_FLASH_SECONDS, EVENT_SECONDS, SCENE_EVENT_KINDS, SceneEventKind } from "../sceneEventSchedule";
+import { activityLevel } from "../officeActivities";
+import { activityLight, drawActivity, drawCrate, drawHeld } from "./activities";
 import { drawCritter } from "./critters";
 import { drawFlier, drawFlierShadow, drawFlierTrail } from "./fliers";
 import { drawLuckyCat } from "./luckyCat";
@@ -44,6 +46,7 @@ interface OfficeMessage {
   performances?: unknown;
   chatter?: unknown;
   talk?: unknown;
+  activities?: unknown;
   bubbleLook?: unknown;
   // False makes every guy human.
   races?: boolean;
@@ -278,6 +281,7 @@ window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEve
   }
   performancesSetting = nextPerformances;
   state.talk = talkFactor(talkFrequency(data.talk));
+  state.activityLevel = activityLevel(data.activities);
   bubbleLookSetting = bubbleLook(data.bubbleLook);
   const nextChatter = chatterStyle(data.chatter);
   if (nextChatter !== chatterSetting) {
@@ -1686,7 +1690,8 @@ function stationSlide(agent: Agent): number {
 
 function drawAgent(agent: Agent, seconds: number): AgentBox {
   const pose = agentPose(agent, seconds);
-  const box = agentBox(agent, pose.seated);
+  const baseBox = agentBox(agent, pose.seated);
+  const box = pose.offset === undefined ? baseBox : { ...baseBox, left: baseBox.left + pose.offset.x, top: baseBox.top + pose.offset.y };
   // A small shadow under standing guys.
   if (!pose.seated) {
     context.globalAlpha = 0.25;
@@ -1712,10 +1717,16 @@ function drawAgent(agent: Agent, seconds: number): AgentBox {
   if (pose.pose === "eat" && agent.snack !== undefined) {
     drawSnack(kit, agent.snack, gearBox, pose.facing, pose.frame % 2);
   }
+  if (agent.goal?.kind === "activity" && agent.mode === "play" && agent.path.length === 0) {
+    drawHeld(kit, agent.goal.activity, gearBox, pose.facing, pose.frame);
+  }
   const crew = agent.crew;
   // Setting a desk down, it's drawn at its spot instead.
   const settingDown = crew?.phase === "build" && crew.job?.kind === "deliver";
-  if (crew !== undefined && (crew.carrying !== undefined || crew.chair) && !settingDown) {
+  const item = crew?.job?.item;
+  if (crew !== undefined && crew.carrying !== undefined && item !== undefined && !settingDown) {
+    drawCrate(kit, item, box, HEAD_ROOM, bob);
+  } else if (crew !== undefined && (crew.carrying !== undefined || crew.chair) && !settingDown) {
     drawCarried(box, crew.carrying === undefined ? undefined : deskStyleOf(crew.carrying), bob, SCENE_PALETTES[sceneId]);
   }
   return box;
@@ -2100,6 +2111,27 @@ function draw(seconds: number): void {
       layers.push({ depth: desk.desk.y + 0.4, paint: () => drawDesk(desk, undefined, palette, seconds, job.deskIndex, eventColor, style) });
     }
   }
+  // The activities, and one the crew is setting down.
+  const activityAt = (kind: Parameters<typeof activityFit>[1], index: number, playing: boolean, key: number) => {
+    const fit = activityFit(layout, kind, index);
+    if (fit === undefined) {
+      return;
+    }
+    const row = fit.blocked[0]?.y ?? fit.seats[0].y - 1;
+    // Machines and tables stand on the desk row; mats and chairs lie on the seat row under the guy on them.
+    const depth = fit.blocked.length > 0 ? row + 0.4 : row + 1.3;
+    layers.push({ depth, paint: () => drawActivity(kit, kind, fit, playing, seconds, key) });
+  };
+  (state.activities ?? []).forEach((activity) => {
+    const playing = state.agents.some((agent) => agent.goal?.kind === "activity" && agent.goal.activityId === activity.id && agent.mode === "play" && agent.path.length === 0);
+    activityAt(activity.kind, activity.index, playing, activity.index);
+  });
+  for (const member of state.agents) {
+    const job = member.crew?.job;
+    if (member.crew?.phase === "build" && job?.kind === "deliver" && job.item !== undefined) {
+      activityAt(job.item, job.deskIndex, false, job.deskIndex);
+    }
+  }
   layout.props.forEach((prop, index) => {
     layers.push({ depth: prop.at.y + (prop.kind === "couch" ? 0.3 : 0.8), paint: () => drawProp(prop, palette, seconds, index) });
     if (prop.kind === "couch") {
@@ -2272,6 +2304,14 @@ function drawLighting(layout: OfficeLayout, owners: Map<number, Agent>, stationO
       pool(desk.desk.x * TILE + 8, desk.desk.y * TILE + 5, typing ? 15 : 10, "#8CC8FF", typing ? 0.42 : 0.22);
     }
   });
+  for (const activity of state.activities ?? []) {
+    const glowing = activityLight(activity.kind);
+    const fit = activityFit(layout, activity.kind, activity.index);
+    const at = fit?.blocked[0] ?? (fit === undefined ? undefined : { x: fit.seats[0].x, y: fit.seats[0].y - 1 });
+    if (glowing !== undefined && at !== undefined) {
+      pool(at.x * TILE + glowing.dx, at.y * TILE + glowing.dy, glowing.radius, glowing.color, 0.45);
+    }
+  }
   const station = layout.station;
   if (station !== undefined) {
     const left = station.desk.x * TILE;

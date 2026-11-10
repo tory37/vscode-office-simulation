@@ -19,6 +19,9 @@ import {
   CREW_START_LINES, exchangeAnswer, MUSE_LINES, MuseMode, pickExchange, pickPhrase, RUSH_LINES, SLEEP_LINES, THANKS_LINES, TYPING_LINES,
   WAIT_LINES, WAKE_IDLE_LINES, WAKE_TO_WORK_LINES,
 } from "./officePhrases";
+import {
+  ACTIVITIES, ActivityKindId, ActivityLevel, activityStay, activityTarget, activityTripGap, activityWidth, CREW_ITEM_LINES, pickActivityKind,
+} from "./officeActivities";
 import { audienceLine, FoodKind, PERFORMANCES, PerformanceKindId, ShowCue, ShowLine, ShowRole } from "./officePerformances";
 import { MAX_VISITORS, personalityOf, visitorReaction } from "./officeVisitors";
 import type { Facing, Pose } from "./pixelGuy";
@@ -35,7 +38,9 @@ export interface AgentInput {
 export type AgentMode =
   | "walk" | "type" | "sit" | "stretch" | "drink" | "loiter" | "chat" | "wait" | "couch" | "sleep" | "address" | "build"
   // In the crowd at a show, and on stage putting one on.
-  | "watch" | "perform";
+  | "watch" | "perform"
+  // At an activity: playing it (waiting his turn, or for his opponent, is "wait").
+  | "play";
 
 export type AgentGoal =
   | { kind: "work" }
@@ -56,6 +61,8 @@ export type AgentGoal =
   // A performer headed for his spot on stage, and a guy headed for a spot in the crowd.
   | { kind: "perform" }
   | { kind: "show" }
+  // Headed for, or at, one of an activity's spots.
+  | { kind: "activity"; activityId: string; activity: ActivityKindId; spot: number }
   | { kind: "door" };
 
 export interface Agent {
@@ -150,6 +157,40 @@ export interface CrewJob {
   deskIndex: number;
   // The seed of the guy the desk is for, which sets its style.
   seed: string;
+  // An activity instead of a desk: the kind, and for taking one out, which one.
+  item?: ActivityKindId;
+  activityId?: string;
+}
+
+// An activity standing in the room, on a desk spot (the left one of a pair).
+export interface ActivityState {
+  id: string;
+  kind: ActivityKindId;
+  index: number;
+  // When the crew comes to swap it for something else.
+  until: number;
+  // The crew's been called for it: nobody starts on it now.
+  going: boolean;
+  // The current go at it, once someone's on it, and when they swap turns.
+  endsAt: number | undefined;
+  nextTurnAt: number;
+}
+
+// One of an activity's spots: where a guy stands (or sits) and which way he faces. A wait spot is beside the play
+// spot, for the buddy waiting his turn.
+export interface ActivitySpot {
+  at: Point;
+  facing: Facing;
+  wait: boolean;
+}
+
+export interface ActivityFit {
+  // The desk spots it covers.
+  indexes: number[];
+  // Tiles nobody walks on, tiles you only step onto to use it, and its spots.
+  blocked: Point[];
+  seats: Point[];
+  spots: ActivitySpot[];
 }
 
 // fetch: to the door for a desk. toSlot: to the desk's spot. build: setting it down or taking it apart. haul: carrying
@@ -207,6 +248,13 @@ export interface OfficeState {
   youStatus?: YouStatus;
   // When the next maintenance guy may come in to help with a backlog of desks.
   crewDueAt?: number;
+  // The activities standing, how many the room wants (officeSim.activities; off when unset), ones ordered that the
+  // crew hasn't picked up yet, when the crew next comes for one, and a counter for their ids.
+  activities?: ActivityState[];
+  activityLevel?: ActivityLevel;
+  activityOrders?: CrewJob[];
+  nextActivityTripAt?: number;
+  activityCount?: number;
 }
 
 export type YouStatus = "auto" | "busy" | "idle";
@@ -330,6 +378,10 @@ export function syncOffice(
   const newcomers = inputs.filter((input) => !known.has(input.id)).map((input) => newAgent(state, input, random));
   state.agents.push(...newcomers);
   assignWorkSpots(state);
+  if (entrance === "seated") {
+    // The room opens furnished.
+    furnishActivities(state, newcomers, random);
+  }
   for (const agent of newcomers) {
     if (entrance === "seated") {
       // They were here all along, desks and all.
@@ -552,7 +604,7 @@ function stepYou(state: OfficeState, agent: Agent, random: Random): void {
   if (state.youStatus === "idle" && agent.status === "idle") {
     // His break goes on: on to the next thing, unless he's watching a show.
     agent.nextBreakAt = state.time + between(random, 20, 40);
-    if (agent.goal?.kind !== "show") {
+    if (agent.goal?.kind !== "show" && agent.goal?.kind !== "activity") {
       pickIdleActivity(state, agent, random);
     }
     return;
@@ -587,6 +639,9 @@ export function relayoutOffice(state: OfficeState, layout: OfficeLayout, random:
   const hadDesk = new Set(state.agents.filter((agent) => isSession(agent) && !agent.leaving && hasDesk(state, agent)).map((agent) => agent.id));
   const wantedBefore = new Set(state.agents.flatMap((agent) => (isSession(agent) && !agent.leaving && agent.deskIndex !== undefined ? [agent.deskIndex] : [])));
   const leftovers = [...state.placed].filter(([index]) => !wantedBefore.has(index));
+  const activitiesBefore = state.activities ?? [];
+  state.activities = [];
+  state.activityOrders = [];
   clearDeskSpots(layout);
   state.layout = layout;
   state.placed = new Map();
@@ -622,6 +677,13 @@ export function relayoutOffice(state: OfficeState, layout: OfficeLayout, random:
     placeDesk(state, index, seed);
     movedLeftovers.set(oldIndex, index);
   }
+  // Activities stay at their spot if it's still free, or move to another; one with no room left is gone.
+  for (const activity of activitiesBefore) {
+    const index = activityFitsAt(state, activity.kind, activity.index, undefined) ? activity.index : pickActivitySpot(state, activity.kind, undefined);
+    if (index !== undefined) {
+      standActivity(state, { ...activity, index, endsAt: undefined });
+    }
+  }
   for (const agent of state.agents) {
     if (agent.crew !== undefined) {
       remapCrewJob(state, agent.crew, movedLeftovers);
@@ -647,7 +709,9 @@ export function relayoutOffice(state: OfficeState, layout: OfficeLayout, random:
 export function stepOffice(state: OfficeState, seconds: number, random: Random): void {
   const dt = Math.max(0, Math.min(seconds, 0.25));
   state.time += dt;
+  manageActivities(state, random);
   manageCrew(state, random);
+  stepActivities(state, random);
   stepShow(state, random);
   for (const agent of [...state.agents]) {
     if (agent.bubble !== undefined && state.time >= agent.bubble.until) {
@@ -747,7 +811,7 @@ export function reactToCritter(state: OfficeState, at: { x: number; y: number },
       continue;
     }
     say(state, agent, lines[Math.floor(random() * lines.length) % lines.length], 1.6);
-    if (!SEATED_MODES.has(agent.mode)) {
+    if (!SEATED_MODES.has(agent.mode) && agent.mode !== "play") {
       const facing: Facing = Math.abs(dx) >= Math.abs(dy) ? (dx < 0 ? "left" : "right") : dy < 0 ? "up" : "down";
       agent.watch = { facing, until: state.time + between(random, 1.2, 2) };
     }
@@ -761,6 +825,23 @@ export interface AgentPose {
   frame: number;
   // Seated guys draw a little lower, into their chair.
   seated: boolean;
+  // Pixels to draw him off his tile: up on a trampoline bounce, side to side in the massage chair.
+  offset?: { x: number; y: number };
+}
+
+// How fast each pose's frames go at an activity.
+const ACTIVITY_FRAME_RATE: Partial<Record<Pose, number>> = { build: 3, punch: 2.5, lift: 0.7, yoga: 0.25, walk: 7, type: 5, cheer: 3, talk: 4 };
+
+function activityPose(agent: Agent, kind: ActivityKindId, time: number, phase: number): AgentPose {
+  const spec = ACTIVITIES[kind];
+  if (agent.mode === "wait") {
+    return { pose: agent.bubble === undefined ? "stand" : "talk", facing: agent.facing, frame: Math.floor(time * 5), seated: false };
+  }
+  const frame = Math.floor(time * (ACTIVITY_FRAME_RATE[spec.pose] ?? 1) + phase * 2);
+  const offset = spec.hop === true
+    ? { x: 0, y: -Math.round(Math.abs(Math.sin(time * 4 + phase * 6)) * 5) }
+    : spec.shake === true ? { x: Math.floor(time * 14) % 2, y: 0 } : undefined;
+  return { pose: spec.pose, facing: agent.facing, frame, seated: spec.seated === true, ...(offset === undefined ? {} : { offset }) };
 }
 
 export function agentPose(agent: Agent, time: number): AgentPose {
@@ -779,6 +860,9 @@ export function agentPose(agent: Agent, time: number): AgentPose {
   }
   if (agent.watch !== undefined && time < agent.watch.until && !SEATED_MODES.has(agent.mode)) {
     return { pose: "stand", facing: agent.watch.facing, frame: 0, seated: false };
+  }
+  if (agent.path.length === 0 && agent.goal?.kind === "activity" && (agent.mode === "play" || agent.mode === "wait")) {
+    return activityPose(agent, agent.goal.activity, time, phase);
   }
   const carrying = agent.crew !== undefined && (agent.crew.carrying !== undefined || agent.crew.chair);
   if (agent.path.length > 0) {
@@ -872,8 +956,11 @@ function assignWorkSpots(state: OfficeState): void {
     }
   }
   // A desk still standing from a guy who left goes to the next one in, before the crew brings a new one.
+  // Spots with an activity on them, or one on its way, go last: the crew has to take it out first.
+  const covered = activityCovered(state);
   const freeDesks = desks.map((_, index) => index).filter((index) => !takenDesks.has(index))
-    .sort((first, second) => Number(state.placed.has(second)) - Number(state.placed.has(first)) || first - second);
+    .sort((first, second) => Number(state.placed.has(second)) - Number(state.placed.has(first)) ||
+      Number(covered.has(first)) - Number(covered.has(second)) || first - second);
   const overflowSpots = [...couchSeats, ...openFloorTiles(state.layout).filter((tile) => tile.y >= state.layout.rows - 2)];
   let overflowIndex = 0;
   for (const agent of present) {
@@ -995,6 +1082,10 @@ function pickIdleActivity(state: OfficeState, agent: Agent, random: Random): voi
   if (freeCouch.length > 0) {
     options.push({ weight: 1, run: () => goTo(state, agent, freeCouch[Math.floor(random() * freeCouch.length)], { kind: "couch" }, false, random) });
   }
+  const games = activityChoices(state, agent, partners);
+  if (games.length > 0) {
+    options.push({ weight: agent.you ? 3 : 4, run: () => startActivity(state, agent, games[Math.floor(random() * games.length)], random) });
+  }
   if (partners.length > 0 && talkOf(state) > 0) {
     options.push({ weight: (agent.you ? 6 : 3) * talkOf(state), run: () => startChat(state, agent, partners[Math.floor(random() * partners.length)], random) });
   }
@@ -1028,6 +1119,7 @@ function pickIdleActivity(state: OfficeState, agent: Agent, random: Random): voi
 
 function canChat(agent: Agent): boolean {
   return !agent.leaving && agent.status === "idle" && agent.performer === undefined && agent.goal?.kind !== "chat" && agent.goal?.kind !== "show" &&
+    agent.goal?.kind !== "activity" && agent.crew === undefined &&
     agent.mode !== "chat" && agent.mode !== "wait" && agent.mode !== "watch";
 }
 
@@ -1195,6 +1287,9 @@ function arrive(state: OfficeState, agent: Agent, random: Random): void {
     case "crew":
       crewArrive(state, agent, random);
       return;
+    case "activity":
+      arriveAtActivity(state, agent, goal, random);
+      return;
     case "perform":
       agent.facing = "down";
       setMode(state, agent, state.show === undefined ? "loiter" : "perform", state.show === undefined ? 0.3 : FOREVER);
@@ -1350,10 +1445,19 @@ function manageCrew(state: OfficeState, random: Random): void {
     }
   }
   let crew = crewAgents(state);
-  const claimed = new Set(crew.flatMap((member) => (member.crew?.job === undefined ? [] : [member.crew.job.deskIndex])));
+  const deskJobs = crew.flatMap((member) => (member.crew?.job === undefined || member.crew.job.item !== undefined ? [] : [member.crew.job]));
+  const claimed = new Set(deskJobs.map((job) => job.deskIndex));
+  const claimedActivities = new Set(crew.flatMap((member) => (member.crew?.job?.activityId === undefined ? [] : [member.crew.job.activityId])));
+  const covered = activityCovered(state);
   const jobs: CrewJob[] = [];
+  // An activity on a spot a guy needs goes first, then his desk can come in.
+  for (const activity of state.activities ?? []) {
+    if (activity.going && !claimedActivities.has(activity.id) && activityIndexes(activity).some((index) => wanted.has(index))) {
+      jobs.push({ kind: "remove", deskIndex: activity.index, seed: "", item: activity.kind, activityId: activity.id });
+    }
+  }
   for (const [deskIndex, seed] of wanted) {
-    if (!state.placed.has(deskIndex) && !claimed.has(deskIndex)) {
+    if (!state.placed.has(deskIndex) && !claimed.has(deskIndex) && !covered.has(deskIndex)) {
       jobs.push({ kind: "deliver", deskIndex, seed });
     }
   }
@@ -1362,6 +1466,12 @@ function manageCrew(state: OfficeState, random: Random): void {
       jobs.push({ kind: "remove", deskIndex, seed });
     }
   }
+  for (const activity of state.activities ?? []) {
+    if (activity.going && !claimedActivities.has(activity.id) && !jobs.some((job) => job.activityId === activity.id)) {
+      jobs.push({ kind: "remove", deskIndex: activity.index, seed: "", item: activity.kind, activityId: activity.id });
+    }
+  }
+  jobs.push(...(state.activityOrders ?? []));
   if (jobs.length > 0 && crew.length === 0) {
     crew = [newCrew(state, 0, random), newCrew(state, 1, random)];
     state.crewDueAt = state.time + CREW_SPACING_SECONDS;
@@ -1371,6 +1481,7 @@ function manageCrew(state: OfficeState, random: Random): void {
     const free = member.crew !== undefined && member.crew.job === undefined && (member.crew.phase === "idle" || member.crew.phase === "out" || member.crew.phase === "help");
     if (job !== undefined && free && !(member.crew?.phase === "help" && member.crew.chair)) {
       jobs.shift();
+      takeOrder(state, job);
       startJob(state, member, job, random);
     }
   }
@@ -1382,7 +1493,15 @@ function manageCrew(state: OfficeState, random: Random): void {
     while (used.has(`crew-${number + 1}`)) {
       number += 1;
     }
+    takeOrder(state, jobs[0]);
     startJob(state, newCrew(state, number, random), jobs[0], random);
+  }
+}
+
+// An ordered activity a crew member picked up isn't waiting anymore.
+function takeOrder(state: OfficeState, job: CrewJob): void {
+  if (state.activityOrders !== undefined) {
+    state.activityOrders = state.activityOrders.filter((order) => order !== job);
   }
 }
 
@@ -1399,6 +1518,27 @@ function remapCrewJob(state: OfficeState, crew: CrewState, movedLeftovers: Map<n
   if (crew.phase === "haul") {
     // The desk is already in his hands and headed out the door; its old spot doesn't matter.
     job.deskIndex = -1;
+    return;
+  }
+  if (job.item !== undefined) {
+    const activityId = job.activityId;
+    const itemIndex = activityId !== undefined
+      ? state.activities?.find((activity) => activity.id === activityId)?.index
+      : pickActivitySpot(state, job.item, undefined, job);
+    if (itemIndex === undefined) {
+      if (crew.carrying !== undefined) {
+        job.deskIndex = -1;
+        crew.phase = "haul";
+      } else {
+        crew.job = undefined;
+        crew.phase = "idle";
+      }
+      return;
+    }
+    job.deskIndex = itemIndex;
+    if (crew.phase === "build") {
+      crew.phase = "toSlot";
+    }
     return;
   }
   const index = job.kind === "remove"
@@ -1440,6 +1580,9 @@ function startJob(state: OfficeState, agent: Agent, job: CrewJob, random: Random
   agent.leaving = false;
   if (job.kind === "remove") {
     crew.phase = "toSlot";
+    if (job.activityId !== undefined) {
+      endActivity(state, job.activityId, random, false);
+    }
     say(state, agent, pickPhrase(CREW_REMOVE_LINES, random), 1.6);
     goTo(state, agent, state.layout.desks[job.deskIndex].seat, { kind: "crew" }, false, random);
     return;
@@ -1458,10 +1601,13 @@ function crewArrive(state: OfficeState, agent: Agent, random: Random): void {
         return;
       }
       // Picks up the desk at the door, and his partner grabs the chair if he's free.
-      crew.carrying = job.seed;
+      crew.carrying = job.item ?? job.seed;
       crew.phase = "toSlot";
-      say(state, agent, pickPhrase(CREW_START_LINES, random), 1.6);
+      say(state, agent, pickPhrase(job.item === undefined ? CREW_START_LINES : CREW_ITEM_LINES, random), 1.6);
       goTo(state, agent, state.layout.desks[job.deskIndex].seat, { kind: "crew" }, false, random);
+      if (job.item !== undefined) {
+        return;
+      }
       const partner = crewAgents(state).find((other) => other !== agent && other.crew?.job === undefined && other.path.length === 0 && isAt(other, state.layout.door));
       if (partner?.crew !== undefined) {
         partner.crew.chair = true;
@@ -1504,6 +1650,29 @@ function crewDecide(state: OfficeState, agent: Agent, random: Random): void {
   const crew = agent.crew as CrewState;
   const job = crew.job;
   agent.running = false;
+  if (crew.phase === "build" && job !== undefined && job.item !== undefined) {
+    if (job.kind === "remove") {
+      const activityId = job.activityId;
+      const activity = state.activities?.find((candidate) => candidate.id === activityId);
+      if (activity !== undefined) {
+        removeActivity(state, activity);
+      }
+      crew.carrying = job.item;
+    } else if (activityFitsAt(state, job.item, job.deskIndex, job)) {
+      placeActivity(state, job.item, job.deskIndex, random);
+      crew.carrying = undefined;
+      crew.job = undefined;
+      crew.phase = "idle";
+      say(state, agent, pickPhrase(CREW_DONE_LINES, random), 1.4);
+      setMode(state, agent, "loiter", 0.6);
+      return;
+    } else {
+      say(state, agent, pickPhrase(CREW_NEVER_MIND_LINES, random), 1.4);
+    }
+    crew.phase = "haul";
+    goTo(state, agent, state.layout.door, { kind: "crew" }, false, random);
+    return;
+  }
   if (crew.phase === "build" && job !== undefined) {
     if (job.kind === "remove") {
       removeDesk(state, job.deskIndex);
@@ -1605,6 +1774,496 @@ function facingToward(agent: Agent, point: Point): Facing {
   const dx = point.x - agent.x;
   const dy = point.y - agent.y;
   return Math.abs(dx) >= Math.abs(dy) ? (dx < 0 ? "left" : "right") : dy < 0 ? "up" : "down";
+}
+
+
+// ----- Activities -----
+
+const ACTIVITY_WAIT_SECONDS = 12;
+const TURN_SECONDS: readonly [number, number] = [8, 13];
+
+function activityIndexes(activity: { kind: ActivityKindId; index: number }): number[] {
+  return activityWidth(activity.kind) === 2 ? [activity.index, activity.index + 1] : [activity.index];
+}
+
+// The desk spots that have an activity on them or one on its way.
+function activityCovered(state: OfficeState): Set<number> {
+  const covered = new Set<number>();
+  for (const activity of state.activities ?? []) {
+    activityIndexes(activity).forEach((index) => covered.add(index));
+  }
+  for (const job of incomingActivities(state)) {
+    activityIndexes({ kind: job.item as ActivityKindId, index: job.deskIndex }).forEach((index) => covered.add(index));
+  }
+  return covered;
+}
+
+// Activities ordered or on their way in.
+function incomingActivities(state: OfficeState): CrewJob[] {
+  const carried = crewAgents(state).flatMap((member) => {
+    const job = member.crew?.job;
+    return job !== undefined && job.item !== undefined && job.kind === "deliver" && job.deskIndex >= 0 && member.crew?.phase !== "haul" ? [job] : [];
+  });
+  return [...(state.activityOrders ?? []), ...carried];
+}
+
+const samePoint = (first: Point, second: Point) => first.x === second.x && first.y === second.y;
+
+// Where an activity of this kind would go on the desk spot at index (the left of a pair), or undefined when it
+// doesn't fit there: a pair needs the next spot beside it, and a table needs open floor at both ends.
+export function activityFit(layout: OfficeLayout, kind: ActivityKindId, index: number): ActivityFit | undefined {
+  const spec = ACTIVITIES[kind];
+  const desk = layout.desks[index];
+  if (desk === undefined) {
+    return undefined;
+  }
+  const deskTile = (point: Point) => layout.desks.some((other) => samePoint(other.desk, point) || samePoint(other.seat, point));
+  // Plain floor that's no desk spot, and not the tile inside the door.
+  const open = (point: Point) => layout.tiles[point.y]?.[point.x] === "floor" && !deskTile(point) &&
+    !samePoint(point, { x: layout.door.x, y: layout.door.y + 1 });
+  const waitSpot = (seat: Point): ActivitySpot | undefined => {
+    const beside = [{ x: seat.x - 1, y: seat.y }, { x: seat.x + 1, y: seat.y }].find(open);
+    if (beside !== undefined) {
+      return { at: beside, facing: beside.x < seat.x ? "right" : "left", wait: true };
+    }
+    const below = { x: seat.x, y: seat.y + 1 };
+    return open(below) ? { at: below, facing: "up", wait: true } : undefined;
+  };
+  const withWait = (spots: ActivitySpot[], seat: Point): ActivitySpot[] => {
+    const wait = spec.play === "turns" ? waitSpot(seat) : undefined;
+    return wait === undefined ? spots : [...spots, wait];
+  };
+  if (spec.shape === "machine" || spec.shape === "floor") {
+    return {
+      indexes: [index],
+      blocked: spec.shape === "machine" ? [desk.desk] : [],
+      seats: [desk.seat],
+      spots: withWait([{ at: desk.seat, facing: spec.shape === "machine" ? "up" : spec.facing ?? "down", wait: false }], desk.seat),
+    };
+  }
+  const right = layout.desks[index + 1];
+  if (right === undefined || right.desk.y !== desk.desk.y || right.desk.x !== desk.desk.x + 1) {
+    return undefined;
+  }
+  if (spec.shape === "pair") {
+    return {
+      indexes: [index, index + 1],
+      blocked: [desk.desk, right.desk],
+      seats: [desk.seat, right.seat],
+      spots: [{ at: desk.seat, facing: "up", wait: false }, { at: right.seat, facing: "up", wait: false }],
+    };
+  }
+  const leftEnd = { x: desk.desk.x - 1, y: desk.desk.y };
+  const rightEnd = { x: right.desk.x + 1, y: right.desk.y };
+  if (!open(leftEnd) || !open(rightEnd)) {
+    return undefined;
+  }
+  return {
+    indexes: [index, index + 1],
+    blocked: [desk.desk, right.desk],
+    seats: [],
+    spots: [{ at: leftEnd, facing: "right", wait: false }, { at: rightEnd, facing: "left", wait: false }],
+  };
+}
+
+function fitTiles(fit: ActivityFit): Point[] {
+  return [...fit.blocked, ...fit.seats, ...fit.spots.map((spot) => spot.at)];
+}
+
+// Whether this kind can go at index now: its spots free of desks, guys' spots, other activities (standing or on
+// their way, except the one asking: by its id, or its own crew job), and the show's stage.
+function activityFitsAt(state: OfficeState, kind: ActivityKindId, index: number, ignore: string | CrewJob | undefined): boolean {
+  const fit = activityFit(state.layout, kind, index);
+  if (fit === undefined) {
+    return false;
+  }
+  const wanted = new Set(state.agents.flatMap((agent) => (isSession(agent) && !agent.leaving && agent.deskIndex !== undefined ? [agent.deskIndex] : [])));
+  if (fit.indexes.some((spot) => wanted.has(spot) || state.placed.has(spot))) {
+    return false;
+  }
+  const taken = new Set<string>();
+  const others: { kind: ActivityKindId; index: number }[] = [
+    ...(state.activities ?? []).filter((activity) => activity.id !== ignore),
+    ...incomingActivities(state).filter((job) => job !== ignore).map((job) => ({ kind: job.item as ActivityKindId, index: job.deskIndex })),
+  ];
+  for (const other of others) {
+    const otherFit = activityFit(state.layout, other.kind, other.index);
+    otherFit?.indexes.forEach((spot) => taken.add(`i${spot}`));
+    if (otherFit !== undefined) {
+      fitTiles(otherFit).forEach((point) => taken.add(`${point.x},${point.y}`));
+    }
+  }
+  if (fit.indexes.some((spot) => taken.has(`i${spot}`)) || fitTiles(fit).some((point) => taken.has(`${point.x},${point.y}`))) {
+    return false;
+  }
+  const show = state.show;
+  if (show !== undefined && fitTiles(fit).some((point) => show.spots.some((spot) => samePoint(spot, point)))) {
+    return false;
+  }
+  // Nobody's chair is on it.
+  return !fit.spots.some((spot) => state.agents.some((agent) => isSession(agent) && samePoint(agent.workSpot, spot.at)));
+}
+
+// A free spot for this kind, toward the back of the room's desk order (newcomers take desks from the front), with a
+// little shuffle.
+function pickActivitySpot(state: OfficeState, kind: ActivityKindId, random: Random | undefined, ignore?: CrewJob): number | undefined {
+  const fitting = state.layout.desks.map((_, index) => index).filter((index) => activityFitsAt(state, kind, index, ignore)).reverse();
+  if (fitting.length === 0) {
+    return undefined;
+  }
+  return fitting[random === undefined ? 0 : Math.floor(random() * Math.min(3, fitting.length))];
+}
+
+// Puts an activity's tiles down and adds it to the room. Anyone in the way steps aside.
+function standActivity(state: OfficeState, activity: ActivityState): void {
+  const fit = activityFit(state.layout, activity.kind, activity.index);
+  if (fit === undefined) {
+    return;
+  }
+  state.activities = [...(state.activities ?? []), activity];
+  for (const point of fit.blocked) {
+    state.layout.tiles[point.y][point.x] = "gear";
+  }
+  for (const point of fit.seats) {
+    state.layout.tiles[point.y][point.x] = "seat";
+  }
+  const changed = [...fit.blocked, ...fit.seats];
+  for (const agent of state.agents) {
+    const onIt = fit.blocked.some((point) => isAt(agent, point));
+    const passing = agent.path.slice(0, -1).some((step) => changed.some((point) => samePoint(point, step)));
+    if (onIt || passing) {
+      if (onIt) {
+        const moved = nearestWalkable(state.layout, here(agent));
+        agent.x = moved.x;
+        agent.y = moved.y;
+      }
+      agent.path = [];
+      agent.modeUntil = state.time;
+    }
+  }
+}
+
+// Puts an activity in at once, without the crew: when the room opens, and for tests. False when it doesn't fit.
+export function addActivity(state: OfficeState, kind: ActivityKindId, index: number, random: Random): boolean {
+  if (!activityFitsAt(state, kind, index, undefined)) {
+    return false;
+  }
+  placeActivity(state, kind, index, random);
+  return true;
+}
+
+function placeActivity(state: OfficeState, kind: ActivityKindId, index: number, random: Random): void {
+  state.activityCount = (state.activityCount ?? 0) + 1;
+  standActivity(state, {
+    id: `activity-${state.activityCount}`, kind, index, until: state.time + activityStay(random), going: false, endsAt: undefined, nextTurnAt: 0,
+  });
+}
+
+function removeActivity(state: OfficeState, activity: ActivityState): void {
+  endActivity(state, activity.id, undefined, false);
+  state.activities = (state.activities ?? []).filter((other) => other !== activity);
+  const fit = activityFit(state.layout, activity.kind, activity.index);
+  for (const point of fit === undefined ? [] : [...fit.blocked, ...fit.seats]) {
+    state.layout.tiles[point.y][point.x] = "floor";
+  }
+}
+
+// Free desk spots: not a guy's, and no desk standing on them.
+function freeDeskSpots(state: OfficeState): number {
+  const wanted = new Set(state.agents.flatMap((agent) => (isSession(agent) && !agent.leaving && agent.deskIndex !== undefined ? [agent.deskIndex] : [])));
+  return state.layout.desks.filter((_, index) => !wanted.has(index) && !state.placed.has(index)).length;
+}
+
+function orderActivity(state: OfficeState, random: Random): boolean {
+  const standing = [...(state.activities ?? []).map((activity) => activity.kind), ...incomingActivities(state).map((job) => job.item as ActivityKindId)];
+  const kind = pickActivityKind(random, standing, (candidate) => pickActivitySpot(state, candidate, undefined) !== undefined);
+  const index = kind === undefined ? undefined : pickActivitySpot(state, kind, random);
+  if (kind === undefined || index === undefined) {
+    return false;
+  }
+  state.activityOrders = [...(state.activityOrders ?? []), { kind: "deliver", deskIndex: index, seed: "", item: kind }];
+  return true;
+}
+
+// When the room first opens, its activities are already standing.
+function furnishActivities(state: OfficeState, newcomers: readonly Agent[], random: Random): void {
+  if (newcomers.length === 0 && (state.activities ?? []).length > 0) {
+    return;
+  }
+  const target = activityTarget(state.activityLevel ?? "off", freeDeskSpots(state));
+  for (let tries = 0; (state.activities ?? []).length < target && tries < target * 3; tries++) {
+    const standing = (state.activities ?? []).map((activity) => activity.kind);
+    const kind = pickActivityKind(random, standing, (candidate) => pickActivitySpot(state, candidate, undefined) !== undefined);
+    const index = kind === undefined ? undefined : pickActivitySpot(state, kind, random);
+    if (kind === undefined || index === undefined) {
+      break;
+    }
+    placeActivity(state, kind, index, random);
+  }
+  state.nextActivityTripAt = state.time + activityTripGap(random);
+}
+
+// Decides what the crew brings in or takes out: one on a spot a guy needs goes at once; otherwise, one trip every
+// so often, the room keeps its count for its free spots and swaps out ones that have stood a while.
+function manageActivities(state: OfficeState, random: Random): void {
+  const activities = state.activities ?? [];
+  const level = state.activityLevel ?? "off";
+  if (activities.length === 0 && (state.activityOrders ?? []).length === 0 && level === "off") {
+    return;
+  }
+  const wanted = new Set(state.agents.flatMap((agent) => (isSession(agent) && !agent.leaving && agent.deskIndex !== undefined ? [agent.deskIndex] : [])));
+  for (const activity of activities) {
+    if (!activity.going && (level === "off" || activityIndexes(activity).some((index) => wanted.has(index) || state.placed.has(index)))) {
+      activity.going = true;
+    }
+  }
+  // An order whose spot got taken waits for another trip.
+  state.activityOrders = (state.activityOrders ?? []).filter((order) =>
+    level !== "off" && activityFitsAt(state, order.item as ActivityKindId, order.deskIndex, order));
+  if (level === "off" || state.time < (state.nextActivityTripAt ?? 0)) {
+    return;
+  }
+  const staying = activities.filter((activity) => !activity.going);
+  const count = staying.length + incomingActivities(state).length;
+  const target = activityTarget(level, freeDeskSpots(state));
+  let tripped = false;
+  if (count > target) {
+    const oldest = [...staying].sort((first, second) => first.until - second.until)[0];
+    if (oldest !== undefined) {
+      oldest.going = true;
+      tripped = true;
+    }
+  } else {
+    // One that's stood its time goes, once nobody's on it.
+    const stale = staying.find((activity) => state.time >= activity.until && activityPlayers(state, activity.id).length === 0);
+    if (stale !== undefined) {
+      stale.going = true;
+      tripped = true;
+    } else if (count < target) {
+      tripped = orderActivity(state, random);
+    }
+  }
+  state.nextActivityTripAt = state.time + (tripped ? activityTripGap(random) : 3);
+}
+
+// The guys headed for or at an activity.
+function activityPlayers(state: OfficeState, activityId: string): Agent[] {
+  return state.agents.filter((agent) => agent.goal?.kind === "activity" && agent.goal.activityId === activityId);
+}
+
+// Is this guy free to go play something now?
+function canPlay(agent: Agent): boolean {
+  return canChat(agent) && !agent.you && agent.visitor === undefined;
+}
+
+interface ActivityChoice {
+  activity: ActivityState;
+  spot: number;
+  partner: Agent | undefined;
+  // The partner's spot, when he's coming too.
+  partnerSpot: number | undefined;
+}
+
+// What this guy could go do: a free spot at an activity, with a partner when it needs one (or sometimes when he can
+// bring one), or the open spot beside someone already at it.
+function activityChoices(state: OfficeState, agent: Agent, partners: readonly Agent[]): ActivityChoice[] {
+  const choices: ActivityChoice[] = [];
+  const free = partners.filter((partner) => canPlay(partner) || partner.you || partner.visitor !== undefined);
+  for (const activity of state.activities ?? []) {
+    if (activity.going) {
+      continue;
+    }
+    const fit = activityFit(state.layout, activity.kind, activity.index);
+    if (fit === undefined) {
+      continue;
+    }
+    const spec = ACTIVITIES[activity.kind];
+    const players = activityPlayers(state, activity.id);
+    const taken = new Set(players.map((player) => (player.goal as { spot: number }).spot));
+    const openSpots = fit.spots.map((_, index) => index).filter((index) => !taken.has(index) && !isTargeted(state, agent, fit.spots[index].at));
+    if (openSpots.length === 0) {
+      continue;
+    }
+    const partner = free.length === 0 ? undefined : free[(activity.index * 7 + players.length) % free.length];
+    if (spec.play === "versus") {
+      if (players.length === 1 && openSpots.length === 1 && players[0].mode === "wait") {
+        // Someone's waiting for an opponent.
+        choices.push({ activity, spot: openSpots[0], partner: undefined, partnerSpot: undefined }, { activity, spot: openSpots[0], partner: undefined, partnerSpot: undefined });
+      } else if (players.length === 0 && partner !== undefined && openSpots.length === 2) {
+        choices.push({ activity, spot: openSpots[0], partner, partnerSpot: openSpots[1] });
+      }
+      continue;
+    }
+    const playSpot = openSpots.find((index) => !fit.spots[index].wait);
+    if (spec.play === "turns") {
+      if (players.length === 0 && playSpot !== undefined) {
+        const waitSpot = openSpots.find((index) => fit.spots[index].wait);
+        // Half the time he brings a buddy to take turns with.
+        choices.push({ activity, spot: playSpot, partner: undefined, partnerSpot: undefined });
+        if (partner !== undefined && waitSpot !== undefined) {
+          choices.push({ activity, spot: playSpot, partner, partnerSpot: waitSpot });
+        }
+      } else if (players.length === 1 && openSpots.length === 1 && fit.spots[openSpots[0]].wait) {
+        choices.push({ activity, spot: openSpots[0], partner: undefined, partnerSpot: undefined });
+      }
+      continue;
+    }
+    if (playSpot !== undefined) {
+      choices.push({ activity, spot: playSpot, partner: undefined, partnerSpot: undefined });
+      if (spec.play === "side" && partner !== undefined && openSpots.length === 2) {
+        choices.push({ activity, spot: openSpots[0], partner, partnerSpot: openSpots[1] });
+      }
+    }
+  }
+  return choices;
+}
+
+function startActivity(state: OfficeState, agent: Agent, choice: ActivityChoice, random: Random): void {
+  const { activity } = choice;
+  const fit = activityFit(state.layout, activity.kind, activity.index);
+  if (fit === undefined) {
+    wander(state, agent, random);
+    return;
+  }
+  goTo(state, agent, fit.spots[choice.spot].at, { kind: "activity", activityId: activity.id, activity: activity.kind, spot: choice.spot }, false, random);
+  const partner = choice.partner;
+  if (partner !== undefined && choice.partnerSpot !== undefined) {
+    endChat(state, partner);
+    if (random() < 0.5) {
+      say(state, agent, ACTIVITIES[activity.kind].play === "versus" ? "rematch?" : "c'mon", 1.2);
+    }
+    goTo(state, partner, fit.spots[choice.partnerSpot].at, { kind: "activity", activityId: activity.id, activity: activity.kind, spot: choice.partnerSpot }, false, random);
+  }
+}
+
+function arriveAtActivity(state: OfficeState, agent: Agent, goal: { activityId: string; spot: number }, random: Random): void {
+  const activity = state.activities?.find((candidate) => candidate.id === goal.activityId);
+  const fit = activity === undefined || activity.going ? undefined : activityFit(state.layout, activity.kind, activity.index);
+  const spot = fit?.spots[goal.spot];
+  if (activity === undefined || spot === undefined || !isAt(agent, spot.at)) {
+    agent.goal = undefined;
+    setMode(state, agent, "loiter", between(random, 1, 2));
+    return;
+  }
+  agent.facing = spot.facing;
+  const spec = ACTIVITIES[activity.kind];
+  setMode(state, agent, spot.wait || spec.play === "versus" ? "wait" : "play", FOREVER);
+  agent.nextBubbleAt = state.time + between(random, 1.5, 4);
+  if (spot.wait && agent.bubble === undefined && random() < 0.5) {
+    say(state, agent, pickPhrase(spec.cheer ?? ["my turn next"], random), 1.4);
+  }
+}
+
+// Ends a go at an activity: the versus winner and loser say so (with lines), and everyone on it picks something else.
+function endActivity(state: OfficeState, activityId: string, random: Random | undefined, lines: boolean): void {
+  const activity = state.activities?.find((candidate) => candidate.id === activityId);
+  const players = activityPlayers(state, activityId);
+  if (activity !== undefined) {
+    activity.endsAt = undefined;
+  }
+  const spec = activity === undefined ? undefined : ACTIVITIES[activity.kind];
+  const playing = players.filter((player) => player.mode === "play" && player.path.length === 0);
+  const winner = random === undefined || playing.length < 2 ? undefined : playing[Math.floor(random() * playing.length)];
+  for (const player of players) {
+    if (lines && random !== undefined && spec !== undefined) {
+      if (winner !== undefined && spec.win !== undefined && spec.lose !== undefined) {
+        say(state, player, pickPhrase(player === winner ? spec.win : spec.lose, random), 1.8);
+      } else if (random() < 0.3) {
+        say(state, player, pickPhrase(["that was fun", "ok, back to it", "nice", "again later"], random), 1.4);
+      }
+    }
+    player.goal = undefined;
+    player.target = undefined;
+    if (player.path.length === 0) {
+      player.mode = "loiter";
+    }
+    player.modeUntil = state.time + (lines ? 0.8 : 0);
+  }
+}
+
+// Each frame: who's playing and who's waiting, turns, the lines they say, and the end of a go.
+function stepActivities(state: OfficeState, random: Random): void {
+  for (const activity of state.activities ?? []) {
+    if (activity.going) {
+      continue;
+    }
+    const spec = ACTIVITIES[activity.kind];
+    const fit = activityFit(state.layout, activity.kind, activity.index);
+    if (fit === undefined) {
+      continue;
+    }
+    const coming = activityPlayers(state, activity.id);
+    const here = coming.filter((agent) => agent.path.length === 0 && (agent.mode === "play" || agent.mode === "wait"));
+    if (here.length === 0) {
+      activity.endsAt = undefined;
+      continue;
+    }
+    const spotOf = (agent: Agent) => fit.spots[(agent.goal as { spot: number }).spot];
+    if (spec.play === "versus") {
+      if (here.length < 2) {
+        const waiter = here[0];
+        waiter.mode = "wait";
+        activity.endsAt ??= state.time + ACTIVITY_WAIT_SECONDS;
+        if (coming.length < 2 && state.time >= activity.endsAt) {
+          // Nobody came: off he goes.
+          endActivity(state, activity.id, random, false);
+        } else if (coming.length >= 2) {
+          activity.endsAt = state.time + ACTIVITY_WAIT_SECONDS;
+        }
+        continue;
+      }
+      if (here.some((agent) => agent.mode === "wait")) {
+        here.forEach((agent) => { agent.mode = "play"; });
+        activity.endsAt = state.time + between(random, spec.seconds[0], spec.seconds[1]);
+      }
+    } else {
+      activity.endsAt ??= state.time + between(random, spec.seconds[0], spec.seconds[1]);
+      for (const agent of here) {
+        agent.mode = spotOf(agent)?.wait === true ? "wait" : "play";
+      }
+      if (spec.play === "turns") {
+        stepTurns(state, activity, fit, coming, here, random);
+      }
+    }
+    if (activity.endsAt !== undefined && state.time >= activity.endsAt) {
+      endActivity(state, activity.id, random, true);
+      continue;
+    }
+    for (const agent of here) {
+      if (state.time < agent.nextBubbleAt || agent.bubble !== undefined) {
+        continue;
+      }
+      agent.nextBubbleAt = state.time + between(random, 4, 10) * Math.max(1, 1 / Math.sqrt(Math.max(0.05, talkOf(state))));
+      if (talkOf(state) > 0 && random() < Math.min(0.9, 0.5 * talkOf(state))) {
+        say(state, agent, pickPhrase(agent.mode === "wait" ? spec.cheer ?? ["my turn next"] : spec.lines, random), 1.6);
+      }
+    }
+  }
+}
+
+// Taking turns: the buddy waiting steps up and the player steps aside, every so often; a lone waiter steps up.
+function stepTurns(state: OfficeState, activity: ActivityState, fit: ActivityFit, coming: readonly Agent[], here: readonly Agent[], random: Random): void {
+  const playIndex = fit.spots.findIndex((spot) => !spot.wait);
+  const waitIndex = fit.spots.findIndex((spot) => spot.wait);
+  const atSpot = (index: number) => coming.find((agent) => (agent.goal as { spot: number }).spot === index);
+  const player = atSpot(playIndex);
+  const waiter = waitIndex < 0 ? undefined : atSpot(waitIndex);
+  const go = (agent: Agent, index: number) =>
+    goTo(state, agent, fit.spots[index].at, { kind: "activity", activityId: activity.id, activity: activity.kind, spot: index }, false, random);
+  if (player === undefined && waiter !== undefined && here.includes(waiter)) {
+    go(waiter, playIndex);
+    return;
+  }
+  if (player === undefined || waiter === undefined || !here.includes(player) || !here.includes(waiter)) {
+    activity.nextTurnAt = state.time + between(random, TURN_SECONDS[0], TURN_SECONDS[1]);
+    return;
+  }
+  if (state.time >= activity.nextTurnAt) {
+    activity.nextTurnAt = state.time + between(random, TURN_SECONDS[0], TURN_SECONDS[1]) + 1;
+    say(state, player, pickPhrase(["your turn", "all yours", "ok go", "beat that"], random), 1.2);
+    go(player, waitIndex);
+    go(waiter, playIndex);
+  }
 }
 
 // ----- Shows -----
