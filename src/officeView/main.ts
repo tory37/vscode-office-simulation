@@ -21,8 +21,8 @@ import {
 import { Facing, FRAME_HEIGHT, FRAME_WIDTH, HEAD_ROOM, pixelGuyFrame, pixelGuyLook, PixelGuyLook, Pose } from "../pixelGuy";
 import { DeskStyle, deskStyleFor } from "../deskStyles";
 import { DEFENSE_BEATS, ERROR_BEAT_SECONDS, ERROR_FLASH_SECONDS, EVENT_SECONDS, SCENE_EVENT_KINDS, SceneEventKind } from "../sceneEventSchedule";
-import { activityLevel } from "../officeActivities";
-import { activityLight, drawActivity, drawCrate, drawHeld } from "./activities";
+import { ACTIVITIES, activityLevel } from "../officeActivities";
+import { activityLight, drawActivity, drawCarriedActivity, drawHeld } from "./activities";
 import { drawCritter } from "./critters";
 import { drawFlier, drawFlierShadow, drawFlierTrail } from "./fliers";
 import { drawLuckyCat } from "./luckyCat";
@@ -1725,7 +1725,7 @@ function drawAgent(agent: Agent, seconds: number): AgentBox {
   const settingDown = crew?.phase === "build" && crew.job?.kind === "deliver";
   const item = crew?.job?.item;
   if (crew !== undefined && crew.carrying !== undefined && item !== undefined && !settingDown) {
-    drawCrate(kit, item, box, HEAD_ROOM, bob);
+    drawCarriedActivity(kit, item, box, HEAD_ROOM, bob);
   } else if (crew !== undefined && (crew.carrying !== undefined || crew.chair) && !settingDown) {
     drawCarried(box, crew.carrying === undefined ? undefined : deskStyleOf(crew.carrying), bob, SCENE_PALETTES[sceneId]);
   }
@@ -2106,7 +2106,7 @@ function draw(seconds: number): void {
   for (const member of state.agents) {
     const job = member.crew?.job;
     const desk = job === undefined ? undefined : layout.desks[job.deskIndex];
-    if (member.crew?.phase === "build" && job?.kind === "deliver" && desk !== undefined) {
+    if (member.crew?.phase === "build" && job?.kind === "deliver" && job.item === undefined && desk !== undefined) {
       const style = deskStyleOf(job.seed);
       layers.push({ depth: desk.desk.y + 0.4, paint: () => drawDesk(desk, undefined, palette, seconds, job.deskIndex, eventColor, style) });
     }
@@ -2615,7 +2615,7 @@ canvas.addEventListener("mousemove", (event) => {
     return;
   }
   if (agent.crew !== undefined) {
-    tooltip.textContent = `${agent.title} · ${agent.crew.carrying !== undefined ? "carrying a desk" : agent.crew.phase === "build" ? "on a desk" : "on the job"}`;
+    tooltip.textContent = `${agent.title} · ${agent.crew.carrying !== undefined ? `carrying ${agent.crew.job?.item === undefined ? "a desk" : ACTIVITIES[agent.crew.job.item].label.toLowerCase()}` : agent.crew.phase === "build" ? (agent.crew.job?.item === undefined ? "on a desk" : "setting up") : "on the job"}`;
     return;
   }
   tooltip.textContent = `${agent.title}${agent.id === focusedId ? " · selected" : ""} · ${agent.status === "asleep" ? "suspended" : agent.status}`;

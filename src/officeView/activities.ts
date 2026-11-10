@@ -1,7 +1,8 @@
-// The Office's activities, drawn: each one on its desk spot, the crate the crew carries it in, and what a player holds
+// The Office's activities, drawn: each one on its desk spot, the little picture of it the crew carries, and what a player holds
 // (a paddle, a barbell, the VR headset). All in room pixels. A machine stands on the desk tile and reaches down into
 // the seat tile below it where its player stands; a floor one lies on the seat tile; a table spans two desk tiles.
 
+import { CARRY_ICONS, carryIconPixels } from "../activityCarryIcons";
 import { ACTIVITIES, ActivityKindId } from "../officeActivities";
 import type { ActivityFit } from "../officeSim";
 import type { Facing } from "../pixelGuy";
@@ -9,14 +10,6 @@ import type { Kit } from "./scenery";
 
 const TILE = 16;
 const FRAME = 12;
-
-// Each kind's main color, for its crate's label.
-const CRATE_COLORS: Record<ActivityKindId, string> = {
-  pinball: "#7B3FB5", arcade: "#2E4C9E", arcadeDuo: "#6A3FB5", clawMachine: "#D64545", hoops: "#FF7A1A", dartboard: "#2E8B57",
-  karaoke: "#E0457B", jukebox: "#C8641A", pingPong: "#1F7A4D", foosball: "#8B5A2B", airHockey: "#2D5BD0", chess: "#E8E0C8",
-  punchingBag: "#B22222", treadmill: "#3A3A3A", exerciseBike: "#D0D0D0", piano: "#2B1B14", easel: "#C8A46A", yogaMat: "#7B5CD6",
-  weights: "#555555", trampoline: "#3D7BE0", beanbag: "#E07A2E", massageChair: "#5A4636", meditation: "#C94F7C", vr: "#22D3EE",
-};
 
 // Where a kind's glow sits on its desk tile, for the light map at night.
 export function activityLight(kind: ActivityKindId): { dx: number; dy: number; radius: number; color: string } | undefined {
@@ -355,14 +348,15 @@ function drawCabinet(kit: Kit, left: number, top: number, body: string, marquee:
 }
 
 // The crate the crew carries an activity in, held up over his head like a desk.
-export function drawCrate(kit: Kit, kind: ActivityKindId, box: { left: number; top: number }, headRoom: number, bob: number): void {
-  const left = box.left - 1;
-  const top = box.top - headRoom - 7 + bob;
-  kit.rect(left, top, 14, 7, "#B98A55");
-  kit.rect(left, top, 14, 1, "#D8AE78");
-  kit.rect(left + 1, top + 6, 12, 1, "#8A6235");
-  kit.rect(left + 4, top + 2, 6, 3, CRATE_COLORS[kind]);
-  kit.rect(left + 6, top + 3, 2, 1, "#FFFFFF");
+// The thing a crew guy carries, over his head, centered on him.
+export function drawCarriedActivity(kit: Kit, kind: ActivityKindId, box: { left: number; top: number }, headRoom: number, bob: number): void {
+  const pixels = carryIconPixels(kind);
+  const height = CARRY_ICONS[kind].rows.length;
+  const left = box.left + Math.floor((FRAME - CARRY_ICONS[kind].rows[0].length) / 2);
+  const top = box.top - headRoom - height + 2 + bob;
+  for (const pixel of pixels) {
+    kit.rect(left + pixel.x, top + pixel.y, 1, 1, pixel.color);
+  }
 }
 
 // What a player has in his hands, over his sprite: a paddle at ping pong, the barbell, the VR headset.

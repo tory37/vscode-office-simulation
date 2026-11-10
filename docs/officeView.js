@@ -7043,35 +7043,124 @@
     return DESK_STYLES[DESK_STYLE_BY_RACE[race ?? "human"] ?? "standard"];
   }
 
+  // src/activityCarryIcons.ts
+  var CARRY_ICONS = {
+    pinball: {
+      rows: ["..kkkkkkkk..", "..kmmmmmmk..", "..kmyyyymk..", "..kkkkkkkk..", ".kggggggggk.", ".kgwggggggk.", ".kggggrrggk.", ".kkkkkkkkkk.", "..k......k.."],
+      colors: { m: "#FF7AD9", y: "#FFE08A", g: "#2E3A8C", r: "#FF5A5A" }
+    },
+    arcade: {
+      rows: ["..kkkkkkkk..", "..kmmmmmmk..", "..kkkkkkkk..", "..kssssssk..", "..ksgsssgk..", "..kssssssk..", "..kbbbbbbk..", "..kbrbybbk..", "..kbbbbbbk..", "..kkkkkkkk.."],
+      colors: { m: "#6EE7FF", s: "#14203A", g: "#7CFF8A", b: "#2E4C9E", r: "#FF4D4D", y: "#FFE066" }
+    },
+    arcadeDuo: {
+      rows: ["kkkkkk.kkkkkk", "kmmmmk.kmmmmk", "kssssk.kssssk", "ksgssk.kssgsk", "kbbbbk.kbbbbk", "kbrbbk.kbbrbk", "kkkkkk.kkkkkk"],
+      colors: { m: "#B98CFF", s: "#14203A", g: "#7CFF8A", b: "#6A3FB5", r: "#FF4D4D" }
+    },
+    clawMachine: {
+      rows: ["..kkkkkkkk..", "..kyyyyyyk..", "..kckkkkck..", "..kc.k..ck..", "..kc.v..ck..", "..kcpbgyck..", "..kkkkkkkk..", "..krrrrrrk..", "..kkkkkkkk.."],
+      colors: { y: "#FFD25E", c: "#BFE9FF", v: "#C0C0C0", p: "#FF8FC8", b: "#6EB5FF", g: "#7CE08A", r: "#D64545" }
+    },
+    hoops: {
+      rows: ["..kkkkkkkk..", "..kwwwwwwk..", "..kwkkkkwk..", "..kwwwwwwk..", "..kkkookkk..", "...kooook...", "....kwwk....", "..kbbbbbbk..", "..kbnnnnbk..", "..kkkkkkkk.."],
+      colors: { o: "#FF7A1A", b: "#2A2A2A", n: "#FF9A4D" }
+    },
+    dartboard: {
+      rows: ["...kkkkkk...", "..kgrrrrgk..", ".kgrggggrgk.", ".krgryyrgrk.", ".krgryyrgrk.", ".kgrggggrgk.", "..kgrrrrgk..", "...kkkkkk..."],
+      colors: { g: "#2E8B57", r: "#D64545", y: "#FFE066" }
+    },
+    karaoke: {
+      rows: [".kkkkkkkkkk.", ".kssssssssk.", ".kswswswssk.", ".kkkkkkkkkk.", "..kppppppk..", "..kpkkkkpk..", "..kpkppkpk..", "..kkkkkkkk.."],
+      colors: { s: "#3A1640", p: "#E0457B" }
+    },
+    jukebox: {
+      rows: ["...kkkkkk...", "..kyyyyyyk..", ".kyooooooyk.", ".kyowwwwoyk.", ".kyoyyyyoyk.", ".kyooooooyk.", ".kbbbbbbbbk.", ".kbrbgbybbk.", ".kkkkkkkkkk."],
+      colors: { y: "#FFB347", o: "#C8641A", b: "#5A2E14", r: "#FF4D4D", g: "#7CE08A" }
+    },
+    pingPong: {
+      rows: ["kkkkkkkkkkkkkk", "kggggggwgggggk", "kggggggwgggggk", "kwwwwwwwwwwwwk", "kggggggwgggggk", "kggggggwgggggk", "kkkkkkkkkkkkkk", ".k..........k."],
+      colors: { g: "#1F7A4D" }
+    },
+    foosball: {
+      rows: ["kkkkkkkkkkkkkk", "kffffffffffffk", "kfvvvvvvvvvvfk", "kfgrggbggrggfk", "kfgggbggrgggfk", "kfvvvvvvvvvvfk", "kffffffffffffk", "kkkkkkkkkkkkkk", ".k..........k."],
+      colors: { f: "#8B5A2B", v: "#C0C0C0", g: "#2E8B57", r: "#D64545", b: "#2D5BD0" }
+    },
+    airHockey: {
+      rows: ["kkkkkkkkkkkkkk", "kbbbbbbbbbbbbk", "kbrbbbbwbbbbbk", "kbbbbbwwwbbbbk", "kbbbbbbwbbbrbk", "kbbbbbbbbbbbbk", "kkkkkkkkkkkkkk", ".k..........k."],
+      colors: { b: "#2D5BD0", r: "#FF4D4D", w: "#BFF4FF" }
+    },
+    chess: {
+      rows: ["kkkkkkkkkkkk", "kcdcdcdcdcdk", "kdcdcdcdcdck", "kcdcdcdcdcdk", "kdcdcdcdcdck", "kcdcdcdcdcdk", "kkkkkkkkkkkk"],
+      colors: { c: "#E8E0C8", d: "#5A3A22" }
+    },
+    punchingBag: {
+      rows: [".....kk.....", ".....kk.....", "....kkkk....", "...krrrrk...", "...krwrrk...", "...krrrrk...", "...krrrrk...", "...krrrrk...", "...kddddk...", "....kkkk...."],
+      colors: { r: "#B22222", d: "#7A1515" }
+    },
+    treadmill: {
+      rows: ["..........kk", "..........kk", ".........kgk", "........kk.k", "kkkkkkkkkkkk", "kbbbbbbbbbbk", "kddddddddddk", "kkkkkkkkkkkk"],
+      colors: { g: "#7CFF8A", b: "#3A3A3A", d: "#222222" }
+    },
+    exerciseBike: {
+      rows: ["...kkk......", "....k...kkk.", "....k...kgk.", "....kkkkkk..", "...kvvk..k..", "..kv..vk.k..", "..kv..vk.k..", "...kvvk.kkk.", "....kkkkk..."],
+      colors: { v: "#D0D0D0", g: "#7CFF8A" }
+    },
+    piano: {
+      rows: ["kkkkkkkkkkkk", "kppppppppppk", "kppppppppppk", "kkkkkkkkkkkk", "kwkwkwwkwkwk", "kwkwkwwkwkwk", "kwwwwwwwwwwk", "kkkkkkkkkkkk", "kp........pk"],
+      colors: { p: "#2B1B14" }
+    },
+    easel: {
+      rows: [".....kk.....", "..kkkkkkkk..", "..kwwwwwwk..", "..kwbbwwwk..", "..kwwgggwk..", "..kwrwwwwk..", "..kkkkkkkk..", "...e.ee.e...", "..e..ee..e..", ".e...ee...e."],
+      colors: { b: "#6EB5FF", g: "#4CAF50", r: "#FF6B6B", e: "#C8A46A" }
+    },
+    yogaMat: {
+      rows: ["..kkkkkkkkk.", ".kmmmmmmmmmk", "kmlmmmmmmmmk", "kmlmmmmmmmmk", ".kmmmmmmmmmk", "..kkkkkkkkk."],
+      colors: { m: "#7B5CD6", l: "#A88BFF" }
+    },
+    weights: {
+      rows: ["kk........kk", "kdk......kdk", "kdkvvvvvvkdk", "kdk......kdk", "kk........kk", "............", ".kk..kk..kk.", "kddkkddkkddk", ".kk..kk..kk."],
+      colors: { d: "#2A2A2A", v: "#9A9A9A" }
+    },
+    trampoline: {
+      rows: ["..kkkkkkkkk.", ".kbbbbbbbbbk", "kbddddddddbk", ".kbbbbbbbbbk", "..kkkkkkkkk.", "..k.k...k.k."],
+      colors: { b: "#3D7BE0", d: "#1E2A44" }
+    },
+    beanbag: {
+      rows: ["....kkkk....", "..kkoooookk.", ".kooooolook.", "kooooooooook", "koooooooodok", "kddoooooddk.", ".kkkkkkkkk.."],
+      colors: { o: "#E07A2E", l: "#F4A460", d: "#A8551A" }
+    },
+    massageChair: {
+      rows: ["..kkkkk.....", "..kcccck....", "..kcccck....", "..kcccckkkk.", "..kccccccck.", "..kccccccck.", "..kkkkkkkkk.", "...k.....k.."],
+      colors: { c: "#5A4636" }
+    },
+    meditation: {
+      rows: ["...kkkkkk...", ".kkppppppkk.", "kppplllpppk.", "kpppppppppk.", ".kkppppppkk.", "...kkkkkk..."],
+      colors: { p: "#C94F7C", l: "#E8789F" }
+    },
+    vr: {
+      rows: ["..kkkkkkkk..", ".kddddddddk.", "kdccdddccdk.", "kdccdddccdk.", ".kddddddddk.", "..kk....kk.."],
+      colors: { d: "#2A2A2A", c: "#22D3EE" }
+    }
+  };
+  var CARRY_OUTLINE = "#1E1A24";
+  function carryIconPixels(kind) {
+    const icon = CARRY_ICONS[kind];
+    const pixels = [];
+    icon.rows.forEach((row, y) => {
+      for (let x = 0; x < row.length; x++) {
+        const key = row[x];
+        const color = key === "." ? void 0 : key === "k" ? CARRY_OUTLINE : key === "w" ? "#FFFFFF" : icon.colors[key];
+        if (color !== void 0) {
+          pixels.push({ x, y, color });
+        }
+      }
+    });
+    return pixels;
+  }
+
   // src/officeView/activities.ts
   var TILE = 16;
   var FRAME = 12;
-  var CRATE_COLORS = {
-    pinball: "#7B3FB5",
-    arcade: "#2E4C9E",
-    arcadeDuo: "#6A3FB5",
-    clawMachine: "#D64545",
-    hoops: "#FF7A1A",
-    dartboard: "#2E8B57",
-    karaoke: "#E0457B",
-    jukebox: "#C8641A",
-    pingPong: "#1F7A4D",
-    foosball: "#8B5A2B",
-    airHockey: "#2D5BD0",
-    chess: "#E8E0C8",
-    punchingBag: "#B22222",
-    treadmill: "#3A3A3A",
-    exerciseBike: "#D0D0D0",
-    piano: "#2B1B14",
-    easel: "#C8A46A",
-    yogaMat: "#7B5CD6",
-    weights: "#555555",
-    trampoline: "#3D7BE0",
-    beanbag: "#E07A2E",
-    massageChair: "#5A4636",
-    meditation: "#C94F7C",
-    vr: "#22D3EE"
-  };
   function activityLight(kind) {
     const color = ACTIVITIES[kind].glow;
     if (color === void 0) {
@@ -7394,14 +7483,14 @@
     r(left + 9, top + 6, 1, 1, "#F5C542");
     r(left + 11, top + 6, 1, 1, "#4FA3F7");
   }
-  function drawCrate(kit2, kind, box, headRoom, bob) {
-    const left = box.left - 1;
-    const top = box.top - headRoom - 7 + bob;
-    kit2.rect(left, top, 14, 7, "#B98A55");
-    kit2.rect(left, top, 14, 1, "#D8AE78");
-    kit2.rect(left + 1, top + 6, 12, 1, "#8A6235");
-    kit2.rect(left + 4, top + 2, 6, 3, CRATE_COLORS[kind]);
-    kit2.rect(left + 6, top + 3, 2, 1, "#FFFFFF");
+  function drawCarriedActivity(kit2, kind, box, headRoom, bob) {
+    const pixels = carryIconPixels(kind);
+    const height2 = CARRY_ICONS[kind].rows.length;
+    const left = box.left + Math.floor((FRAME - CARRY_ICONS[kind].rows[0].length) / 2);
+    const top = box.top - headRoom - height2 + 2 + bob;
+    for (const pixel of pixels) {
+      kit2.rect(left + pixel.x, top + pixel.y, 1, 1, pixel.color);
+    }
   }
   function drawHeld(kit2, kind, box, facing, frame) {
     const r = kit2.rect;
@@ -11558,7 +11647,7 @@
     const settingDown = crew?.phase === "build" && crew.job?.kind === "deliver";
     const item = crew?.job?.item;
     if (crew !== void 0 && crew.carrying !== void 0 && item !== void 0 && !settingDown) {
-      drawCrate(kit, item, box, HEAD_ROOM, bob);
+      drawCarriedActivity(kit, item, box, HEAD_ROOM, bob);
     } else if (crew !== void 0 && (crew.carrying !== void 0 || crew.chair) && !settingDown) {
       drawCarried(box, crew.carrying === void 0 ? void 0 : deskStyleOf(crew.carrying), bob, SCENE_PALETTES[sceneId]);
     }
@@ -11862,7 +11951,7 @@
     for (const member of state.agents) {
       const job = member.crew?.job;
       const desk = job === void 0 ? void 0 : layout.desks[job.deskIndex];
-      if (member.crew?.phase === "build" && job?.kind === "deliver" && desk !== void 0) {
+      if (member.crew?.phase === "build" && job?.kind === "deliver" && job.item === void 0 && desk !== void 0) {
         const style = deskStyleOf(job.seed);
         layers.push({ depth: desk.desk.y + 0.4, paint: () => drawDesk(desk, void 0, palette2, seconds, job.deskIndex, eventColor, style) });
       }
@@ -12327,7 +12416,7 @@
       return;
     }
     if (agent.crew !== void 0) {
-      tooltip.textContent = `${agent.title} \xB7 ${agent.crew.carrying !== void 0 ? "carrying a desk" : agent.crew.phase === "build" ? "on a desk" : "on the job"}`;
+      tooltip.textContent = `${agent.title} \xB7 ${agent.crew.carrying !== void 0 ? `carrying ${agent.crew.job?.item === void 0 ? "a desk" : ACTIVITIES[agent.crew.job.item].label.toLowerCase()}` : agent.crew.phase === "build" ? agent.crew.job?.item === void 0 ? "on a desk" : "setting up" : "on the job"}`;
       return;
     }
     tooltip.textContent = `${agent.title}${agent.id === focusedId ? " \xB7 selected" : ""} \xB7 ${agent.status === "asleep" ? "suspended" : agent.status}`;
