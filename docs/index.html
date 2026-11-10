@@ -70,7 +70,25 @@
   .sim-panel select { font-size: 13px; padding: 4px 6px; max-width: 100%; }
   .sim-panel input[type="text"] { font: 13px var(--sans); color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; min-width: 0; flex: 1 1 120px; }
   .sim-log { font: 12px/1.6 var(--mono); color: var(--accent-2); min-height: 58px; }
-  @media (max-width: 860px) { .sim { grid-template-columns: 1fr; } .sim-panel { max-height: none; } .sim-room[data-size="big"] { height: 460px; } }
+  .sim-tabs { display: none; }
+  /* On a phone the room stays pinned under the nav while you change things, and the controls are tabs, so the room,
+     the counts, and the events log are always in view. */
+  @media (max-width: 860px) {
+    .sim { grid-template-columns: 1fr; gap: 0; }
+    .sim-stage { position: sticky; top: var(--toc-height, 42px); z-index: 4; background: var(--bg); padding: 6px 0 8px; gap: 6px; border-bottom: 1px solid var(--line); }
+    .sim-room, .sim-room[data-size] { height: 38vh; min-height: 200px; max-width: 100%; }
+    .sim-room.making, .sim-room.making[data-size] { height: calc(100vh - var(--toc-height, 42px) - 24px); }
+    .sim-stage .sim-size { display: none; }
+    .sim-log { min-height: 38px; max-height: 38px; overflow: hidden; font-size: 11px; line-height: 1.7; }
+    .sim-tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+    .sim-tabs::-webkit-scrollbar { display: none; }
+    .sim-tabs button { flex: 0 0 auto; padding: 5px 10px; font-size: 13px; }
+    .sim-panel { max-height: none; border: 0; border-radius: 0; background: none; padding: 10px 0 0; min-height: 50vh; }
+    .sim-panel fieldset { display: none; border-top: 0; padding-top: 4px; }
+    .sim-panel fieldset.active { display: flex; }
+    .sim-panel legend { display: none; }
+    .sim-panel button, .sim-panel select { font-size: 15px; padding: 8px 12px; }
+  }
   .maker-demo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
   .maker-demo .office-frame { height: 380px; }
   @media (max-width: 760px) { .maker-demo { grid-template-columns: 1fr; } }
@@ -152,11 +170,12 @@
       <div class="sim-stage">
         <div class="office-frame sim-room" id="sim-room" data-size="big"></div>
         <div class="controls">
-          <label>View <select id="sim-size"><option value="big">Big</option><option value="sidebar">Sidebar</option><option value="panel">Panel</option></select></label>
+          <label class="sim-size">View <select id="sim-size"><option value="big">Big</option><option value="sidebar">Sidebar</option><option value="panel">Panel</option></select></label>
           <button id="sim-fullscreen">Full screen</button>
           <span class="tag" id="sim-count"></span>
         </div>
-        <div class="sim-log" id="sim-log" aria-live="polite">Events from the Office show up here.</div>
+        <div class="sim-log" id="sim-log" aria-live="polite">Tap a guy: a worker changes status, yours opens the maker.</div>
+        <div class="sim-tabs" id="sim-tabs" role="tablist" aria-label="Simulator controls"></div>
       </div>
       <div class="sim-panel" role="group" aria-label="Simulator controls">
         <fieldset><legend>Room</legend>
@@ -610,7 +629,9 @@ npx serve docs      # or any static server, then open the page</code></pre>
   document.getElementById("sim-you").addEventListener("change", (event) => sim.set({ you: event.target.checked ? simLook : null }));
   document.getElementById("sim-you-status").addEventListener("change", (event) => simApi.setMainGuy(event.target.value));
   async function customizeSim() {
+    simRoom.classList.add("making");
     const look = await simApi.editLook(simLook, "Customize your guy");
+    simRoom.classList.remove("making");
     if (look) { simLook = look; if (sim.state.you) sim.set({ you: simLook }); simHear("onDidChangeYourLook → saved"); }
   }
   document.getElementById("sim-customize").addEventListener("click", customizeSim);
@@ -620,6 +641,28 @@ npx serve docs      # or any static server, then open the page</code></pre>
   document.getElementById("sim-tint").addEventListener("click", () => simApi.setTint(++simTint));
   document.getElementById("sim-size").addEventListener("change", (event) => { simRoom.dataset.size = event.target.value; });
   document.getElementById("sim-fullscreen").addEventListener("click", () => simRoom.requestFullscreen?.());
+
+
+  // On a phone the control groups are tabs under the pinned room.
+  const simTabs = document.getElementById("sim-tabs");
+  const simGroups = [...document.querySelectorAll(".sim-panel fieldset")];
+  const SHORT = { "Workers (click one to change his status)": "Workers" };
+  const showGroup = (index) => {
+    simGroups.forEach((group, other) => group.classList.toggle("active", other === index));
+    [...simTabs.children].forEach((tab, other) => tab.setAttribute("aria-selected", String(other === index)));
+    [...simTabs.children].forEach((tab, other) => tab.setAttribute("aria-pressed", String(other === index)));
+  };
+  simGroups.forEach((group, index) => {
+    const name = group.querySelector("legend").textContent.trim();
+    const tab = button(SHORT[name] ?? name, () => showGroup(index));
+    tab.setAttribute("role", "tab");
+    simTabs.appendChild(tab);
+  });
+  showGroup(1);
+  // The room pins right under the nav, however tall the nav wraps.
+  const toc = document.querySelector("nav.toc");
+  const setTocHeight = () => document.documentElement.style.setProperty("--toc-height", `${toc.offsetHeight}px`);
+  new ResizeObserver(setTocHeight).observe(toc);
 
   // Character maker.
   const makerDemo = new OfficeDemo(document.getElementById("demo-maker"), { agents: workers(["working", "idle"]), visitors: "off", critters: false, fliers: false, performances: "off" });
