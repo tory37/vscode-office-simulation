@@ -351,7 +351,7 @@ var OFFICE_SITE_MODULE = (() => {
   var CHATTER_STYLES = ["bubbles", "tidy", "log", "quiet"];
   var CHATTER_LABELS = {
     bubbles: { label: "Bubbles", description: "every line in a bubble" },
-    tidy: { label: "Tidy", description: "a few bubbles at once, the rest as pips (and in a log when there's room above)" },
+    tidy: { label: "Tidy", description: "a few bubbles at once, the rest as pips" },
     log: { label: "Chat Log", description: "lines in a log above the room, pips in it" },
     quiet: { label: "Quiet", description: "pips only, hover a guy to read" }
   };

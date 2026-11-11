@@ -15,7 +15,35 @@ describe("buildOfficeLayout", () => {
     expect(withStation.desks.some((other) => other.desk.y === desk.y && Math.abs(other.desk.x - desk.x) <= 1)).toBe(false);
     // Two desk rows: the lower one is nearer the middle of the room.
     expect(buildOfficeLayout(16, 8, "office", true).station?.desk.y).toBe(4);
-    expect(buildOfficeLayout(16, 6, "office", true).station?.desk.y).toBe(1);
+    // One desk row and a row to spare: it goes above the desks, under the wall.
+    expect(buildOfficeLayout(16, 6, "office", true).station?.desk.y).toBe(2);
+  });
+
+  it("fits any size: whole desk pairs, centered, with the rest open floor", () => {
+    for (let cols = MIN_COLS; cols <= 40; cols++) {
+      for (let rows = MIN_ROWS; rows <= 20; rows++) {
+        for (const withStation of [false, true]) {
+          const layout = buildOfficeLayout(cols, rows, "office", withStation);
+          const xs = [...layout.desks.map((desk) => desk.desk.x), ...(layout.station === undefined ? [] : [layout.station.desk.x, layout.station.desk.x + 1])];
+          const ys = [...layout.desks.map((desk) => desk.desk.y), ...(layout.station === undefined ? [] : [layout.station.desk.y])];
+          const label = `${cols}x${rows}${withStation ? " station" : ""}`;
+          // The corridors and the back row stay open, and there's an aisle above the props.
+          expect(Math.min(...xs), label).toBeGreaterThanOrEqual(1);
+          expect(Math.max(...xs), label).toBeLessThanOrEqual(cols - 2);
+          expect(Math.min(...ys), label).toBeGreaterThanOrEqual(1);
+          expect(Math.max(...ys) + 1, label).toBeLessThanOrEqual(rows - 3);
+          // Centered to within a tile each way.
+          expect(Math.abs(Math.min(...xs) - 1 - (cols - 2 - Math.max(...xs))), label).toBeLessThanOrEqual(1);
+          // No room for another pair, or another desk row.
+          const pairs = new Set(xs).size / 2;
+          expect(cols - (pairs * 3 + 1), label).toBeLessThan(withStation ? 6 : 3);
+          expect(rows - (new Set(ys).size * 3 + 2), label).toBeLessThan(3);
+          if (withStation) {
+            expect(Math.abs(layout.station!.desk.x + 1 - cols / 2), label).toBeLessThanOrEqual(0.5);
+          }
+        }
+      }
+    }
   });
 
   it("never goes below the minimum size", () => {

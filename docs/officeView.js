@@ -72,14 +72,15 @@
     const door = { x: 0, y: 0 };
     tiles[door.y][door.x] = "door";
     const desks = [];
-    for (let deskRow = 1; deskRow + 2 <= rows - 2; deskRow += 3) {
-      for (let x = 1; x <= cols - 2; x++) {
-        if ((x - 1) % 3 === 2) {
-          continue;
+    const grid = deskGrid(cols, rows, withStation);
+    for (let block = 0; block < grid.deskRows; block++) {
+      const deskRow = grid.top + block * 3;
+      for (let pair = 0; pair < grid.pairs; pair++) {
+        for (const x of [grid.left + pair * 3, grid.left + pair * 3 + 1]) {
+          tiles[deskRow][x] = "desk";
+          tiles[deskRow + 1][x] = "seat";
+          desks.push({ desk: { x, y: deskRow }, seat: { x, y: deskRow + 1 } });
         }
-        tiles[deskRow][x] = "desk";
-        tiles[deskRow + 1][x] = "seat";
-        desks.push({ desk: { x, y: deskRow }, seat: { x, y: deskRow + 1 } });
       }
     }
     const station = withStation ? middleStation(desks, rows) : void 0;
@@ -110,6 +111,16 @@
       props.push({ kind, at: { x, y: propRow }, stand: { x, y: propRow - 1 } });
     }
     return { cols, rows, tiles, door, desks, station, props, couchSeats, scene: sceneId2 };
+  }
+  function deskGrid(cols, rows, withStation = false) {
+    let pairs = Math.max(0, Math.floor((cols - 1) / 3));
+    if (withStation && pairs > 1 && pairs % 2 === 0) {
+      pairs--;
+    }
+    const deskRows = Math.max(0, Math.floor((rows - 2) / 3));
+    const left = 1 + Math.ceil((cols - (pairs * 3 + 1)) / 2);
+    const top = 1 + Math.ceil((rows - (deskRows * 3 + 2)) / 2);
+    return { pairs, deskRows, left, top };
   }
   function middleStation(desks, rows) {
     const deskRows = [...new Set(desks.map((desk) => desk.desk.y))];
@@ -5212,6 +5223,10 @@
     goTo(state2, agent, agent.workSpot, { kind: "work" }, false, random2);
   }
   function relayoutOffice(state2, layout, random2) {
+    const shift = layoutShift(state2.layout, layout);
+    if (shift !== void 0) {
+      shiftOffice(state2, shift);
+    }
     const hadDesk = new Set(state2.agents.filter((agent) => isSession(agent) && !agent.leaving && hasDesk(state2, agent)).map((agent) => agent.id));
     const wantedBefore = new Set(state2.agents.flatMap((agent) => isSession(agent) && !agent.leaving && agent.deskIndex !== void 0 ? [agent.deskIndex] : []));
     const leftovers = [...state2.placed].filter(([index]) => !wantedBefore.has(index));
@@ -5277,6 +5292,52 @@
       } else if (!isAddressing(agent)) {
         decide(state2, agent, random2);
       }
+    }
+  }
+  function layoutShift(before, after) {
+    if (before.desks.length === 0 || before.desks.length !== after.desks.length || before.station === void 0 !== (after.station === void 0)) {
+      return void 0;
+    }
+    const dx = after.desks[0].desk.x - before.desks[0].desk.x;
+    const dy = after.desks[0].desk.y - before.desks[0].desk.y;
+    if (dx === 0 && dy === 0) {
+      return void 0;
+    }
+    const moved = (from, to) => to.x - from.x === dx && to.y - from.y === dy;
+    const allMoved = before.desks.every((desk, index) => moved(desk.desk, after.desks[index].desk)) && (before.station === void 0 || after.station === void 0 || moved(before.station.desk, after.station.desk));
+    return allMoved ? { x: dx, y: dy } : void 0;
+  }
+  function shiftOffice(state2, by) {
+    const moved = /* @__PURE__ */ new Set();
+    const move2 = (point) => {
+      if (!moved.has(point)) {
+        moved.add(point);
+        point.x += by.x;
+        point.y += by.y;
+      }
+    };
+    for (const agent of state2.agents) {
+      agent.x += by.x;
+      agent.y += by.y;
+      agent.path.forEach(move2);
+      if (agent.target !== void 0) {
+        move2(agent.target);
+      }
+      move2(agent.workSpot);
+      if (agent.performer !== void 0) {
+        move2(agent.performer.spot);
+      }
+      if (agent.strike !== void 0) {
+        move2(agent.strike.at);
+      }
+    }
+    if (state2.show !== void 0) {
+      move2(state2.show.stage);
+      state2.show.spots.forEach(move2);
+    }
+    const invasion = state2.invasion;
+    if (invasion !== void 0) {
+      [...invasion.debris, ...invasion.hits, ...invasion.puffs].forEach(move2);
     }
   }
   function stepOffice(state2, seconds, random2) {
@@ -10888,7 +10949,7 @@
     }
     return Math.max(0, Math.min(1, (now - show.startedAt) / 1.5));
   }
-  function drawSpotlight(kit2, show, roomWidth, roomHeight, level) {
+  function drawSpotlight(kit2, show, area, level) {
     if (level <= 0) {
       return;
     }
@@ -10904,19 +10965,20 @@
       const dy = (y - feetY) / poolY;
       return dy >= 1 ? -1 : Math.round(poolX * Math.sqrt(1 - dy * dy));
     };
+    const right = area.left + area.width;
     context2.globalAlpha = 0.5 * level;
-    for (let y = 0; y < roomHeight; y++) {
+    for (let y = 0; y < area.height; y++) {
       const half = halfWidth(y);
       if (half < 0) {
-        kit2.rect(0, y, roomWidth, 1, "#05040C");
+        kit2.rect(area.left, y, area.width, 1, "#05040C");
         continue;
       }
-      kit2.rect(0, y, Math.max(0, centerX - half), 1, "#05040C");
-      kit2.rect(centerX + half, y, Math.max(0, roomWidth - centerX - half), 1, "#05040C");
+      kit2.rect(area.left, y, Math.max(0, centerX - half - area.left), 1, "#05040C");
+      kit2.rect(centerX + half, y, Math.max(0, right - centerX - half), 1, "#05040C");
     }
     context2.globalCompositeOperation = "lighter";
     context2.globalAlpha = 0.12 * level;
-    for (let y = 0; y < roomHeight; y++) {
+    for (let y = 0; y < area.height; y++) {
       const half = halfWidth(y);
       if (half >= 0) {
         kit2.rect(centerX - half, y, half * 2, 1, "#FFE9B8");
@@ -10925,14 +10987,16 @@
     context2.globalCompositeOperation = "source-over";
     context2.globalAlpha = 1;
   }
-  function drawDisco(kit2, show, roomWidth, roomHeight, now, level) {
+  function drawDisco(kit2, show, area, now, level) {
     if (level <= 0) {
       return;
     }
     const context2 = kit2.context;
     const centerX = show.stage.x * TILE3 + TILE3 / 2;
+    const roomWidth = area.width;
+    const roomHeight = area.height;
     context2.globalAlpha = 0.3 * level;
-    kit2.rect(0, 0, roomWidth, roomHeight, "#14062A");
+    kit2.rect(area.left, 0, area.width, area.height, "#14062A");
     context2.globalAlpha = level;
     const ballY = 8;
     kit2.rect(centerX, 0, 1, ballY - 3, "#8A8A96");
@@ -10955,7 +11019,7 @@
       kit2.rect(x, y, 3, 2, colors[(spot + Math.floor(now * 2)) % colors.length]);
     }
     context2.globalAlpha = (Math.floor(now * 2) % 2 === 0 ? 0.06 : 0.02) * level;
-    kit2.rect(0, 0, roomWidth, roomHeight, colors[Math.floor(now / 2) % colors.length]);
+    kit2.rect(area.left, 0, area.width, area.height, colors[Math.floor(now / 2) % colors.length]);
     context2.globalCompositeOperation = "source-over";
     context2.globalAlpha = 1;
   }
@@ -11747,20 +11811,25 @@
   }
   function fitLayout() {
     const withStation = youKey !== void 0;
-    const roomHeight = Math.max(TILE5 * 4, height - (chatterSetting === "log" ? LOG_RESERVE : 0));
+    roomTop = chatterSetting === "log" ? LOG_RESERVE : 0;
+    const roomHeight = Math.max(TILE5 * 4, height - roomTop);
     const shape = officeShape(desksNeeded(latestInputs.length) + (withStation ? STATION_DESKS : 0), width, roomHeight, TILE5, withStation);
-    const layout = state.layout;
-    if (shape.cols !== layout.cols || shape.rows !== layout.rows || sceneChanged || layout.station !== void 0 !== withStation) {
-      sceneChanged = false;
-      relayoutOffice(state, buildOfficeLayout(shape.cols, shape.rows, sceneId, withStation), random);
-    }
     const pixelRatio = window.devicePixelRatio || 1;
-    const fit = Math.min(width / (state.layout.cols * TILE5), roomHeight / (state.layout.rows * TILE5));
+    const fit = Math.min(width / (shape.cols * TILE5), roomHeight / (shape.rows * TILE5));
     const snapped = Math.floor(fit * pixelRatio) / pixelRatio;
     scale = snapped >= fit * 0.85 ? snapped : fit;
+    const cols = Math.max(shape.cols, Math.floor(width / (TILE5 * scale) + 1e-6));
+    const rows = Math.max(shape.rows, Math.floor(roomHeight / (TILE5 * scale) + 1e-6));
+    const layout = state.layout;
+    if (cols !== layout.cols || rows !== layout.rows || sceneChanged || layout.station !== void 0 !== withStation) {
+      sceneChanged = false;
+      relayoutOffice(state, buildOfficeLayout(cols, rows, sceneId, withStation), random);
+    }
     originX = Math.floor((width - state.layout.cols * TILE5 * scale) / 2);
-    originY = Math.floor(height - state.layout.rows * TILE5 * scale);
+    originY = roomTop;
   }
+  var roomTop = 0;
+  var BLEED = 1;
   var sceneChanged = false;
   new ResizeObserver(() => {
     const pixelRatio = window.devicePixelRatio || 1;
@@ -12157,9 +12226,19 @@
     const wave = Math.sin(value * 12.9898) * 43758.5453;
     return wave - Math.floor(wave);
   };
+  function drawnArea(layout) {
+    return { left: -BLEED * TILE5, width: (layout.cols + BLEED * 2) * TILE5, height: (layout.rows + BLEED) * TILE5 };
+  }
+  function acrossArea(layout, paint2) {
+    const area = drawnArea(layout);
+    context.save();
+    context.translate(area.left, 0);
+    paint2(area.width, area.height);
+    context.restore();
+  }
   function drawFloor(layout, palette2) {
-    for (let y = 1; y < layout.rows; y++) {
-      for (let x = 0; x < layout.cols; x++) {
+    for (let y = 1; y < layout.rows + BLEED; y++) {
+      for (let x = -BLEED; x < layout.cols + BLEED; x++) {
         const left = x * TILE5;
         const top = y * TILE5;
         if (palette2.floorStyle === "planks" || palette2.floorStyle === "tiles") {
@@ -12175,7 +12254,8 @@
         }
       }
     }
-    rect(0, TILE5, layout.cols * TILE5, 2, palette2.shadow);
+    const area = drawnArea(layout);
+    rect(area.left, TILE5, area.width, 2, palette2.shadow);
   }
   function drawGround(left, top, seed, palette2) {
     rect(left, top, TILE5, TILE5, palette2.floor);
@@ -12231,11 +12311,13 @@
     }
   }
   function drawWall(layout, palette2, seconds) {
-    const width2 = layout.cols * TILE5;
+    const area = drawnArea(layout);
+    const width2 = area.width;
     context.save();
     context.beginPath();
-    context.rect(0, 0, width2, TILE5);
+    context.rect(area.left, 0, width2, TILE5);
     context.clip();
+    context.translate(area.left, 0);
     switch (palette2.backdrop) {
       case "windows":
       case "panels":
@@ -12243,9 +12325,9 @@
         rect(0, TILE5 - 3, width2, 3, palette2.wallTrim);
         for (let x = 3; x < layout.cols - 1; x += 5) {
           if (palette2.backdrop === "windows") {
-            drawWindow(x * TILE5 + 1, 2, palette2);
+            drawWindow((x + BLEED) * TILE5 + 1, 2, palette2);
           } else {
-            drawWallPanel(x * TILE5 + 1, 2, palette2, seconds, x);
+            drawWallPanel((x + BLEED) * TILE5 + 1, 2, palette2, seconds, x);
           }
         }
         break;
@@ -13412,7 +13494,6 @@
         stamp: seconds
       };
     }
-    const roomTop = Math.max(0, originY);
     const overlay = above < 2;
     const visible = visibleChatLog(chatLog, state.time, overlay ? LOG_LINES : Math.min(5, above));
     if (visible.length === 0) {
@@ -13495,7 +13576,8 @@
       return;
     }
     context.globalAlpha = alpha;
-    rect(0, 0, layout.cols * TILE5, layout.rows * TILE5, color);
+    const area = drawnArea(layout);
+    rect(area.left, 0, area.width, area.height, color);
     context.globalAlpha = 1;
   }
   var boxes = [];
@@ -13620,16 +13702,16 @@
     if (overhead !== void 0) {
       drawFlight(overhead, seconds, false);
     }
-    drawWeather(kit, sceneId, layout.cols * TILE5, layout.rows * TILE5, seconds);
+    acrossArea(layout, (areaWidth, areaHeight) => drawWeather(kit, sceneId, areaWidth, areaHeight, seconds));
     drawLighting(layout, owners, atStation || event !== void 0, seconds);
-    drawAfterLight(kit, sceneId, layout.cols * TILE5, light);
+    acrossArea(layout, (areaWidth) => drawAfterLight(kit, sceneId, areaWidth, light));
     drawShowLights(seconds);
-    drawInvasionTint(kit, state.invasion, layout.cols * TILE5, layout.rows * TILE5, seconds);
+    acrossArea(layout, (areaWidth, areaHeight) => drawInvasionTint(kit, state.invasion, areaWidth, areaHeight, seconds));
     drawInvasionEffects(kit, state.invasion, state.agents, (agent) => boxes.find((box) => box.agent === agent), seconds);
     if (overhead !== void 0) {
       drawFlight(overhead, seconds, true);
     }
-    drawFireflies(layout.cols * TILE5, seconds);
+    acrossArea(layout, (areaWidth) => drawFireflies(areaWidth, seconds));
     const lines = [];
     boxes.forEach((box) => {
       if (box.agent.mode === "sleep" && box.agent.path.length === 0 && box.agent.bubble === void 0) {
@@ -13657,7 +13739,7 @@
       }
     }
     drawChatter(lines, palette2, seconds);
-    drawInvasionBanner(kit, state.invasion, layout.cols * TILE5, seconds);
+    acrossArea(layout, (areaWidth) => drawInvasionBanner(kit, state.invasion, areaWidth, seconds));
     drawEventTint(event, layout);
     const hovered = boxes.find((box) => box.agent.id === hoveredId);
     if (hovered !== void 0) {
@@ -13671,14 +13753,14 @@
   function drawShowLights(seconds) {
     const show = state.show;
     const roomWidth = state.layout.cols * TILE5;
-    const roomHeight = state.layout.rows * TILE5;
+    const area = drawnArea(state.layout);
     if (show !== void 0) {
       const level = showLightLevel(show, seconds);
       const effect = PERFORMANCES[show.kind].effect;
       if (effect === "spotlight") {
-        drawSpotlight(kit, show, roomWidth, roomHeight, level);
+        drawSpotlight(kit, show, area, level);
       } else if (effect === "disco") {
-        drawDisco(kit, show, roomWidth, roomHeight, seconds, level);
+        drawDisco(kit, show, area, seconds, level);
       }
     }
     const performers = [];
@@ -13696,19 +13778,20 @@
     if (light.darkness < 0.01) {
       return;
     }
-    const roomWidth = layout.cols * TILE5;
-    const roomHeight = layout.rows * TILE5;
+    const area = drawnArea(layout);
     lightMap ??= document.createElement("canvas");
-    if (lightMap.width !== roomWidth || lightMap.height !== roomHeight) {
-      lightMap.width = roomWidth;
-      lightMap.height = roomHeight;
+    if (lightMap.width !== area.width || lightMap.height !== area.height) {
+      lightMap.width = area.width;
+      lightMap.height = area.height;
     }
     const map = lightMap.getContext("2d");
+    map.setTransform(1, 0, 0, 1, 0, 0);
     map.globalCompositeOperation = "source-over";
     map.fillStyle = light.ambient;
-    map.fillRect(0, 0, roomWidth, roomHeight);
+    map.fillRect(0, 0, area.width, area.height);
     map.fillStyle = "#FFFFFF";
     paintOpenSky(map, layout);
+    map.setTransform(1, 0, 0, 1, -area.left, 0);
     map.globalCompositeOperation = "lighter";
     const strength = Math.min(1, light.darkness / 0.6);
     const pool = (x, y, radius, color, alpha) => {
@@ -13785,16 +13868,17 @@
       pool(middleX * TILE5 + 8, show.stage.y * TILE5 + 6, 26 + spots.length * 6, "#FFE2B0", 0.75 * stageLevel);
     }
     map.globalCompositeOperation = "source-over";
+    map.setTransform(1, 0, 0, 1, 0, 0);
     context.save();
     context.globalCompositeOperation = "multiply";
-    context.drawImage(lightMap, 0, 0);
+    context.drawImage(lightMap, area.left, 0);
     context.restore();
   }
   function palette() {
     return SCENE_PALETTES[sceneId];
   }
   function paintOpenSky(map, layout) {
-    const roomWidth = layout.cols * TILE5;
+    const roomWidth = drawnArea(layout).width;
     const backdrop = palette().backdrop;
     if (backdropHasSky(backdrop)) {
       for (let x = 0; x < roomWidth; x++) {
@@ -13805,7 +13889,7 @@
     switch (backdrop) {
       case "windows":
         for (let x = 3; x < layout.cols - 1; x += 5) {
-          map.fillRect(x * TILE5 + 2, 3, 12, 8);
+          map.fillRect((x + BLEED) * TILE5 + 2, 3, 12, 8);
         }
         return;
       case "bookcases":
@@ -13852,9 +13936,10 @@
   }
   function drawCritters(run, palette2, seconds) {
     const layout = state.layout;
+    const area = drawnArea(layout);
     context.save();
     context.beginPath();
-    context.rect(0, 0, layout.cols * TILE5, layout.rows * TILE5);
+    context.rect(area.left, 0, area.width, area.height);
     context.clip();
     const flies = run.row >= layout.rows;
     critterPoses(run, seconds).forEach((pose) => drawCritter(rect, pose, run.groundY, flies ? void 0 : palette2.shadow));
@@ -13885,9 +13970,10 @@
     }
   }
   function clipToRoom() {
+    const area = drawnArea(state.layout);
     context.save();
     context.beginPath();
-    context.rect(0, 0, state.layout.cols * TILE5, state.layout.rows * TILE5);
+    context.rect(area.left, 0, area.width, area.height);
     context.clip();
   }
   function drawFlightShadows(current, palette2, seconds) {

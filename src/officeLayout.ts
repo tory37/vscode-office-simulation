@@ -127,15 +127,18 @@ export function buildOfficeLayout(requestedCols: number, requestedRows: number, 
   tiles[door.y][door.x] = "door";
 
   const desks: Desk[] = [];
-  // Column 0 and the last column stay open as corridors; every third column is a gap between desk pairs.
-  for (let deskRow = 1; deskRow + 2 <= rows - 2; deskRow += 3) {
-    for (let x = 1; x <= cols - 2; x++) {
-      if ((x - 1) % 3 === 2) {
-        continue;
+  // Whole desk pairs with a gap column between them, centered in the room, so any size works: the columns and rows
+  // left over are open floor around the desks. Column 0 and the last column always stay open as corridors. With
+  // your station in, the pairs per row stay odd so it sits dead center.
+  const grid = deskGrid(cols, rows, withStation);
+  for (let block = 0; block < grid.deskRows; block++) {
+    const deskRow = grid.top + block * 3;
+    for (let pair = 0; pair < grid.pairs; pair++) {
+      for (const x of [grid.left + pair * 3, grid.left + pair * 3 + 1]) {
+        tiles[deskRow][x] = "desk";
+        tiles[deskRow + 1][x] = "seat";
+        desks.push({ desk: { x, y: deskRow }, seat: { x, y: deskRow + 1 } });
       }
-      tiles[deskRow][x] = "desk";
-      tiles[deskRow + 1][x] = "seat";
-      desks.push({ desk: { x, y: deskRow }, seat: { x, y: deskRow + 1 } });
     }
   }
 
@@ -170,6 +173,20 @@ export function buildOfficeLayout(requestedCols: number, requestedRows: number, 
   }
 
   return { cols, rows, tiles, door, desks, station, props, couchSeats, scene: sceneId };
+}
+
+// Where the desk pairs go in a room this size: how many pairs per row and desk rows, and the first desk tile's column
+// and row. A row of p pairs takes 3p + 1 columns with the corridors; d desk rows take 3d + 2 rows with the wall and
+// the props. What's left over is split around them, the odd one to the left and above.
+export function deskGrid(cols: number, rows: number, withStation = false): { pairs: number; deskRows: number; left: number; top: number } {
+  let pairs = Math.max(0, Math.floor((cols - 1) / 3));
+  if (withStation && pairs > 1 && pairs % 2 === 0) {
+    pairs--;
+  }
+  const deskRows = Math.max(0, Math.floor((rows - 2) / 3));
+  const left = 1 + Math.ceil((cols - (pairs * 3 + 1)) / 2);
+  const top = 1 + Math.ceil((rows - (deskRows * 3 + 2)) / 2);
+  return { pairs, deskRows, left, top };
 }
 
 // Takes the desk pair nearest the middle of the room out of the desks, for your station: the desk row whose desk and

@@ -215,27 +215,37 @@ function currentSky(): SkyState {
   return skyCache.sky;
 }
 
-// Builds just enough room for the sessions (ten desks at least, more as sessions open), shaped to fit the view, then
-// zooms it as far as the view allows.
+// Sizes the room to the view. The zoom is the biggest that still fits enough desks for the sessions (ten at least,
+// more as sessions open); then the room takes every whole tile the view has at that zoom, the extra as open floor
+// and desk spots around the centered desks. The last part of a tile at the edges is drawn as more of the same floor
+// and wall (BLEED), so the room fills the view at any size.
 function fitLayout(): void {
   const withStation = youKey !== undefined;
   // The chat log gets its own strip above the room, so it never covers it.
-  const roomHeight = Math.max(TILE * 4, height - (chatterSetting === "log" ? LOG_RESERVE : 0));
+  roomTop = chatterSetting === "log" ? LOG_RESERVE : 0;
+  const roomHeight = Math.max(TILE * 4, height - roomTop);
   const shape = officeShape(desksNeeded(latestInputs.length) + (withStation ? STATION_DESKS : 0), width, roomHeight, TILE, withStation);
-  const layout = state.layout;
-  if (shape.cols !== layout.cols || shape.rows !== layout.rows || sceneChanged || (layout.station !== undefined) !== withStation) {
-    sceneChanged = false;
-    relayoutOffice(state, buildOfficeLayout(shape.cols, shape.rows, sceneId, withStation), random);
-  }
   const pixelRatio = window.devicePixelRatio || 1;
-  const fit = Math.min(width / (state.layout.cols * TILE), roomHeight / (state.layout.rows * TILE));
+  const fit = Math.min(width / (shape.cols * TILE), roomHeight / (shape.rows * TILE));
   // Whole device pixels keep the art crisp, but not at the cost of a much smaller room.
   const snapped = Math.floor(fit * pixelRatio) / pixelRatio;
   scale = snapped >= fit * 0.85 ? snapped : fit;
+  const cols = Math.max(shape.cols, Math.floor(width / (TILE * scale) + 1e-6));
+  const rows = Math.max(shape.rows, Math.floor(roomHeight / (TILE * scale) + 1e-6));
+  const layout = state.layout;
+  if (cols !== layout.cols || rows !== layout.rows || sceneChanged || (layout.station !== undefined) !== withStation) {
+    sceneChanged = false;
+    relayoutOffice(state, buildOfficeLayout(cols, rows, sceneId, withStation), random);
+  }
   originX = Math.floor((width - state.layout.cols * TILE * scale) / 2);
-  // Flush to the bottom of the view.
-  originY = Math.floor(height - state.layout.rows * TILE * scale);
+  // The wall along the top of the view (or under the chat log's strip); what's left at the bottom is more floor.
+  originY = roomTop;
 }
+// Where the room starts, in view pixels: the top, or under the chat log's strip.
+let roomTop = 0;
+// Tiles drawn past the room's sides and bottom, so the part of a tile it can't fill isn't left blank (and the
+// screen shake doesn't show an edge).
+const BLEED = 1;
 let sceneChanged = false;
 
 new ResizeObserver(() => {
@@ -680,9 +690,24 @@ const noise = (value: number) => {
   return wave - Math.floor(wave);
 };
 
+// What's drawn, in the room's own pixels: the room, plus BLEED tiles of the same floor and wall past its sides and
+// bottom to fill the view.
+function drawnArea(layout: OfficeLayout): { left: number; width: number; height: number } {
+  return { left: -BLEED * TILE, width: (layout.cols + BLEED * 2) * TILE, height: (layout.rows + BLEED) * TILE };
+}
+
+// Paints something that spans the whole drawn area, as if the room started at its left edge.
+function acrossArea(layout: OfficeLayout, paint: (width: number, height: number) => void): void {
+  const area = drawnArea(layout);
+  context.save();
+  context.translate(area.left, 0);
+  paint(area.width, area.height);
+  context.restore();
+}
+
 function drawFloor(layout: OfficeLayout, palette: ScenePalette): void {
-  for (let y = 1; y < layout.rows; y++) {
-    for (let x = 0; x < layout.cols; x++) {
+  for (let y = 1; y < layout.rows + BLEED; y++) {
+    for (let x = -BLEED; x < layout.cols + BLEED; x++) {
       const left = x * TILE;
       const top = y * TILE;
       if (palette.floorStyle === "planks" || palette.floorStyle === "tiles") {
@@ -699,7 +724,8 @@ function drawFloor(layout: OfficeLayout, palette: ScenePalette): void {
     }
   }
   // A soft shadow under the back wall.
-  rect(0, TILE, layout.cols * TILE, 2, palette.shadow);
+  const area = drawnArea(layout);
+  rect(area.left, TILE, area.width, 2, palette.shadow);
 }
 
 // Outdoor and cave ground: one color with scattered detail, so it doesn't read as tiles.
@@ -759,12 +785,14 @@ function drawGround(left: number, top: number, seed: number, palette: ScenePalet
 }
 
 function drawWall(layout: OfficeLayout, palette: ScenePalette, seconds: number): void {
-  const width = layout.cols * TILE;
-  // Keep the outdoor backdrops' trees and ridges inside the room.
+  // The back row runs the whole drawn area, past the room's sides; its trees and ridges stay in the top row.
+  const area = drawnArea(layout);
+  const width = area.width;
   context.save();
   context.beginPath();
-  context.rect(0, 0, width, TILE);
+  context.rect(area.left, 0, width, TILE);
   context.clip();
+  context.translate(area.left, 0);
   switch (palette.backdrop) {
     case "windows":
     case "panels":
@@ -772,9 +800,9 @@ function drawWall(layout: OfficeLayout, palette: ScenePalette, seconds: number):
       rect(0, TILE - 3, width, 3, palette.wallTrim);
       for (let x = 3; x < layout.cols - 1; x += 5) {
         if (palette.backdrop === "windows") {
-          drawWindow(x * TILE + 1, 2, palette);
+          drawWindow((x + BLEED) * TILE + 1, 2, palette);
         } else {
-          drawWallPanel(x * TILE + 1, 2, palette, seconds, x);
+          drawWallPanel((x + BLEED) * TILE + 1, 2, palette, seconds, x);
         }
       }
       break;
@@ -2106,7 +2134,6 @@ function drawChatLog(seconds: number): void {
       stamp: seconds,
     };
   }
-  const roomTop = Math.max(0, originY);
   const overlay = above < 2;
   const visible = visibleChatLog(chatLog, state.time, overlay ? LOG_LINES : Math.min(5, above));
   if (visible.length === 0) {
@@ -2196,7 +2223,8 @@ function drawEventTint(event: YourEvent | undefined, layout: OfficeLayout): void
     return;
   }
   context.globalAlpha = alpha;
-  rect(0, 0, layout.cols * TILE, layout.rows * TILE, color);
+  const area = drawnArea(layout);
+  rect(area.left, 0, area.width, area.height, color);
   context.globalAlpha = 1;
 }
 
@@ -2333,16 +2361,16 @@ function draw(seconds: number): void {
   if (overhead !== undefined) {
     drawFlight(overhead, seconds, false);
   }
-  drawWeather(kit, sceneId, layout.cols * TILE, layout.rows * TILE, seconds);
+  acrossArea(layout, (areaWidth, areaHeight) => drawWeather(kit, sceneId, areaWidth, areaHeight, seconds));
   drawLighting(layout, owners, atStation || event !== undefined, seconds);
-  drawAfterLight(kit, sceneId, layout.cols * TILE, light);
+  acrossArea(layout, (areaWidth) => drawAfterLight(kit, sceneId, areaWidth, light));
   drawShowLights(seconds);
-  drawInvasionTint(kit, state.invasion, layout.cols * TILE, layout.rows * TILE, seconds);
+  acrossArea(layout, (areaWidth, areaHeight) => drawInvasionTint(kit, state.invasion, areaWidth, areaHeight, seconds));
   drawInvasionEffects(kit, state.invasion, state.agents, (agent) => boxes.find((box) => box.agent === agent), seconds);
   if (overhead !== undefined) {
     drawFlight(overhead, seconds, true);
   }
-  drawFireflies(layout.cols * TILE, seconds);
+  acrossArea(layout, (areaWidth) => drawFireflies(areaWidth, seconds));
 
   const lines: SpokenLine[] = [];
   boxes.forEach((box) => {
@@ -2373,7 +2401,7 @@ function draw(seconds: number): void {
     }
   }
   drawChatter(lines, palette, seconds);
-  drawInvasionBanner(kit, state.invasion, layout.cols * TILE, seconds);
+  acrossArea(layout, (areaWidth) => drawInvasionBanner(kit, state.invasion, areaWidth, seconds));
   drawEventTint(event, layout);
   const hovered = boxes.find((box) => box.agent.id === hoveredId);
   if (hovered !== undefined) {
@@ -2390,14 +2418,14 @@ function draw(seconds: number): void {
 function drawShowLights(seconds: number): void {
   const show = state.show;
   const roomWidth = state.layout.cols * TILE;
-  const roomHeight = state.layout.rows * TILE;
+  const area = drawnArea(state.layout);
   if (show !== undefined) {
     const level = showLightLevel(show, seconds);
     const effect = PERFORMANCES[show.kind].effect;
     if (effect === "spotlight") {
-      drawSpotlight(kit, show, roomWidth, roomHeight, level);
+      drawSpotlight(kit, show, area, level);
     } else if (effect === "disco") {
-      drawDisco(kit, show, roomWidth, roomHeight, seconds, level);
+      drawDisco(kit, show, area, seconds, level);
     }
   }
   // The lead first.
@@ -2419,19 +2447,22 @@ function drawLighting(layout: OfficeLayout, owners: Map<number, Agent>, stationO
   if (light.darkness < 0.01) {
     return;
   }
-  const roomWidth = layout.cols * TILE;
-  const roomHeight = layout.rows * TILE;
+  // The map covers the whole drawn area; its x = 0 is the area's left edge, like the back row's.
+  const area = drawnArea(layout);
   lightMap ??= document.createElement("canvas");
-  if (lightMap.width !== roomWidth || lightMap.height !== roomHeight) {
-    lightMap.width = roomWidth;
-    lightMap.height = roomHeight;
+  if (lightMap.width !== area.width || lightMap.height !== area.height) {
+    lightMap.width = area.width;
+    lightMap.height = area.height;
   }
   const map = lightMap.getContext("2d") as CanvasRenderingContext2D;
+  map.setTransform(1, 0, 0, 1, 0, 0);
   map.globalCompositeOperation = "source-over";
   map.fillStyle = light.ambient;
-  map.fillRect(0, 0, roomWidth, roomHeight);
+  map.fillRect(0, 0, area.width, area.height);
   map.fillStyle = "#FFFFFF";
   paintOpenSky(map, layout);
+  // The pools below are placed in the room's pixels.
+  map.setTransform(1, 0, 0, 1, -area.left, 0);
   map.globalCompositeOperation = "lighter";
   const strength = Math.min(1, light.darkness / 0.6);
   const pool = (x: number, y: number, radius: number, color: string, alpha: number) => {
@@ -2509,9 +2540,10 @@ function drawLighting(layout: OfficeLayout, owners: Map<number, Agent>, stationO
     pool(middleX * TILE + 8, show.stage.y * TILE + 6, 26 + spots.length * 6, "#FFE2B0", 0.75 * stageLevel);
   }
   map.globalCompositeOperation = "source-over";
+  map.setTransform(1, 0, 0, 1, 0, 0);
   context.save();
   context.globalCompositeOperation = "multiply";
-  context.drawImage(lightMap, 0, 0);
+  context.drawImage(lightMap, area.left, 0);
   context.restore();
 }
 
@@ -2522,7 +2554,8 @@ function palette(): ScenePalette {
 // Sky that shows in the back row stays its own color: the office windows, the field above the hills, space above
 // the moon's ridge.
 function paintOpenSky(map: CanvasRenderingContext2D, layout: OfficeLayout): void {
-  const roomWidth = layout.cols * TILE;
+  // In the back row's own pixels, from the drawn area's left edge.
+  const roomWidth = drawnArea(layout).width;
   const backdrop = palette().backdrop;
   if (backdropHasSky(backdrop)) {
     for (let x = 0; x < roomWidth; x++) {
@@ -2533,7 +2566,7 @@ function paintOpenSky(map: CanvasRenderingContext2D, layout: OfficeLayout): void
   switch (backdrop) {
     case "windows":
       for (let x = 3; x < layout.cols - 1; x += 5) {
-        map.fillRect(x * TILE + 2, 3, 12, 8);
+        map.fillRect((x + BLEED) * TILE + 2, 3, 12, 8);
       }
       return;
     case "bookcases":
@@ -2584,9 +2617,10 @@ function stepCritters(): void {
 
 function drawCritters(run: CritterRun, palette: ScenePalette, seconds: number): void {
   const layout = state.layout;
+  const area = drawnArea(layout);
   context.save();
   context.beginPath();
-  context.rect(0, 0, layout.cols * TILE, layout.rows * TILE);
+  context.rect(area.left, 0, area.width, area.height);
   context.clip();
   const flies = run.row >= layout.rows;
   critterPoses(run, seconds).forEach((pose) => drawCritter(rect, pose, run.groundY, flies ? undefined : palette.shadow));
@@ -2623,9 +2657,10 @@ function stepFliers(): void {
 }
 
 function clipToRoom(): void {
+  const area = drawnArea(state.layout);
   context.save();
   context.beginPath();
-  context.rect(0, 0, state.layout.cols * TILE, state.layout.rows * TILE);
+  context.rect(area.left, 0, area.width, area.height);
   context.clip();
 }
 

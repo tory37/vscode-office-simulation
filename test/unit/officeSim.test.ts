@@ -1,7 +1,7 @@
 import { SLEEP_LINES, WAKE_TO_WORK_LINES } from "../../src/officePhrases";
 import { describe, expect, it } from "vitest";
 import { buildOfficeLayout } from "../../src/officeLayout";
-import { Agent, AgentInput, agentPose, callYouBack, createOffice, crewAgents, endShow, hasDesk, isAtStation, MAX_CREW, officeCounts, OfficeState, relayoutOffice, setYouStatus, ShowInput, showPerformers, startShow, stepOffice, syncOffice, syncYou, youAgent } from "../../src/officeSim";
+import { Agent, AgentInput, agentPose, callYouBack, createOffice, crewAgents, endShow, hasDesk, isAtStation, layoutShift, MAX_CREW, officeCounts, OfficeState, relayoutOffice, setYouStatus, ShowInput, showPerformers, startShow, stepOffice, syncOffice, syncYou, youAgent } from "../../src/officeSim";
 import { PERFORMANCES, PerformanceKindId, planPerformance } from "../../src/officePerformances";
 import { seededRandom } from "../../src/pixelGuy";
 
@@ -302,6 +302,26 @@ describe("officeSim", () => {
       expect(sawCarried).toBe(true);
       expect(["a", "b", "c"].every((id) => hasDesk(state, agent(state, id)))).toBe(true);
       expect(crewAgents(state)).toHaveLength(0);
+    });
+
+    it("moves everyone with the desks when the room only grows or shrinks around them", () => {
+      const random = seededRandom(27);
+      const state = createOffice(buildOfficeLayout(13, 8, "office"));
+      syncOffice(state, [input("a", "working"), input("b", "idle")], random, "seated");
+      run(state, 1, random);
+      const before = state.agents.map((guy) => ({ id: guy.id, deskIndex: guy.deskIndex }));
+      // Two more columns and a row: the same desks, one tile right and one down.
+      const bigger = buildOfficeLayout(15, 9, "office");
+      expect(layoutShift(state.layout, bigger)).toEqual({ x: 1, y: 1 });
+      relayoutOffice(state, bigger, random);
+      expect(state.agents.map((guy) => ({ id: guy.id, deskIndex: guy.deskIndex }))).toEqual(before);
+      expect(hasDesk(state, agent(state, "a"))).toBe(true);
+      expect(atWorkSpot(agent(state, "a"))).toBe(true);
+      expect(agent(state, "a").workSpot).toEqual(bigger.desks[agent(state, "a").deskIndex!].seat);
+      run(state, 1, random);
+      expect(agent(state, "a").mode).toBe("type");
+      // A new pair per row is a different room, not a shift.
+      expect(layoutShift(bigger, buildOfficeLayout(16, 9, "office"))).toBeUndefined();
     });
 
     it("hauls out a leftover desk after a relayout instead of dropping it", () => {
