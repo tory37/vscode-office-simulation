@@ -54,6 +54,12 @@
         "icon": "$(megaphone)"
       },
       {
+        "command": "officeSim.startInvasion",
+        "title": "Start Invasion…",
+        "category": "Office",
+        "icon": "$(flame)"
+      },
+      {
         "command": "officeSim.chatter",
         "title": "Chatter…",
         "category": "Office",
@@ -101,14 +107,19 @@
           "group": "navigation@3"
         },
         {
-          "command": "officeSim.playEvent",
+          "command": "officeSim.startInvasion",
           "when": "view == officeSim.office",
           "group": "navigation@4"
         },
         {
-          "command": "officeSim.customizeYou",
+          "command": "officeSim.playEvent",
           "when": "view == officeSim.office",
           "group": "navigation@5"
+        },
+        {
+          "command": "officeSim.customizeYou",
+          "when": "view == officeSim.office",
+          "group": "navigation@6"
         }
       ]
     },
@@ -283,6 +294,23 @@
           ],
           "default": "normal",
           "markdownDescription": "How often someone comes to the Office to put on a show: a guitarist, a band, a lunch or snack trolley, a comedian under a spotlight, a magician, or a DJ with a mirror ball. The idle and sleeping guys gather round to watch, cheer, laugh, and eat; busy guys keep working and get their lunch left on their desks. A show waits until someone is free to watch. Play one now with **Office: Play Show…**."
+        },
+        "officeSim.invasions": {
+          "type": "string",
+          "enum": [
+            "off",
+            "rare",
+            "normal",
+            "often"
+          ],
+          "enumDescriptions": [
+            "No invasions.",
+            "An invasion every 45 to 90 minutes.",
+            "An invasion every 20 to 40 minutes.",
+            "An invasion every 6 to 12 minutes."
+          ],
+          "default": "normal",
+          "markdownDescription": "How often something comes through and trashes the Office: aliens (beamed down; they zap guys or float them up in a beam), zombies (anyone bitten joins them for a bit), raiders (they bonk heads and run off with the loot), or vampires (they tackle a guy, slurp, and leave him pale). Everyone runs and hides, busy or not, and gets knocked down seeing stars. Nobody's hurt: once they go, the guys come to one by one, look around, say how weird that was, dust off, sweep up the mess, and get back to it. Start one now with **Office: Start Invasion…**."
         },
         "officeSim.events": {
           "type": "string",

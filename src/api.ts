@@ -4,6 +4,7 @@ import { OfficeDirector } from "./officeDirector";
 import { isEventKind } from "./officeEvents";
 import { OfficePanelProvider } from "./officePanel";
 import { isPerformanceKind } from "./officePerformances";
+import { isInvasionKind } from "./officeInvasions";
 import type { OfficeLook, OfficeSimulationApi } from "./officeSimulationApi";
 import { VISITOR_KINDS } from "./officeVisitors";
 import { pixelGuyLook, portraitSvg, raceOfSeed, readLook } from "./pixelGuy";
@@ -45,6 +46,9 @@ export function createOfficeApi(office: OfficePanelProvider, director: OfficeDir
     playShow(kind = "random") {
       office.playShow(isPerformanceKind(kind) ? kind : "random");
     },
+    startInvasion(kind = "random") {
+      office.playInvasion(isInvasionKind(kind) ? kind : "random");
+    },
     sendVisitor(kind) {
       office.broadcast({ type: "visitor", kind: VISITOR_KINDS.some((visitor) => visitor.id === kind) ? kind : undefined });
     },
@@ -71,6 +75,8 @@ export function createOfficeApi(office: OfficePanelProvider, director: OfficeDir
     onDidClickAgent: office.onDidClickAgent,
     onDidStartShow: office.onDidStartShow,
     onDidEndShow: office.onDidEndShow,
+    onDidStartInvasion: office.onDidStartInvasion,
+    onDidEndInvasion: office.onDidEndInvasion,
     onDidFinishEvent: office.onDidFinishEvent,
     onDidOpenView: openEmitter.event,
     onDidChangeYourLook: yourGuy.onDidChangeYourLook,

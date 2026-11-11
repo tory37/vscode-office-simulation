@@ -17,7 +17,10 @@ export type Facing = "down" | "up" | "left" | "right";
 export type Pose =
   | "stand" | "walk" | "type" | "sit" | "stretch" | "drink" | "talk" | "sleep" | "carry" | "build" | "cheer" | "eat"
   // The Office's activities: jabs at a bag, a barbell up and down, and yoga (arms up, then tree pose).
-  | "punch" | "lift" | "yoga";
+  | "punch" | "lift" | "yoga"
+  // Invasions: running scared with his arms up, knocked flat (the view lays it on its side), hiding with his hands on
+  // his head, and a zombie's arms out in front.
+  | "panic" | "down" | "cower" | "reach";
 
 export interface PixelGuyLook {
   skin: string;
@@ -49,7 +52,7 @@ export const FRAME_WIDTH = INNER_WIDTH + 2;
 export const FRAME_HEIGHT = INNER_HEIGHT + 2;
 // Walk frames loop over four steps; type and talk over two.
 // Sleep breathes: the head sinks a pixel on the second frame.
-export const POSE_FRAMES: Record<Pose, number> = { stand: 1, walk: 4, type: 2, sit: 1, stretch: 1, drink: 1, talk: 2, sleep: 2, carry: 4, build: 2, cheer: 2, eat: 2, punch: 2, lift: 2, yoga: 2 };
+export const POSE_FRAMES: Record<Pose, number> = { stand: 1, walk: 4, type: 2, sit: 1, stretch: 1, drink: 1, talk: 2, sleep: 2, carry: 4, build: 2, cheer: 2, eat: 2, punch: 2, lift: 2, yoga: 2, panic: 4, down: 1, cower: 1, reach: 4 };
 
 const SKINS = ["#F9D4B4", "#EDB98A", "#D08B5B", "#AE5D29", "#8D4A28", "#614335"];
 const HAIRS = ["#2C1B12", "#5A3825", "#A0522D", "#D9A441", "#E8D9A0", "#B8B8B8", "#E2504B", "#7C5CE0", "#3FA7D6", "#2E2E2E"];
@@ -245,9 +248,10 @@ function drawFront(look: PixelGuyLook, race: RaceSpec, pose: Pose, step: number,
   if (isBack) {
     drawBackHair(canvas, look.hairStyle);
   } else {
-    canvas.set(3, 4, "eye");
-    canvas.set(6, 4, "eye");
-    if ((pose === "talk" || pose === "cheer" || pose === "eat") && step === 1) {
+    // Out cold, his eyes are shut.
+    canvas.set(3, 4, pose === "down" ? "skinShade" : "eye");
+    canvas.set(6, 4, pose === "down" ? "skinShade" : "eye");
+    if (((pose === "talk" || pose === "cheer" || pose === "eat") && step === 1) || pose === "panic") {
       canvas.rect(4, 5, 2, 1, "mouth");
     }
     drawFrontHair(canvas, look.hairStyle);
@@ -270,7 +274,8 @@ function drawFront(look: PixelGuyLook, race: RaceSpec, pose: Pose, step: number,
   return canvas;
 }
 
-const isSeatedPose = (pose: Pose) => pose === "type" || pose === "sit" || pose === "sleep";
+// A cowering guy crouches, so his legs fold like a seated one's.
+const isSeatedPose = (pose: Pose) => pose === "type" || pose === "sit" || pose === "sleep" || pose === "cower";
 
 // Shorts bare the shins, and flip flops bare the toes: the middle of each shoe from the front, its tip from the side.
 function dressed(canvas: Canvas, look: PixelGuyLook, pose: Pose, facing: Facing): void {
@@ -387,6 +392,39 @@ function drawFrontArms(canvas: Canvas, pose: Pose, step: number, isBack: boolean
     canvas.rect(8, 7, 2, 1, "sleeve");
     canvas.set(0, 8, "skin");
     canvas.set(9, 8, "skin");
+    return;
+  }
+  if (pose === "panic") {
+    // Both arms up, flailing: one high while the other's lower, then the other way.
+    const [left, right] = step % 2 === 0 ? [2, 4] : [4, 2];
+    canvas.rect(1, left + 1, 1, 7 - left, "sleeve");
+    canvas.set(1, left, "skin");
+    canvas.rect(8, right + 1, 1, 7 - right, "sleeve");
+    canvas.set(8, right, "skin");
+    return;
+  }
+  if (pose === "down") {
+    // Sprawled, arms out wide.
+    canvas.rect(0, 7, 2, 1, "sleeve");
+    canvas.rect(8, 7, 2, 1, "sleeve");
+    canvas.set(0, 8, "skin");
+    canvas.set(9, 8, "skin");
+    return;
+  }
+  if (pose === "cower") {
+    // Hands on his head.
+    canvas.rect(1, 2, 1, 6, "sleeve");
+    canvas.rect(8, 2, 1, 6, "sleeve");
+    canvas.set(2, 1, "skin");
+    canvas.set(7, 1, "skin");
+    return;
+  }
+  if (pose === "reach") {
+    // A zombie's arms, out in front of him.
+    canvas.rect(1, 7, 1, 2, "sleeve");
+    canvas.rect(8, 7, 1, 2, "sleeve");
+    canvas.set(2, 8, "skin");
+    canvas.set(7, 8, "skin");
     return;
   }
   if (pose === "cheer") {
@@ -592,7 +630,7 @@ function drawSide(look: PixelGuyLook, race: RaceSpec, pose: Pose, step: number):
   canvas.set(3, 6, null);
   canvas.set(8, 4, "skin");
   canvas.set(6, 4, "eye");
-  if ((pose === "talk" || pose === "cheer" || pose === "eat") && step === 1) {
+  if (((pose === "talk" || pose === "cheer" || pose === "eat") && step === 1) || pose === "panic") {
     canvas.set(7, 5, "mouth");
   }
   canvas.rect(3, 7, 4, 5, "shirt");
@@ -623,6 +661,23 @@ function drawSideLegs(canvas: Canvas, pose: Pose, step: number): void {
 }
 
 function drawSideArm(canvas: Canvas, pose: Pose, step: number): void {
+  if (pose === "reach") {
+    // Straight out in front.
+    canvas.rect(4, 7, 4, 1, "sleeveShade");
+    canvas.set(8, 7, "skin");
+    return;
+  }
+  if (pose === "cower") {
+    canvas.rect(5, 2, 1, 6, "sleeveShade");
+    canvas.set(6, 1, "skin");
+    return;
+  }
+  if (pose === "panic") {
+    // Waving over his head.
+    canvas.rect(5, step % 2 === 0 ? 2 : 3, 1, step % 2 === 0 ? 6 : 5, "sleeveShade");
+    canvas.set(step % 2 === 0 ? 5 : 6, step % 2 === 0 ? 1 : 2, "skin");
+    return;
+  }
   if (pose === "cheer") {
     canvas.rect(5, step === 0 ? 2 : 3, 1, step === 0 ? 6 : 5, "sleeveShade");
     canvas.set(step === 0 ? 5 : 6, step === 0 ? 1 : 2, "skin");

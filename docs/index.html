@@ -212,6 +212,11 @@
           <button id="sim-play-show">play</button>
           <label>on their own <select id="sim-show-frequency"></select></label>
         </fieldset>
+        <fieldset><legend>Invasions</legend>
+          <select id="sim-invasion" aria-label="Invasion"></select>
+          <button id="sim-start-invasion">start</button>
+          <label>on their own <select id="sim-invasion-frequency"></select></label>
+        </fieldset>
         <fieldset><legend>Visitors</legend>
           <select id="sim-visitor" aria-label="Department"></select>
           <button id="sim-send-visitor">send</button>
@@ -295,6 +300,14 @@
       </div>
 
       <div class="demo">
+        <h3>Invasions</h3>
+        <p>Now and then something comes through and trashes the place. The lights flicker, everyone freezes, and then they're in: aliens beam down and zap guys (or float one up in a beam), zombies shamble in and anyone bitten gets up green and joins the chase, raiders burst through the door, bonk heads, and smash things, and vampires appear in smoke, tackle a guy, and SLURP!, leaving him pale. Everyone runs, busy or not. Some hide. Nobody's hurt: once they go, the guys come to one by one, look around, say how weird that was, dust off, sweep up the mess, and get back to it. <code>officeSim.invasions</code> sets how often (off, rare, normal, often).</p>
+        <div id="demo-invasions"></div>
+        <div class="controls" id="invasion-buttons"></div>
+        <p class="log" id="invasion-log"></p>
+      </div>
+
+      <div class="demo">
         <h3>Visitors</h3>
         <p>People from other departments drop by: some say a line and leave, some stay to chat, loom over busy desks, or get coffee. Each guy answers in his own personality.</p>
         <div id="demo-visitors"></div>
@@ -344,9 +357,9 @@
     <h2>How it works</h2>
     <p class="lead">Two halves talk over messages: a small extension side that reads settings and the API, and a webview that runs and draws the whole simulation. Nearly all of the logic is pure TypeScript with no VS Code or DOM in it, so it's unit tested and runs the same on this page.</p>
 
-    <div class="diagram" role="img" aria-label="The extension side sends settings, agents, events, shows, visitors, and lines to the webview; the webview sends back ready, clicks, and when shows and events start and end.">
+    <div class="diagram" role="img" aria-label="The extension side sends settings, agents, events, shows, invasions, visitors, and lines to the webview; the webview sends back ready, clicks, and when shows, invasions, and events start and end.">
       <div class="box"><strong>Extension side</strong>Reads <code>officeSim.*</code> settings, registers the view and commands, and exposes the API other extensions call.</div>
-      <div class="arrows"><span>office · sceneEvent · tint · performance · visitor · say →</span><span>← ready · click · showStart · showEnd · eventEnd</span></div>
+      <div class="arrows"><span>office · sceneEvent · tint · performance · invasion · visitor · say →</span><span>← ready · click · showStart · showEnd · invasionStart · invasionEnd · eventEnd</span></div>
       <div class="box"><strong>Webview</strong>Sizes the room, steps the sim each frame, and draws it back to front at a whole-pixel zoom. Pauses while hidden.</div>
     </div>
 
@@ -364,6 +377,9 @@
 
     <h3>Visitors and shows</h3>
     <p><code>officeVisitors</code> sends people from other departments in on the frequency setting, up to five at once. Some say a line and go, some stay a minute or two, some settle in. Bosses wear ties. Every guy has a personality from his seed (suck-up, grumbler, deadpan, snark, eager) that shapes how he answers a boss or anyone else. <code>officePerformances</code> plans shows: who performs, what they wear, their lines and crowd cues, the closer, and the snacks. The sim walks performers to the stage with the most open floor in front, gathers the free guys as a crowd, and sends everyone back after the bows.</p>
+
+    <h3>Invasions</h3>
+    <p><code>officeInvasions</code> holds the four kinds: how they come in and go out (the door, a beam, or smoke and bats), how they strike (a bite, a slurp, a zap from a few tiles off, or a bonk), how fast they are, how many come for the room's size, the words that pop off a hit, the mess they leave, and everyone's lines. The sim runs it in four parts. In the warning, the room's tint flickers on, a banner goes up, and everyone (busy guys and you too, but not the crew, who've seen worse) drops what he's doing and freezes. In the attack, the invaders come in one by one and chase the nearest guy still standing that nobody else is after. The guys run for open floor far from them, or hide where they are. A guy who's caught struggles until the strike lands, then goes down seeing stars. A zombie's bite gets him up again green, chasing the rest. An alien's zap sometimes floats him up in a beam instead. A vampire's tackle is followed by a slurp over him, and he's pale after. Now and then an invader smashes a desk or a prop and leaves a mess. The attack ends when everyone's down, or after 30 to 45 seconds. In the retreat, the invaders say a line and go: the aliens beam up, the vampires flee the sunrise as bats, the zombies shamble out the door, and the raiders run off with whatever they grabbed. Anyone still caught goes down, guys in a beam drop, and turned zombies keel over. In the aftermath, the guys who were never caught come out of it first, and the rest come to one at a time. Each looks around, says something about what hit him (in his own personality), dusts off, and sweeps up the nearest mess nobody's on. Then he goes back to what he was doing, and busy guys head to their desks. A status change in the middle of it waits until he's back to normal. Guys who walk in during the attack get caught up in it too. An invasion cuts a show short, and no shows or visitors come while one is on.</p>
 
     <h3>The world</h3>
     <p><code>officeCritters</code> sends a troupe along a clear row from one edge to the other; <code>officeFliers</code> sends a lone flier, a V, a line, or a swarm overhead. Some keep day or night hours, some glow, trail sparks, or cast a shadow. <code>officeDaylight</code> works out the sun's elevation from your clock and a guessed latitude, the moon's real phase, and per scene the sky, stars, and room tint. The webview multiplies the room by a light map that keeps open sky bright and adds pools of light around screens, lamps, and fires.</p>
@@ -409,6 +425,7 @@ if (api?.apiVersion === 1) {
           <button data-api="event">playEvent("defense")</button>
           <button data-api="tint">setTint(n)</button>
           <button data-api="show">playShow("magician")</button>
+          <button data-api="invasion">startInvasion("vampires")</button>
         </div>
         <div class="controls">
           <label>sendVisitor <select id="api-visitor"></select></label>
@@ -432,6 +449,7 @@ if (api?.apiVersion === 1) {
       <tr><td><code>setTint(index, burst?)</code></td><td>Moves your guy's second monitor graph to a tint in the shared spectrum, with a sweep unless <code>burst</code> is false. The first call stops the Office's own tint cycle.</td></tr>
       <tr><td><code>takeOverEvents()</code></td><td>Stops the Office's own event schedule and tint cycle now, for a host that plays its own. Call it when you hook in, so the two never double up.</td></tr>
       <tr><td><code>playShow(kind?)</code></td><td>Puts on a show now (<span id="api-show-ids"></span>, or <code>"random"</code>), opening the Office first if it's hidden.</td></tr>
+      <tr><td><code>startInvasion(kind?)</code></td><td>Starts an invasion now (<span id="api-invasion-ids"></span>, or <code>"random"</code>), opening the Office first if it's hidden. Nothing happens while one is on.</td></tr>
       <tr><td><code>sendVisitor(kind?)</code></td><td>Sends in someone from a department (<span id="api-visitor-ids"></span>), or a random one.</td></tr>
       <tr><td><code>say(id, text, seconds?)</code></td><td>Puts a line over an agent's guy, or yours with <code>"you"</code>. Up to 80 characters for 1 to 20 seconds; it goes ahead of the room's own chatter.</td></tr>
     </tbody></table></div>
@@ -453,6 +471,7 @@ if (api?.apiVersion === 1) {
     <div class="table-scroll"><table><thead><tr><th>Event</th><th>Fires when</th></tr></thead><tbody>
       <tr><td><code>onDidClickAgent</code></td><td>A guy is clicked: his agent id, or <code>"you"</code>.</td></tr>
       <tr><td><code>onDidStartShow</code>, <code>onDidEndShow</code></td><td>A show starts or ends, with its kind.</td></tr>
+      <tr><td><code>onDidStartInvasion</code>, <code>onDidEndInvasion</code></td><td>An invasion starts, or ends with everyone back on his feet and the mess swept up, with its kind.</td></tr>
       <tr><td><code>onDidFinishEvent</code></td><td>A scene event finishes playing, with its kind.</td></tr>
       <tr><td><code>onDidChangeYourLook</code></td><td>Your guy's look changes, from the maker or the setting.</td></tr>
       <tr><td><code>onDidOpenView</code></td><td>An Office view starts, yours or its own.</td></tr>
@@ -614,6 +633,8 @@ npx serve docs      # or any static server, then open the page</code></pre>
   simApi.onDidStartShow((kind) => simHear(`onDidStartShow → "${kind}"`));
   simApi.onDidEndShow((kind) => simHear(`onDidEndShow → "${kind}"`));
   simApi.onDidFinishEvent((kind) => simHear(`onDidFinishEvent → "${kind}"`));
+  simApi.onDidStartInvasion((kind) => simHear(`onDidStartInvasion → "${kind}"`));
+  simApi.onDidEndInvasion((kind) => simHear(`onDidEndInvasion → "${kind}"`));
   const simSelect = (id, values, current, key) => {
     const select = document.getElementById(id);
     options(select, values, current);
@@ -632,6 +653,9 @@ npx serve docs      # or any static server, then open the page</code></pre>
   simSelect("sim-bubbles", SITE.bubbleLooks, "soft", "bubbleLook");
   simSelect("sim-talk", SITE.talkFrequencies, "normal", "talk");
   simSelect("sim-show-frequency", SITE.performanceFrequencies, "rare", "performances");
+  simSelect("sim-invasion-frequency", SITE.invasionFrequencies, "rare", "invasions");
+  const simInvasion = simSelect("sim-invasion", [{ id: "random", label: "Surprise me" }, ...SITE.invasions], "random");
+  document.getElementById("sim-start-invasion").addEventListener("click", () => simApi.startInvasion(simInvasion.value));
   simSelect("sim-visitor-frequency", SITE.visitorFrequencies, "often", "visitors");
   const simShow = simSelect("sim-show", [{ id: "random", label: "Surprise me" }, ...SITE.shows], "random");
   document.getElementById("sim-play-show").addEventListener("click", () => simApi.playShow(simShow.value));
@@ -753,6 +777,15 @@ npx serve docs      # or any static server, then open the page</code></pre>
   showButtons.appendChild(button("Surprise me", () => shows.show("random")));
   for (const show of SITE.shows) showButtons.appendChild(button(show.label, () => shows.show(show.id)));
 
+  // Invasions.
+  const invasions = new OfficeDemo(document.getElementById("demo-invasions"), { agents: workers(["idle", "working", "idle", "asleep", "working", "idle", "idle"]), visitors: "off" });
+  const invasionButtons = document.getElementById("invasion-buttons");
+  const invasionLog = document.getElementById("invasion-log");
+  invasionButtons.appendChild(button("Surprise me", () => invasions.api.startInvasion("random")));
+  for (const invasion of SITE.invasions) invasionButtons.appendChild(button(invasion.label, () => invasions.api.startInvasion(invasion.id)));
+  invasions.api.onDidStartInvasion((kind) => { invasionLog.textContent = `onDidStartInvasion → "${kind}"`; });
+  invasions.api.onDidEndInvasion((kind) => { invasionLog.textContent = `onDidEndInvasion → "${kind}": everyone's back to normal`; });
+
   // Visitors.
   const visitors = new OfficeDemo(document.getElementById("demo-visitors"), { agents: workers(["working", "idle", "working", "idle"]), visitors: "packed" });
   const visitorSelect = document.getElementById("visitor-frequency");
@@ -802,6 +835,8 @@ npx serve docs      # or any static server, then open the page</code></pre>
   api.onDidStartShow((kind) => hear(`onDidStartShow → "${kind}"`));
   api.onDidEndShow((kind) => hear(`onDidEndShow → "${kind}"`));
   api.onDidFinishEvent((kind) => hear(`onDidFinishEvent → "${kind}"`));
+  api.onDidStartInvasion((kind) => hear(`onDidStartInvasion → "${kind}"`));
+  api.onDidEndInvasion((kind) => hear(`onDidEndInvasion → "${kind}"`));
   const show = (text) => { code.textContent = text; };
   const pushAgents = () => {
     api.setAgents(apiAgents.map((agent, index) => ({ ...agent, highlighted: index === crown })));
@@ -818,6 +853,7 @@ npx serve docs      # or any static server, then open the page</code></pre>
   const visitorKind = document.getElementById("api-visitor");
   options(visitorKind, SITE.visitorKinds.map((kind) => ({ id: kind.id, label: kind.title })), "ceo");
   document.getElementById("api-show-ids").innerHTML = SITE.shows.map((item) => `<code>"${item.id}"</code>`).join(", ");
+  document.getElementById("api-invasion-ids").innerHTML = SITE.invasions.map((item) => `<code>"${item.id}"</code>`).join(", ");
   document.getElementById("api-visitor-ids").innerHTML = SITE.visitorKinds.map((kind) => `<code>"${kind.id}"</code>`).join(", ");
   const randomColor = () => `#${Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, "0")}`;
   const actions = {
@@ -837,6 +873,7 @@ npx serve docs      # or any static server, then open the page</code></pre>
     event: () => { api.playEvent("defense"); show('api.playEvent("defense");'); },
     tint: () => { api.setTint(++apiTint); show(`api.setTint(${apiTint});`); },
     show: () => { api.playShow("magician"); show('api.playShow("magician");'); },
+    invasion: () => { api.startInvasion("vampires"); show('api.startInvasion("vampires");'); },
     visitor: () => { api.sendVisitor(visitorKind.value); show(`api.sendVisitor("${visitorKind.value}");`); },
     say: () => {
       const text = document.getElementById("api-say-text").value;

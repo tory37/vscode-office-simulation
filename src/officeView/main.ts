@@ -7,9 +7,12 @@ import { DAYTIME_SKY, discLit, earthIllumination, lunarSunElevation, mix, SceneL
 import { critterGap, critterLines, critterPoses, CritterRun, critterRunDone, planCritterRun } from "../officeCritters";
 import { FLIERS, flierGap, flierLines, flierPoses, Flight, flightDone, planFlight } from "../officeFliers";
 import {
-  activityFit, Agent, AgentInput, agentPose, callYouBack, createOffice, endShow, isAtStation, lookToward, officeCounts, reactToCritter, relayoutOffice, setYouStatus, startShow,
-  stepOffice, syncOffice, syncYou, visitorAgents, visitorArrives, youAgent,
+  activityFit, Agent, AgentInput, agentPose, callYouBack, createOffice, endShow, isAtStation, LookVariant, lookToward, officeCounts, reactToCritter, relayoutOffice, setYouStatus,
+  startInvasion, startShow, stepOffice, syncOffice, syncYou, visitorAgents, visitorArrives, youAgent,
 } from "../officeSim";
+import {
+  invaderClothes, INVASIONS, InvasionFrequency, invasionFrequency, invasionGap, InvasionKindId, isInvasionKind, planInvasion,
+} from "../officeInvasions";
 import {
   isPerformanceKind, PerformanceFrequency, performanceFrequency, performanceGap, PerformanceKindId, PERFORMANCES, planPerformance, ROLE_OUTFITS,
 } from "../officePerformances";
@@ -18,7 +21,7 @@ import { YourEvent, YourReaction, yourEventSeconds, yourReaction, roomReaction, 
 import {
   bubbleAlpha, bubbleLimit, BubbleLook, bubbleLook, bubbleStyle, ChatLine, ChatLogEntry, ChatPriority, ChatterStyle, chatterStyle, layoutChatter, pushChatLog, showsChatLog, talkFactor, talkFrequency, visibleChatLog,
 } from "../officeChatter";
-import { Facing, FRAME_HEIGHT, FRAME_WIDTH, HEAD_ROOM, pixelGuyFrame, pixelGuyLook, PixelGuyLook, Pose } from "../pixelGuy";
+import { Facing, FRAME_HEIGHT, FRAME_WIDTH, HEAD_ROOM, lookWithRace, pixelGuyFrame, pixelGuyLook, PixelGuyLook, Pose } from "../pixelGuy";
 import { DeskStyle, deskStyleFor } from "../deskStyles";
 import { DEFENSE_BEATS, ERROR_BEAT_SECONDS, ERROR_FLASH_SECONDS, EVENT_SECONDS, SCENE_EVENT_KINDS, SceneEventKind } from "../sceneEventSchedule";
 import { ACTIVITIES, activityLevel, activitySwaps } from "../officeActivities";
@@ -29,6 +32,7 @@ import { drawLuckyCat } from "./luckyCat";
 import "./maker.css";
 import { openMaker } from "./maker";
 import { SCENE_PALETTES, ScenePalette } from "./palettes";
+import { drawBroom, drawDebris, drawDizzy, drawDust, drawInvaderGear, drawInvasionBanner, drawInvasionEffects, drawInvasionTint, variantLook } from "./invasions";
 import { drawDeskPlate, drawDisco, drawGear, drawSetPiece, drawSnack, drawSpotlight, PerformerSpot, ShowEffects, showLightLevel } from "./shows";
 import { backdropHasSky, drawAfterLight, drawBackdrop, drawGroundDetail, drawSceneryProp, drawWeather, Kit, LIBRARY_WINDOW_EVERY, propLight, skyBottom } from "./scenery";
 
@@ -44,6 +48,7 @@ interface OfficeMessage {
   dayNight?: boolean;
   visitors?: unknown;
   performances?: unknown;
+  invasions?: unknown;
   chatter?: unknown;
   talk?: unknown;
   activities?: unknown;
@@ -91,6 +96,12 @@ interface TintMessage {
 // Play a show now (the Play Office Show command): a kind, or anything else for a random one.
 interface PerformanceMessage {
   type: "performance";
+  kind?: string;
+}
+
+// Start an invasion now (the Start Invasion command): a kind, or anything else for a random one.
+interface InvasionMessage {
+  type: "invasion";
   kind?: string;
 }
 
@@ -151,6 +162,11 @@ let performancesSetting: PerformanceFrequency = "normal";
 let nextShowAt = performanceGap(Math.random, "normal", true);
 let showCount = 0;
 const showEffects = new ShowEffects();
+
+// Invasions: how often they come and when the next one does.
+let invasionsSetting: InvasionFrequency = "normal";
+let nextInvasionAt = invasionGap(Math.random, "normal", true);
+let invasionCount = 0;
 
 const random = Math.random;
 
@@ -218,7 +234,7 @@ new ResizeObserver(() => {
   }
 }).observe(canvas);
 
-window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEventMessage | TintMessage | PerformanceMessage | VisitorMessage | SayMessage | MakerMessage>) => {
+window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEventMessage | TintMessage | PerformanceMessage | InvasionMessage | VisitorMessage | SayMessage | MakerMessage>) => {
   const data = event.data;
   if (data !== null && typeof data === "object" && data.type === "maker") {
     const requestId = data.requestId;
@@ -235,6 +251,10 @@ window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEve
   }
   if (data !== null && typeof data === "object" && data.type === "performance") {
     playShow(isPerformanceKind(data.kind) ? data.kind : undefined);
+    return;
+  }
+  if (data !== null && typeof data === "object" && data.type === "invasion") {
+    playInvasion(isInvasionKind(data.kind) ? data.kind : undefined);
     return;
   }
   if (data !== null && typeof data === "object" && data.type === "sceneEvent") {
@@ -263,7 +283,7 @@ window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEve
     racesOn = nextRaces;
     // Redraw the session guys; your look and visitors already in the room keep theirs.
     for (const key of [...lookCache.keys()]) {
-      if (!key.startsWith("you|") && !key.startsWith("visitor|") && !key.startsWith("show|") && !customLooks.has(key)) {
+      if (!key.startsWith("you|") && !key.startsWith("visitor|") && !key.startsWith("show|") && !key.startsWith("invader|") && !customLooks.has(key)) {
         lookCache.delete(key);
       }
     }
@@ -281,6 +301,11 @@ window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEve
     nextShowAt = Math.min(nextShowAt, state.time + performanceGap(random, nextPerformances, true));
   }
   performancesSetting = nextPerformances;
+  const nextInvasions = invasionFrequency(data.invasions);
+  if (nextInvasions !== invasionsSetting && nextInvasions !== "off") {
+    nextInvasionAt = Math.min(nextInvasionAt, state.time + invasionGap(random, nextInvasions, true));
+  }
+  invasionsSetting = nextInvasions;
   state.talk = talkFactor(talkFrequency(data.talk));
   state.activityLevel = activityLevel(data.activities);
   state.activitySwaps = activitySwaps(data.activitySwaps);
@@ -333,7 +358,8 @@ function startSceneEvent(data: SceneEventMessage): void {
   roomReactions = [];
   callYouBack(state, random);
   for (const agent of state.agents) {
-    const text = agent.mode === "sleep" || agent.leaving || agent.you ? undefined : roomReaction(data.kind, random);
+    // In an invasion, the guys have bigger problems.
+    const text = agent.mode === "sleep" || agent.leaving || agent.you || agent.invader !== undefined || agent.scare !== undefined ? undefined : roomReaction(data.kind, random);
     if (text !== undefined) {
       roomReactions.push({ id: agent.id, text, at: start + 0.2 + random() * 0.9 });
     }
@@ -373,8 +399,8 @@ function stepVisitors(): void {
   if (visitorsSetting === "off" || sceneEvent !== undefined || state.time < nextVisitorAt) {
     return;
   }
-  if (state.show !== undefined) {
-    // Nobody drops by in the middle of a show; they'll come a little after.
+  if (state.show !== undefined || state.invasion !== undefined) {
+    // Nobody drops by in the middle of a show (or an invasion); they'll come a little after.
     nextVisitorAt = state.time + 20;
     return;
   }
@@ -433,6 +459,10 @@ function stepShows(): void {
   if (state.show !== undefined || performancesSetting === "off" || sceneEvent !== undefined || state.time < nextShowAt) {
     return;
   }
+  if (state.invasion !== undefined) {
+    nextShowAt = state.time + 60;
+    return;
+  }
   nextShowAt = state.time + performanceGap(random, performancesSetting);
   const crowd = state.agents.some((agent) =>
     !agent.leaving && agent.performer === undefined && agent.crew === undefined && (agent.status === "idle" || agent.status === "asleep"),
@@ -466,6 +496,43 @@ function playShow(kind: PerformanceKindId | undefined): void {
   if (startShow(state, { kind: plan.kind, title: plan.title, performers, lines: plan.lines, closer: plan.closer, length: plan.length, food: plan.food }, random)) {
     nextShowAt = Math.max(nextShowAt, state.time + plan.length + 120);
     vscode.postMessage({ type: "showStart", kind: plan.kind });
+  }
+}
+
+// Starts the next invasion when it's time: not over a show or a scene event, and not with nobody in the room.
+function stepInvasions(): void {
+  if (state.invasion !== undefined || invasionsSetting === "off" || state.time < nextInvasionAt) {
+    return;
+  }
+  if (state.show !== undefined || sceneEvent !== undefined) {
+    nextInvasionAt = state.time + 30;
+    return;
+  }
+  nextInvasionAt = state.time + invasionGap(random, invasionsSetting);
+  playInvasion(undefined);
+}
+
+// Starts an invasion of this kind, or a random one, unless one is on already. A show on now is cut short.
+function playInvasion(kind: InvasionKindId | undefined): void {
+  if (state.invasion !== undefined) {
+    return;
+  }
+  const guys = state.agents.filter((agent) => !agent.leaving && agent.crew === undefined && agent.performer === undefined).length;
+  const plan = planInvasion(random, kind, guys);
+  const spec = INVASIONS[plan.kind];
+  invasionCount += 1;
+  const invaders = plan.titles.map((title, index) => {
+    // A few looks per kind; the aliens come green and grey.
+    const seed = `invader|${plan.kind}|${(invasionCount + index) % 6}`;
+    const base = pixelGuyLook(seed, true);
+    const race = spec.altRace !== undefined && index % 2 === 1 ? spec.altRace : spec.outfit.race;
+    lookCache.set(seed, { ...lookWithRace(base, race), ...invaderClothes(spec.outfit) });
+    forgetSprites(seed);
+    return { id: `${seed}|${invasionCount}|${index}`, seed, title };
+  });
+  if (startInvasion(state, { kind: plan.kind, invaders, length: plan.length }, random)) {
+    nextInvasionAt = Math.max(nextInvasionAt, state.time + 5 * 60);
+    vscode.postMessage({ type: "invasionStart", kind: plan.kind });
   }
 }
 
@@ -539,13 +606,13 @@ function deskStyleOf(seed: string | undefined): DeskStyle {
 }
 const spriteCache = new Map<string, HTMLCanvasElement>();
 
-function sprite(seed: string, pose: Pose, facing: Facing, frame: number): HTMLCanvasElement {
-  const key = `${seed}|${pose}|${facing}|${frame}`;
+function sprite(seed: string, pose: Pose, facing: Facing, frame: number, variant?: LookVariant): HTMLCanvasElement {
+  const key = `${seed}|${pose}|${facing}|${frame}|${variant ?? ""}`;
   const cached = spriteCache.get(key);
   if (cached !== undefined) {
     return cached;
   }
-  const look = lookOf(seed);
+  const look = variant === undefined ? lookOf(seed) : variantLook(lookOf(seed), variant);
   const image = document.createElement("canvas");
   image.width = FRAME_WIDTH;
   image.height = FRAME_HEIGHT;
@@ -1690,8 +1757,32 @@ function stationSlide(agent: Agent): number {
   return 0.5 * Math.max(0, 1 - distance);
 }
 
+// A guy knocked flat: his frame laid on its side on his tile, head left or right, stars going round over his head.
+function drawLying(agent: Agent, pose: Pose, seconds: number): AgentBox {
+  const centerX = Math.round(agent.x * TILE + TILE / 2);
+  const floorY = Math.round(agent.y * TILE + TILE - 1);
+  const headLeft = agent.scare?.headLeft !== false;
+  context.globalAlpha = 0.25;
+  rect(centerX - 8, floorY - 1, 16, 2, "#000");
+  context.globalAlpha = 1;
+  context.save();
+  context.translate(centerX, floorY - FRAME_WIDTH / 2);
+  context.rotate(headLeft ? -Math.PI / 2 : Math.PI / 2);
+  // His feet stay on the tile; the empty head room goes past his head.
+  context.drawImage(sprite(agent.seed, pose, "down", 0, agent.variant), -FRAME_WIDTH / 2, -FRAME_HEIGHT / 2 - 1);
+  context.restore();
+  const headX = centerX + (headLeft ? -6 : 6);
+  if (state.invasion?.phase !== "aftermath" || agent.scare?.woke !== true) {
+    drawDizzy(kit, headX, floorY - 9, seconds + agent.x);
+  }
+  return { agent, left: centerX - FRAME_WIDTH / 2, top: floorY - 9 };
+}
+
 function drawAgent(agent: Agent, seconds: number): AgentBox {
   const pose = agentPose(agent, seconds);
+  if (pose.lying === true) {
+    return drawLying(agent, pose.pose, seconds);
+  }
   const baseBox = agentBox(agent, pose.seated);
   const box = pose.offset === undefined ? baseBox : { ...baseBox, left: baseBox.left + pose.offset.x, top: baseBox.top + pose.offset.y };
   // A small shadow under standing guys.
@@ -1710,11 +1801,22 @@ function drawAgent(agent: Agent, seconds: number): AgentBox {
   if (performer !== undefined) {
     drawGear(kit, performer.role, gearBox, pose.facing, "behind", show, seconds, agent.mode === "perform");
   }
-  context.globalAlpha = agent.leaving && agent.visitor === undefined && performer === undefined ? 0.7 : 1;
-  context.drawImage(sprite(agent.seed, pose.pose, pose.facing, pose.frame), box.left, box.top + bob - HEAD_ROOM);
+  drawInvaderGear(kit, agent, gearBox, pose.facing, pose.frame, "behind");
+  // Invaders beaming or smoking in and out fade; so do guys walking out.
+  const fading = agent.mode === "beam" && agent.invader !== undefined
+    ? Math.max(0, Math.min(1, agent.invader.exiting ? (agent.modeUntil - seconds) / 1 : 1 - (agent.modeUntil - seconds) / 1.2))
+    : undefined;
+  context.globalAlpha = fading ?? (agent.leaving && agent.visitor === undefined && performer === undefined && agent.invader === undefined ? 0.7 : 1);
+  context.drawImage(sprite(agent.seed, pose.pose, pose.facing, pose.frame, agent.variant), box.left, box.top + bob - HEAD_ROOM);
   context.globalAlpha = 1;
   if (performer !== undefined) {
     drawGear(kit, performer.role, gearBox, pose.facing, "front", show, seconds, agent.mode === "perform");
+  }
+  drawInvaderGear(kit, agent, gearBox, pose.facing, pose.frame, "front");
+  if (agent.mode === "sweep" && agent.path.length === 0) {
+    drawBroom(kit, gearBox, pose.facing, pose.frame);
+  } else if (agent.mode === "dust") {
+    drawDust(kit, gearBox, seconds);
   }
   if (pose.pose === "eat" && agent.snack !== undefined) {
     drawSnack(kit, agent.snack, gearBox, pose.facing, pose.frame % 2);
@@ -2072,7 +2174,7 @@ function draw(seconds: number): void {
   const event = currentEvent();
   const station = state.layout.station;
   const you = youAgent(state);
-  const atStation = you !== undefined && isAtStation(you);
+  const atStation = you !== undefined && isAtStation(you) && you.scare === undefined;
   // Away from your desk, the station's screen sits on the screensaver unless an event is on it.
   const deskReaction = yourReaction(event, seconds);
   const reaction = atStation || event !== undefined ? deskReaction : { ...deskReaction, screen: "idle" as const, shake: 0 };
@@ -2176,6 +2278,9 @@ function draw(seconds: number): void {
       });
     }
   }
+  for (const piece of state.invasion?.debris ?? []) {
+    layers.push({ depth: piece.y + 0.2, paint: () => drawDebris(kit, piece) });
+  }
   const run = critterRun;
   if (run !== undefined) {
     layers.push({ depth: run.row + 0.6, paint: () => drawCritters(run, palette, seconds) });
@@ -2194,6 +2299,8 @@ function draw(seconds: number): void {
   drawLighting(layout, owners, atStation || event !== undefined, seconds);
   drawAfterLight(kit, sceneId, layout.cols * TILE, light);
   drawShowLights(seconds);
+  drawInvasionTint(kit, state.invasion, layout.cols * TILE, layout.rows * TILE, seconds);
+  drawInvasionEffects(kit, state.invasion, state.agents, (agent) => boxes.find((box) => box.agent === agent), seconds);
   if (overhead !== undefined) {
     drawFlight(overhead, seconds, true);
   }
@@ -2210,7 +2317,7 @@ function draw(seconds: number): void {
     }
     const bubble = box.agent.bubble;
     if (bubble !== undefined) {
-      const priority = box.agent.performer !== undefined ? "must" : box.agent.visitor !== undefined || hostLines.has(bubble) ? "high" : "normal";
+      const priority = box.agent.performer !== undefined ? "must" : box.agent.visitor !== undefined || box.agent.invader !== undefined || hostLines.has(bubble) ? "high" : "normal";
       lines.push(spokenLine(box.agent.id, box.agent.seed, bubble, priority, box, box.top - (crowned ? 14 : 11)));
     }
   });
@@ -2228,6 +2335,7 @@ function draw(seconds: number): void {
     }
   }
   drawChatter(lines, palette, seconds);
+  drawInvasionBanner(kit, state.invasion, layout.cols * TILE, seconds);
   drawEventTint(event, layout);
   const hovered = boxes.find((box) => box.agent.id === hoveredId);
   if (hovered !== undefined) {
@@ -2515,6 +2623,16 @@ function drawFlight(current: Flight, seconds: number, glowing: boolean): void {
   context.restore();
 }
 
+// Notices when an invasion ends, for the extension's onDidEndInvasion.
+let invasionOn: InvasionKindId | undefined;
+function noticeInvasionEnd(): void {
+  const now = state.invasion?.kind;
+  if (invasionOn !== undefined && now !== invasionOn) {
+    vscode.postMessage({ type: "invasionEnd", kind: invasionOn });
+  }
+  invasionOn = now;
+}
+
 // Notices when a show ends, however it ended, for the extension's onDidEndShow.
 let showOn: string | undefined;
 function noticeShowEnd(): void {
@@ -2550,10 +2668,12 @@ function loop(now: number): void {
     stepOffice(state, seconds - lastTime, random);
     stepVisitors();
     stepShows();
+    stepInvasions();
     playRoomReactions();
     stepCritters();
     stepFliers();
     noticeShowEnd();
+    noticeInvasionEnd();
   }
   lastTime = seconds;
   if (width > 0 && height > 0) {
@@ -2597,7 +2717,7 @@ canvas.addEventListener("mousemove", (event) => {
   const agent = hit?.you ? undefined : hit;
   hoveredId = agent?.id;
   youHovered = hit?.you === true || (agent === undefined && isOverYou(event.clientX, event.clientY));
-  canvas.style.cursor = agent === undefined || agent.visitor !== undefined || agent.crew !== undefined || agent.performer !== undefined ? "default" : "pointer";
+  canvas.style.cursor = agent === undefined || agent.visitor !== undefined || agent.crew !== undefined || agent.performer !== undefined || agent.invader !== undefined ? "default" : "pointer";
   if (youHovered) {
     tooltip.hidden = false;
     tooltip.textContent = sceneEvent !== undefined ? `you · ${sceneEvent.kind}!` : hit?.you ? "you · on break" : "you · on watch";
@@ -2608,6 +2728,15 @@ canvas.addEventListener("mousemove", (event) => {
     return;
   }
   tooltip.hidden = false;
+  if (agent.invader !== undefined) {
+    tooltip.textContent = `${agent.title} · ${INVASIONS[agent.invader.kind].label.toLowerCase()}`;
+    return;
+  }
+  const scared = scareText(agent);
+  if (scared !== undefined) {
+    tooltip.textContent = `${agent.title} · ${scared}`;
+    return;
+  }
   if (agent.visitor !== undefined) {
     tooltip.textContent = `${agent.title} · visiting`;
     return;
@@ -2623,6 +2752,33 @@ canvas.addEventListener("mousemove", (event) => {
   tooltip.textContent = `${agent.title}${agent.id === focusedId ? " · selected" : ""} · ${agent.status === "asleep" ? "suspended" : agent.status}`;
 });
 
+// What a guy caught up in an invasion is up to, for his name tag.
+function scareText(agent: Agent): string | undefined {
+  if (agent.scare === undefined) {
+    return undefined;
+  }
+  if (agent.scare.turned) {
+    return "a zombie (for now)";
+  }
+  switch (agent.mode) {
+    case "down":
+      return agent.scare.woke ? "coming to" : "knocked out";
+    case "float":
+      return "abducted";
+    case "struggle":
+      return "caught";
+    case "cower":
+      return "hiding";
+    case "dazed":
+    case "dust":
+      return "coming to";
+    case "sweep":
+      return "cleaning up";
+    default:
+      return agent.goal?.kind === "sweep" ? "cleaning up" : "running scared";
+  }
+}
+
 canvas.addEventListener("mouseleave", () => {
   hoveredId = undefined;
   youHovered = false;
@@ -2631,7 +2787,7 @@ canvas.addEventListener("mouseleave", () => {
 
 canvas.addEventListener("click", (event) => {
   const agent = agentAt(event.clientX, event.clientY);
-  if (agent !== undefined && !agent.you && agent.visitor === undefined && agent.crew === undefined && agent.performer === undefined) {
+  if (agent !== undefined && !agent.you && agent.visitor === undefined && agent.crew === undefined && agent.performer === undefined && agent.invader === undefined) {
     vscode.postMessage({ type: "click", id: agent.id });
   } else if (agent?.you === true) {
     vscode.postMessage({ type: "click", id: "you" });
