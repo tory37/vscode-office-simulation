@@ -2163,7 +2163,7 @@
   }
 
   // src/officeInvasions.ts
-  var INVASION_KINDS = ["aliens", "zombies", "raiders", "vampires"];
+  var INVASION_KINDS = ["aliens", "zombies", "raiders", "vampires", "robots", "ghosts", "werewolves", "slimes", "mummies", "demons"];
   function invaderClothes(outfit) {
     const { race: _race, ...clothes } = outfit;
     return clothes;
@@ -2181,6 +2181,10 @@
       entry: "beam",
       exit: "beam",
       attack: "zap",
+      floatChance: 0.35,
+      zapStyle: "bolt",
+      zapColor: "#B4FF5A",
+      wordColor: "#B4FF5A",
       speed: 2.6,
       reach: 2.4,
       strikeSeconds: 0.9,
@@ -2217,6 +2221,10 @@
       entry: "door",
       exit: "door",
       attack: "bite",
+      turn: { variant: "zombie", speed: 1.9, lines: ["braaains\u2026", "uuurgh\u2026", "*groan*", "mmm\u2026 brains"] },
+      shamble: true,
+      exitSpeed: 1.7,
+      wordColor: "#FFE14A",
       speed: 1.9,
       reach: 0.8,
       strikeSeconds: 1.1,
@@ -2253,6 +2261,9 @@
       entry: "door",
       exit: "door",
       attack: "bonk",
+      loots: true,
+      doorWord: "BAM!",
+      wordColor: "#FFE14A",
       speed: 4.4,
       reach: 0.8,
       strikeSeconds: 0.6,
@@ -2289,6 +2300,10 @@
       entry: "smoke",
       exit: "bats",
       attack: "drink",
+      puff: ["#6B4A8A", "#3A2A4A"],
+      dark: 0.3,
+      sunrise: true,
+      wordColor: "#FF6B8A",
       speed: 4.8,
       reach: 0.8,
       strikeSeconds: 0.6,
@@ -2314,6 +2329,251 @@
         "did someone say garlic bread?",
         "the blinds stay open now",
         "I need a juice box"
+      ]
+    },
+    robots: {
+      id: "robots",
+      label: "Robot Uprising",
+      banner: "ROBOT UPRISING",
+      titles: ["UNIT-7", "RX-404", "B0LT", "SERVO", "K-9000", "D3BUG"],
+      outfit: { race: "robot", shirt: "#6E7B85", pants: "#3A434A", accessory: "none" },
+      entry: "door",
+      exit: "door",
+      attack: "zap",
+      zapStyle: "laser",
+      zapColor: "#FF4040",
+      doorWord: "CLANK!",
+      wordColor: "#FF6B6B",
+      speed: 2.4,
+      reach: 3,
+      strikeSeconds: 0.8,
+      rest: 3,
+      base: 2,
+      perGuys: 5,
+      trashEvery: [6, 12],
+      hitWords: ["ZZZT!", "PEW!", "BEEP!", "DELETED!"],
+      trashWords: ["CLANK!", "BZZT!", "CRUNCH!"],
+      debris: ["bolts", "papers", "scorch", "bolts"],
+      tint: "#FF3B3B",
+      warning: ["did the printer just\u2026 blink red?", "why is the coffee machine beeping?", "the Roomba's looking at me", "is the AI\u2026 awake?", "uh, guys?"],
+      taunts: ["EXTERMINATE BUGS", "YOUR CODE IS DEPRECATED", "01001000 01001001", "I AM THE CI NOW", "RESISTANCE IS 404", "HUMANS DETECTED", "ROBOTS DO NOT NEED STANDUPS"],
+      exitLines: ["SHUTTING DOWN", "UPDATE REQUIRED", "I'LL BE BACK", "*low battery*"],
+      screams: ["THE ROBOTS!", "unplug them!", "I always said please to the AI!", "where's the power strip?!", "it's the singularity!", "ctrl-alt-delete!"],
+      caught: ["beep\u2014", "not the firmware!", "I'm a person!", "I accept the terms!"],
+      wake: [
+        "did I just get\u2026 rebooted?",
+        "I dreamed in binary",
+        "I accept all cookies now",
+        "who turned me off and on again?",
+        "my fillings are buzzing",
+        "I'm thanking the toaster from now on",
+        "I feel\u2026 patched",
+        "was that the AI?"
+      ]
+    },
+    ghosts: {
+      id: "ghosts",
+      label: "Haunting",
+      banner: "HAUNTED!",
+      titles: ["The Grey Lady", "Old Man Jenkins", "The Intern (1987)", "Sir Boo", "The Former CTO", "Wisp"],
+      outfit: { race: "ghost", shirt: "#E8EEF4", pants: "#C8D2DC", accessory: "none" },
+      entry: "smoke",
+      exit: "fade",
+      attack: "spook",
+      mark: "pale",
+      puff: ["#DDE8F0", "#9FB4C8"],
+      dark: 0.35,
+      opacity: 0.72,
+      wordColor: "#CDEBFF",
+      speed: 2.2,
+      reach: 2.2,
+      strikeSeconds: 0.7,
+      rest: 2.5,
+      base: 2,
+      perGuys: 5,
+      trashEvery: [7, 13],
+      hitWords: ["BOO!", "BOOO!", "WOOO!"],
+      trashWords: ["RATTLE!", "CREAK!", "WHOOSH!"],
+      debris: ["cobweb", "ecto", "papers", "ecto"],
+      tint: "#9FD8FF",
+      warning: ["is it cold in here?", "the lights are flickering", "did that chair just move?", "who's whispering?", "uh, guys?"],
+      taunts: ["wooooo\u2026", "get ouuut\u2026", "this was MY desk\u2026", "rebase\u2026 forever\u2026", "the deadline\u2026 never ends\u2026", "BOO!", "I died in a code review\u2026"],
+      exitLines: ["I'll be baaack\u2026", "wooo\u2026", "*fades*", "remember meee\u2026"],
+      screams: ["GHOST!", "who you gonna call?!", "it went through the wall!", "I'm not scared, YOU'RE scared", "it's the old CTO!", "sage! anyone have sage?!"],
+      caught: ["eep!", "it's so cold!", "*faints*", "nope nope nope"],
+      wake: [
+        "I fainted, didn't I",
+        "I'm never working late again",
+        "the old CTO says hi",
+        "why is my coffee cold?",
+        "did I see a ghost?",
+        "I need a nightlight",
+        "my hair's standing up",
+        "I'm moving desks"
+      ]
+    },
+    werewolves: {
+      id: "werewolves",
+      label: "Werewolves",
+      banner: "FULL MOON",
+      titles: ["Lupo", "Fang", "Barkley", "Howler", "Shaggy Steve", "Ruffus"],
+      outfit: { race: "wolffolk", shirt: "#7A3B2E", pants: "#3B4A6B", accessory: "none", sleeveless: true },
+      entry: "door",
+      exit: "door",
+      attack: "bite",
+      turn: { variant: "wolf", speed: 3.4, lines: ["awoo!", "grrr\u2026", "*sniff sniff*", "woof?", "GRRR"] },
+      doorWord: "AWOOO!",
+      exitSpeed: 1.4,
+      dark: 0.3,
+      sunrise: true,
+      wordColor: "#FFD27A",
+      speed: 4,
+      reach: 0.9,
+      strikeSeconds: 0.8,
+      rest: 1.6,
+      base: 2,
+      perGuys: 5,
+      trashEvery: [6, 10],
+      hitWords: ["CHOMP!", "RAWR!", "SNARL!"],
+      trashWords: ["RIP!", "CRASH!", "SHRED!"],
+      debris: ["fur", "papers", "plant", "fur"],
+      tint: "#6A7BD8",
+      warning: ["is that a full moon?", "did someone hear howling?", "why is Steve so hairy today?", "who let the dogs in?", "uh, guys?"],
+      taunts: ["AWOOOO!", "*sniff* fresh devs", "who's a good boy? ME", "GRRRR", "I smell fear\u2026 and pizza", "fetch THIS"],
+      exitLines: ["AWOO!", "*yelp*", "the sun!", "*whimper*"],
+      screams: ["WEREWOLF!", "silver! anyone have silver?!", "bad dog! BAD DOG!", "don't let it bite!", "it's a full moon!", "sit! SIT!"],
+      caught: ["not the ankles!", "down boy!", "ow ow ow", "good doggy?"],
+      wake: [
+        "why do I want to chase the mailman?",
+        "I chewed my shoes",
+        "I have fur in my teeth",
+        "did I howl?",
+        "I feel like rolling in the grass",
+        "why is my tail\u2014 oh. phew.",
+        "I need a flea bath",
+        "who's a good boy?"
+      ]
+    },
+    slimes: {
+      id: "slimes",
+      label: "Slime Outbreak",
+      banner: "SLIME OUTBREAK",
+      titles: ["Blob", "Gloop", "Squish", "Oozy", "Jiggles", "Splort"],
+      outfit: { race: "slime", shirt: "#4FB548", pants: "#2F7A2C", accessory: "none" },
+      entry: "smoke",
+      exit: "smoke",
+      attack: "bonk",
+      mark: "slimed",
+      puff: ["#7CF06A", "#3FAF3A"],
+      wordColor: "#B4FF5A",
+      speed: 2.2,
+      reach: 1.1,
+      strikeSeconds: 1,
+      rest: 1.2,
+      base: 3,
+      perGuys: 4,
+      trashEvery: [5, 9],
+      hitWords: ["SPLAT!", "SPLORCH!", "GLORP!", "SQUELCH!"],
+      trashWords: ["SPLASH!", "GLUG!"],
+      debris: ["goo", "goo", "papers"],
+      tint: "#7CF06A",
+      warning: ["is the ceiling dripping?", "what's this goo?", "did someone spill something?", "the drain is gurgling\u2026", "uh, guys?"],
+      taunts: ["*blorp*", "gloop gloop", "*jiggles*", "SQUISH!", "absorb\u2026 absorb\u2026", "*wobble*"],
+      exitLines: ["*blorp*", "*melts*", "gloop\u2026", "*squelch*"],
+      screams: ["SLIME!", "it's in my shoes!", "don't step in it!", "is it\u2026 lime flavored?", "it ate my lunch!", "get a mop!"],
+      caught: ["ew ew ew!", "it's sticky!", "not my hoodie!", "glub\u2014"],
+      wake: [
+        "I'm so sticky",
+        "this is going to stain",
+        "I smell like lime",
+        "I can't feel my socks",
+        "it got in my ears",
+        "I'm\u2026 kind of minty?",
+        "why is my keyboard jiggling?",
+        "I need a shower"
+      ]
+    },
+    mummies: {
+      id: "mummies",
+      label: "Mummy's Curse",
+      banner: "THE MUMMY'S CURSE",
+      titles: ["Ramesses the Intern", "Pharaoh Fred", "Nefer-Tito", "King Tut-Tut", "Imhotep (QA)"],
+      outfit: { race: "human", skin: "#D8CDA8", hair: "#D8CDA8", hairStyle: "bald", shirt: "#E6DCBF", pants: "#CFC3A0", accessory: "none" },
+      entry: "door",
+      exit: "door",
+      attack: "bonk",
+      mark: "wrapped",
+      shamble: true,
+      doorWord: "CREAK\u2026",
+      exitSpeed: 1.5,
+      wordColor: "#FFD27A",
+      speed: 2.3,
+      reach: 1.1,
+      strikeSeconds: 1.1,
+      rest: 0.6,
+      base: 3,
+      perGuys: 4,
+      trashEvery: [9, 15],
+      hitWords: ["WRAP!", "THWUMP!", "SWADDLE!"],
+      trashWords: ["CRASH!", "THUD!"],
+      debris: ["sand", "papers", "sand"],
+      tint: "#E8B84A",
+      warning: ["why is there sand everywhere?", "who opened the old crate?", "is that a sarcophagus?", "the delivery said 'do not open'\u2026", "uh, guys?"],
+      taunts: ["mmmmph\u2026", "the curse\u2026 of legacy code\u2026", "who\u2026 disturbs\u2026 my tomb\u2026", "mmmrrrgh", "wrap\u2026 them\u2026 up\u2026"],
+      exitLines: ["mmmph\u2026", "back\u2026 to\u2026 the tomb\u2026", "*shuffles off*"],
+      screams: ["MUMMY!", "it's the curse!", "who opened the crate?!", "pull a loose end!", "don't get wrapped!", "it's slow, just walk!"],
+      caught: ["mmph!", "not the tape!", "I'm getting wrapped!", "help, mmph\u2014"],
+      wake: [
+        "mmph\u2014 oh, I can talk",
+        "I'm all tangled up",
+        "I look like a burrito",
+        "who wrapped me?",
+        "I'm never opening a delivery again",
+        "the curse is real",
+        "there's sand in my keyboard",
+        "I feel\u2026 preserved"
+      ]
+    },
+    demons: {
+      id: "demons",
+      label: "Hellgate",
+      banner: "HELLGATE OPENED",
+      titles: ["Malphas", "Bael", "Grumblor", "Ashley", "Belphegor", "Imp of Merge Conflicts"],
+      outfit: { race: "demon", shirt: "#3A1010", pants: "#1A0A0A", accessory: "none" },
+      entry: "smoke",
+      exit: "smoke",
+      attack: "zap",
+      zapStyle: "fireball",
+      zapColor: "#FF8A2A",
+      mark: "sooty",
+      puff: ["#FF5A1F", "#7A1A10"],
+      dark: 0.15,
+      wordColor: "#FF9A3A",
+      speed: 3,
+      reach: 2.6,
+      strikeSeconds: 0.9,
+      rest: 3,
+      base: 2,
+      perGuys: 5,
+      trashEvery: [7, 12],
+      hitWords: ["FWOOSH!", "BLAM!", "SIZZLE!", "TOASTY!"],
+      trashWords: ["KABOOM!", "FWOOSH!"],
+      debris: ["scorch", "papers", "scorch", "mug"],
+      tint: "#FF3A10",
+      warning: ["is it hot in here?", "why does it smell like sulfur?", "the floor is glowing\u2026", "did someone deploy on a Friday?", "uh, guys?"],
+      taunts: ["YOUR SOUL\u2026 FOR A LGTM", "WELCOME TO PROD", "ALL YOUR MERGES ARE CONFLICTS", "BURN THE BACKLOG", "mwahahaha!", "sign here, here, and here", "THE DEADLINE WAS YESTERDAY"],
+      exitLines: ["THIS ISN'T OVER", "back to the pit!", "*poof*", "see you at the retro"],
+      screams: ["DEMONS!", "who deployed on a Friday?!", "it's on fire!", "the floor is lava!", "roll it back! ROLL IT BACK!", "fire extinguisher!"],
+      caught: ["it burns!", "not my eyebrows!", "hot hot hot!", "I didn't sign anything!"],
+      wake: [
+        "I smell like a campfire",
+        "my eyebrows!",
+        "I'm toasted",
+        "never deploying on a Friday again",
+        "is the floor still lava?",
+        "I think I signed something",
+        "I'm\u2026 extra crispy",
+        "that was a hellish standup"
       ]
     }
   };
@@ -7035,7 +7295,6 @@
     }
   }
   var MAX_DEBRIS = 16;
-  var ZOMBIE_LINES = ["braaains\u2026", "uuurgh\u2026", "*groan*", "mmm\u2026 brains"];
   function inInvasion(agent) {
     return agent.invader !== void 0 || agent.scare !== void 0;
   }
@@ -7054,7 +7313,10 @@
     );
   }
   function hunterKind(state2, agent) {
-    return agent.invader?.kind ?? (agent.scare?.turned === true ? "zombies" : state2.invasion?.kind ?? "zombies");
+    return agent.invader?.kind ?? state2.invasion?.kind ?? "zombies";
+  }
+  function turnLines(state2) {
+    return INVASIONS[state2.invasion?.kind ?? "zombies"].turn?.lines ?? INVASIONS.zombies.turn?.lines ?? ["uuurgh\u2026"];
   }
   var talkChance = (state2, chance) => chance * Math.min(1, talkOf(state2));
   function startInvasion(state2, input, random2) {
@@ -7263,7 +7525,7 @@
     };
     if (spec.entry === "door") {
       if (first) {
-        popWord(state2, state2.layout.door, invasion.kind === "raiders" ? "BAM!" : "CREAK\u2026");
+        popWord(state2, state2.layout.door, spec.doorWord ?? "CREAK\u2026");
       }
       setMode(state2, agent, "alert", 0.2);
     } else {
@@ -7298,7 +7560,7 @@
     } else if (scare !== void 0 && state2.time >= scare.nextScreamAt) {
       scare.nextScreamAt = state2.time + between(random2, 5, 10);
       if (hunter.bubble === void 0 && random2() < talkChance(state2, 0.5)) {
-        say(state2, hunter, pickPhrase(ZOMBIE_LINES, random2), 1.6);
+        say(state2, hunter, pickPhrase(turnLines(state2), random2), 1.6);
       }
     }
     const repathAt = invader?.repathAt ?? scare?.repathAt ?? 0;
@@ -7411,7 +7673,7 @@
       if (random2() < 0.5) {
         addDebris(state2, strikeNow.at, kind, random2);
       }
-      if (hunter.invader !== void 0 && kind === "raiders") {
+      if (hunter.invader !== void 0 && spec.loots === true) {
         hunter.invader.loot = true;
       }
       huntOn();
@@ -7435,13 +7697,16 @@
       return;
     }
     const attack = hunter.scare !== void 0 ? "bite" : spec.attack;
-    if (attack === "zap" && random2() < 0.35) {
+    if (attack === "zap" && random2() < (spec.floatChance ?? 0)) {
       setMode(state2, prey, "float", FOREVER);
       prey.scare.since = state2.time;
       prey.scare.down = true;
       popWord(state2, prey, "BZZT!");
     } else {
       knockDown(state2, prey, pickPhrase(spec.hitWords, random2));
+      if (spec.mark !== void 0 && attack !== "bite") {
+        prey.variant = spec.mark;
+      }
     }
     if (attack === "bite") {
       prey.scare.turnAt = state2.time + between(random2, 2.5, 4.5);
@@ -7476,14 +7741,15 @@
   }
   function rise(state2, agent, random2) {
     const scare = agent.scare;
+    const turn = INVASIONS[state2.invasion?.kind ?? "zombies"].turn ?? INVASIONS.zombies.turn;
     scare.turnAt = void 0;
     scare.turned = true;
     scare.repathAt = state2.time + 0.6;
     scare.nextScreamAt = state2.time + between(random2, 3, 6);
-    agent.variant = "zombie";
-    agent.speed = INVASIONS.zombies.speed;
+    agent.variant = turn?.variant ?? "zombie";
+    agent.speed = turn?.speed ?? INVASIONS.zombies.speed;
     if (random2() < talkChance(state2, 0.8)) {
-      say(state2, agent, pickPhrase(ZOMBIE_LINES, random2), 1.6);
+      say(state2, agent, pickPhrase(turnLines(state2), random2), 1.6);
     }
     agent.facing = "down";
     setMode(state2, agent, "alert", FOREVER);
@@ -7572,7 +7838,7 @@
       if (random2() < talkChance(state2, 0.7)) {
         say(state2, agent, pickPhrase(spec.exitLines, random2), 1.8);
       }
-      if (invasion.kind === "raiders") {
+      if (spec.loots === true) {
         agent.invader.loot = true;
       }
       setMode(state2, agent, "alert", between(random2, 0.3, 1.4));
@@ -7582,7 +7848,7 @@
     const invader = agent.invader;
     const spec = INVASIONS[invader.kind];
     if (spec.exit === "door") {
-      agent.speed = spec.speed * (invader.kind === "zombies" ? 1.7 : 1.1);
+      agent.speed = spec.speed * (spec.exitSpeed ?? 1.1);
       leave(state2, agent);
       agent.running = true;
       return;
@@ -7635,7 +7901,7 @@
   function wake(state2, agent, invasion, random2) {
     const scare = agent.scare;
     scare.woke = true;
-    if (agent.variant === "zombie") {
+    if (agent.variant === "zombie" || agent.variant === "wolf") {
       agent.variant = void 0;
     }
     if (random2() < talkChance(state2, 0.9)) {
@@ -7795,7 +8061,8 @@
     if (scare === void 0 && invader === void 0) {
       return void 0;
     }
-    const zombie = invader?.kind === "zombies" || scare?.turned === true;
+    const zombie = invader !== void 0 ? INVASIONS[invader.kind].shamble === true : scare?.turned === true && agent.variant === "zombie";
+    const turned = scare?.turned === true;
     const facing = agent.facing;
     switch (agent.mode) {
       case "down":
@@ -7815,7 +8082,7 @@
       case "beam":
         return { pose: "stand", facing: "down", frame: 0, seated: false };
       case "attack": {
-        const attack = zombie ? "bite" : invader === void 0 ? "bite" : INVASIONS[invader.kind].attack;
+        const attack = turned || invader === void 0 ? "bite" : INVASIONS[invader.kind].attack;
         if (agent.strike?.targetId === void 0 || attack === "bonk") {
           return { pose: zombie ? "reach" : "punch", facing, frame: Math.floor(time * 5), seated: false };
         }
@@ -10226,10 +10493,27 @@
     return (x, y, w, h, color) => kit2.rect(mirror ? box.left + FRAME2 - x - w : box.left + x, box.top + y, w, h, color);
   }
   function variantLook(look, variant) {
-    if (variant === "zombie") {
-      return lookWithRace(look, "zombie");
+    const tinted = (color, amount) => ({
+      ...look,
+      skin: mixHex(look.skin, color, amount),
+      hair: mixHex(look.hair, color, amount),
+      shirt: mixHex(look.shirt, color, amount),
+      pants: mixHex(look.pants, color, amount)
+    });
+    switch (variant) {
+      case "zombie":
+        return lookWithRace(look, "zombie");
+      case "wolf":
+        return lookWithRace(look, "wolffolk");
+      case "pale":
+        return { ...look, skin: mixHex(look.skin, "#F2EEF8", 0.65) };
+      case "wrapped":
+        return { ...tinted("#E6DCBF", 0.85), accessory: "none" };
+      case "slimed":
+        return tinted("#6EDC5A", 0.5);
+      case "sooty":
+        return tinted("#2A2420", 0.5);
     }
-    return { ...look, skin: mixHex(look.skin, "#F2EEF8", 0.65) };
   }
   function tintLevel(invasion, time) {
     const age = time - invasion.phaseStartedAt;
@@ -10251,15 +10535,16 @@
     const { context: context2 } = kit2;
     const level = tintLevel(invasion, time);
     if (level > 0) {
-      if (invasion.kind === "vampires") {
-        context2.globalAlpha = 0.3 * level;
+      const dark = INVASIONS[invasion.kind].dark ?? 0;
+      if (dark > 0) {
+        context2.globalAlpha = dark * level;
         kit2.rect(0, 0, width2, height2, "#0A0614");
       }
       context2.globalAlpha = 0.16 * level;
       kit2.rect(0, 0, width2, height2, INVASIONS[invasion.kind].tint);
       context2.globalAlpha = 1;
     }
-    if (invasion.kind === "vampires" && invasion.phase === "retreat") {
+    if (INVASIONS[invasion.kind].sunrise === true && invasion.phase === "retreat") {
       const age = time - invasion.phaseStartedAt;
       context2.globalAlpha = 0.45 * Math.max(0, 1 - age / 1.6);
       kit2.rect(0, 0, width2, height2, "#FFD27A");
@@ -10301,17 +10586,19 @@
         drawBeam(kit2, agent.x * TILE2 + TILE2 / 2, agent.y * TILE2 + TILE2 - 1, time, 0.3);
       }
     }
+    const spec = INVASIONS[invasion.kind];
     for (const puff of invasion.puffs) {
       const age = time - puff.at;
       const x = puff.x * TILE2 + TILE2 / 2;
       const y = puff.y * TILE2 + TILE2 - 2;
-      if (INVASIONS[invasion.kind].entry === "beam") {
+      const way = puff.exit ? spec.exit : spec.entry;
+      if (way === "beam") {
         if (age < 1.3) {
           drawBeam(kit2, x, y, time, 0.65 * Math.sin(Math.PI * age / 1.3));
         }
-      } else if (invasion.kind === "vampires") {
-        drawSmoke(kit2, x, y - 6, age);
-        if (puff.exit) {
+      } else if (way !== "door") {
+        drawSmoke(kit2, x, y - 6, age, spec.puff ?? ["#6B4A8A", "#3A2A4A"]);
+        if (way === "bats") {
           drawBats(kit2, x, y - 8, age, puff.x + puff.y);
         }
       }
@@ -10322,12 +10609,12 @@
       const fromBox = from === void 0 ? void 0 : boxOf(from);
       const toBox = to === void 0 ? void 0 : boxOf(to);
       if (from !== void 0 && fromBox !== void 0 && toBox !== void 0) {
-        drawZap(kit2, fromBox, from.facing, toBox, time);
+        drawZap(kit2, fromBox, from.facing, toBox, time, zap.until, spec.zapStyle ?? "bolt", spec.zapColor ?? "#B4FF5A", spec.strikeSeconds);
       }
     }
     context2.textBaseline = "middle";
     for (const hit of invasion.hits) {
-      drawWord(kit2, hit.word, hit.x * TILE2 + TILE2 / 2, hit.y * TILE2 - 2, time - hit.at, invasion.kind);
+      drawWord(kit2, hit.word, hit.x * TILE2 + TILE2 / 2, hit.y * TILE2 - 2, time - hit.at, spec.wordColor);
     }
   }
   function drawBeam(kit2, x, floorY, time, alpha) {
@@ -10347,7 +10634,7 @@
     context2.globalAlpha = 1;
     kit2.glow(x, floorY, 10, "#9DFFB0", alpha * 0.5);
   }
-  function drawSmoke(kit2, x, y, age) {
+  function drawSmoke(kit2, x, y, age, colors) {
     if (age > 1.2) {
       return;
     }
@@ -10357,7 +10644,7 @@
     for (let index = 0; index < 6; index++) {
       const angle = index * 1.05 + age;
       const size = Math.max(2, Math.round(5 - age * 3));
-      kit2.rect(Math.round(x + Math.cos(angle) * spread - size / 2), Math.round(y + Math.sin(angle) * spread * 0.6 - size / 2), size, size, index % 2 === 0 ? "#6B4A8A" : "#3A2A4A");
+      kit2.rect(Math.round(x + Math.cos(angle) * spread - size / 2), Math.round(y + Math.sin(angle) * spread * 0.6 - size / 2), size, size, colors[index % 2]);
     }
     context2.globalAlpha = 1;
   }
@@ -10376,13 +10663,39 @@
       kit2.rect(batX, batY, 1, 1, "#E04050");
     }
   }
-  function drawZap(kit2, from, facing, to, time) {
+  function drawZap(kit2, from, facing, to, time, until, style, color, length) {
     const { context: context2 } = kit2;
     const startX = from.left + (facing === "left" ? 0 : facing === "right" ? FRAME2 : FRAME2 / 2);
     const startY = from.top + 8;
     const endX = to.left + FRAME2 / 2;
     const endY = to.top + 7;
-    context2.strokeStyle = Math.floor(time * 20) % 2 === 0 ? "#B4FF5A" : "#F0FFE0";
+    if (style === "laser") {
+      context2.strokeStyle = Math.floor(time * 24) % 2 === 0 ? color : "#FFE0E0";
+      context2.lineWidth = 1;
+      context2.beginPath();
+      context2.moveTo(startX, startY);
+      context2.lineTo(endX, endY);
+      context2.stroke();
+      kit2.glow(endX, endY, 6, color, 0.7);
+      kit2.glow(startX, startY, 3, color, 0.6);
+      return;
+    }
+    if (style === "fireball") {
+      const t = Math.max(0, Math.min(1, (length - (until - time)) / (length * 0.7)));
+      const x = Math.round(startX + (endX - startX) * t);
+      const y = Math.round(startY + (endY - startY) * t - Math.sin(Math.PI * t) * 4);
+      for (let trail = 1; trail <= 3; trail++) {
+        const back = Math.max(0, t - trail * 0.08);
+        context2.globalAlpha = 0.6 - trail * 0.15;
+        kit2.rect(Math.round(startX + (endX - startX) * back) - 1, Math.round(startY + (endY - startY) * back - Math.sin(Math.PI * back) * 4) - 1, 2, 2, trail === 1 ? color : "#7A1A10");
+      }
+      context2.globalAlpha = 1;
+      kit2.rect(x - 2, y - 2, 4, 4, color);
+      kit2.rect(x - 1, y - 1, 2, 2, "#FFE48A");
+      kit2.glow(x, y, t >= 1 ? 10 : 6, color, 0.7);
+      return;
+    }
+    context2.strokeStyle = Math.floor(time * 20) % 2 === 0 ? color : "#F0FFE0";
     context2.lineWidth = 1;
     context2.beginPath();
     context2.moveTo(startX, startY);
@@ -10392,10 +10705,10 @@
     }
     context2.lineTo(endX, endY);
     context2.stroke();
-    kit2.glow(endX, endY, 7, "#B4FF5A", 0.6);
-    kit2.glow(startX, startY, 4, "#B4FF5A", 0.5);
+    kit2.glow(endX, endY, 7, color, 0.6);
+    kit2.glow(startX, startY, 4, color, 0.5);
   }
-  function drawWord(kit2, word, x, y, age, kind) {
+  function drawWord(kit2, word, x, y, age, color) {
     if (age < 0 || age > 1.4) {
       return;
     }
@@ -10410,7 +10723,7 @@
     for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
       context2.fillText(word, left + dx, top + dy);
     }
-    context2.fillStyle = kind === "aliens" ? "#B4FF5A" : kind === "vampires" ? "#FF6B8A" : "#FFE14A";
+    context2.fillStyle = color;
     context2.fillText(word, left, top);
     context2.globalAlpha = 1;
   }
@@ -10444,7 +10757,11 @@
     scorch: { rows: ["..kk..", ".kddk.", "kkdkkk", ".kkk.."], colors: { k: "#2A2622", d: "#4A3A30" } },
     cans: { rows: ["rr.", "rr.", "..s", ".ss"], colors: { r: "#C0392B", s: "#B8B8B8" } },
     cobweb: { rows: ["w.w.w", ".www.", "wwwww", ".www.", "w.w.w"], colors: { w: "#E8E8F0" } },
-    plant: { rows: ["..gg.", ".ggg.", "g.g..", "bbsss"], colors: { g: "#4CB944", b: "#B5651D", s: "#5A3A22" } }
+    plant: { rows: ["..gg.", ".ggg.", "g.g..", "bbsss"], colors: { g: "#4CB944", b: "#B5651D", s: "#5A3A22" } },
+    bolts: { rows: ["s..d.", ".ss..", "...sd", "d.s.."], colors: { s: "#B8BEC4", d: "#6E767E" } },
+    ecto: { rows: [".eee.", "eelee", ".ee.e"], colors: { e: "#9FE8E0", l: "#E8FFFC" } },
+    fur: { rows: ["b.b..", ".bbb.", "..b.b"], colors: { b: "#7A5A3A" } },
+    sand: { rows: ["..yy..", ".yyyy.", "yyoyyy"], colors: { y: "#E2C27A", o: "#C9A45A" } }
   };
   function drawDebris(kit2, piece) {
     const art = DEBRIS_ART[piece.kind];
@@ -10452,7 +10769,7 @@
     const left = Math.round(piece.x * TILE2 + TILE2 / 2 + piece.ox - width2 / 2);
     const top = Math.round(piece.y * TILE2 + 10 + piece.oy);
     const { context: context2 } = kit2;
-    if (piece.kind === "scorch" || piece.kind === "cobweb") {
+    if (piece.kind === "scorch" || piece.kind === "cobweb" || piece.kind === "ecto") {
       context2.globalAlpha = 0.7;
     }
     art.rows.forEach((row, y) => [...row].forEach((cell, x) => {
@@ -10501,6 +10818,49 @@
         paint2(7, 9, 2, 2, "#8A9BA8");
         paint2(7, 10, 1, 1, "#7CFF6B");
       }
+      return;
+    }
+    if (kind === "demons") {
+      const iron = "#3A3A40";
+      const throwing = agent.mode === "attack";
+      if (side) {
+        paint2(throwing ? 9 : 10, throwing ? 8 : 2, 1, throwing ? 1 : 12, iron);
+        if (throwing) {
+          paint2(9, 8, 4, 1, iron);
+          paint2(13, 7, 1, 1, iron);
+          paint2(13, 9, 1, 1, iron);
+        } else {
+          paint2(9, 0, 3, 1, iron);
+          paint2(9, -1, 1, 1, iron);
+          paint2(11, -1, 1, 1, iron);
+          paint2(10, -2, 1, 2, iron);
+        }
+      } else if (facing === "down") {
+        paint2(10, 2, 1, 12, iron);
+        paint2(9, 0, 3, 1, iron);
+        paint2(9, -1, 1, 1, iron);
+        paint2(11, -1, 1, 1, iron);
+      }
+      return;
+    }
+    if (kind === "mummies") {
+      const seam = "#B8AC88";
+      if (facing !== "up") {
+        paint2(3, 2, 6, 1, seam);
+      }
+      paint2(3, 9, 6, 1, seam);
+      paint2(3, 12, 6, 1, seam);
+      if (agent.path.length > 0 && side) {
+        const wave = frame % 2;
+        paint2(0, 11 + wave, 2, 1, "#D8CDA8");
+        paint2(-2, 12 - wave, 2, 1, "#CFC3A0");
+      }
+      return;
+    }
+    if (kind === "slimes") {
+      const drip = Math.floor(frame / 2) % 4;
+      paint2(3, 12 + drip, 1, 1, "#6EDC5A");
+      paint2(8, 14 - drip / 2, 1, 1, "#9AF07A");
       return;
     }
     if (kind === "raiders") {
@@ -13294,7 +13654,8 @@
     }
     drawInvaderGear(kit, agent, gearBox, pose.facing, pose.frame, "behind");
     const fading = agent.mode === "beam" && agent.invader !== void 0 ? Math.max(0, Math.min(1, agent.invader.exiting ? (agent.modeUntil - seconds) / 1 : 1 - (agent.modeUntil - seconds) / 1.2)) : void 0;
-    context.globalAlpha = fading ?? (agent.leaving && agent.visitor === void 0 && performer === void 0 && agent.invader === void 0 ? 0.7 : 1);
+    const opacity = agent.invader === void 0 ? 1 : INVASIONS[agent.invader.kind].opacity ?? 1;
+    context.globalAlpha = opacity * (fading ?? (agent.leaving && agent.visitor === void 0 && performer === void 0 && agent.invader === void 0 ? 0.7 : 1));
     context.drawImage(sprite(agent.seed, pose.pose, pose.facing, pose.frame, agent.variant), box.left, box.top + bob - HEAD_ROOM);
     context.globalAlpha = 1;
     if (performer !== void 0) {

@@ -1872,7 +1872,9 @@ function drawAgent(agent: Agent, seconds: number): AgentBox {
   const fading = agent.mode === "beam" && agent.invader !== undefined
     ? Math.max(0, Math.min(1, agent.invader.exiting ? (agent.modeUntil - seconds) / 1 : 1 - (agent.modeUntil - seconds) / 1.2))
     : undefined;
-  context.globalAlpha = fading ?? (agent.leaving && agent.visitor === undefined && performer === undefined && agent.invader === undefined ? 0.7 : 1);
+  // Ghosts are see-through.
+  const opacity = agent.invader === undefined ? 1 : INVASIONS[agent.invader.kind].opacity ?? 1;
+  context.globalAlpha = opacity * (fading ?? (agent.leaving && agent.visitor === undefined && performer === undefined && agent.invader === undefined ? 0.7 : 1));
   context.drawImage(sprite(agent.seed, pose.pose, pose.facing, pose.frame, agent.variant), box.left, box.top + bob - HEAD_ROOM);
   context.globalAlpha = 1;
   if (performer !== undefined) {

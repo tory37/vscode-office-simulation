@@ -101,6 +101,25 @@ describe("officeInvasions", () => {
     expect(isInvasionKind("goblins")).toBe(false);
   });
 
+  it("gives each kind what its attack needs: a turn for a bite, a zap's look, a puff for smoke", () => {
+    for (const kind of INVASION_KINDS) {
+      const spec = INVASIONS[kind];
+      if (spec.attack === "bite") {
+        expect(spec.turn?.lines.length).toBeGreaterThan(0);
+      }
+      if (spec.attack === "zap") {
+        expect(spec.zapStyle).toBeDefined();
+        expect(spec.zapColor).toMatch(/^#[0-9A-F]{6}$/i);
+      }
+      if (spec.entry === "smoke" || spec.exit === "smoke" || spec.exit === "fade" || spec.exit === "bats") {
+        expect(spec.puff).toHaveLength(2);
+      }
+      expect(spec.wordColor).toMatch(/^#[0-9A-F]{6}$/i);
+      expect(new Set(spec.titles).size).toBe(spec.titles.length);
+    }
+    expect(INVASION_KINDS).toHaveLength(10);
+  });
+
   it("gives every kind its lines, words, and mess, and keeps the race out of the clothes", () => {
     for (const kind of INVASION_KINDS) {
       const spec = INVASIONS[kind];
@@ -160,6 +179,47 @@ describe("invasions in the Office", () => {
     watch(state, random);
     expect(turned?.variant).toBeUndefined();
     expect(turned?.scare).toBeUndefined();
+  });
+
+  it("turns a werewolf's bitten guys into wolves who join the pack, and back after", () => {
+    let turned: Agent | undefined;
+    for (const seed of [3, 4, 5]) {
+      const { state, random } = room(seed);
+      invade(state, "werewolves", random);
+      run(state, 40, random, (now) => {
+        turned ??= now.agents.find((agent) => agent.scare?.turned === true);
+      });
+      if (turned !== undefined) {
+        expect(turned.variant).toBe("wolf");
+        watch(state, random);
+        expect(turned.variant).toBeUndefined();
+        break;
+      }
+    }
+    expect(turned).toBeDefined();
+  });
+
+  for (const [kind, mark] of [["mummies", "wrapped"], ["slimes", "slimed"], ["demons", "sooty"], ["ghosts", "pale"]] as const) {
+    it(`leaves ${kind}' guys ${mark} until they dust off`, () => {
+      const { state, random } = room(11);
+      invade(state, kind, random);
+      const seen = watch(state, random);
+      expect(seen.variants.has(mark)).toBe(true);
+      expect(state.agents.every((agent) => agent.variant === undefined)).toBe(true);
+    });
+  }
+
+  it("never floats a guy for a zapper that doesn't float, and lasers from across the room", () => {
+    for (const seed of [1, 2, 3]) {
+      const { state, random } = room(seed);
+      invade(state, "robots", random);
+      let zapped = false;
+      run(state, 30, random, (now) => {
+        zapped ||= (now.invasion?.zaps.length ?? 0) > 0;
+      });
+      expect(zapped).toBe(true);
+      expect(watch(state, random).floated).toBe(false);
+    }
   });
 
   it("leaves a vampire's guys pale until they dust off", () => {

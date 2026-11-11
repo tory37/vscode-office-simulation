@@ -371,7 +371,7 @@
             "An invasion every 6 to 12 minutes."
           ],
           "default": "normal",
-          "markdownDescription": "How often something comes through and trashes the Office: aliens (beamed down; they zap guys or float them up in a beam), zombies (anyone bitten joins them for a bit), raiders (they bonk heads and run off with the loot), or vampires (they tackle a guy, slurp, and leave him pale). Everyone runs and hides, busy or not, and gets knocked down seeing stars. Nobody's hurt: once they go, the guys come to one by one, look around, say how weird that was, dust off, sweep up the mess, and get back to it. Start one now with **Office: Start Invasion…**."
+          "markdownDescription": "How often something comes through and trashes the Office: aliens (beamed down; they zap guys or float them up in a beam), zombies (anyone bitten joins them for a bit), raiders (they bonk heads and run off with the loot), vampires (they tackle a guy, slurp, and leave him pale), robots (lasers from across the room), ghosts (a BOO! and he faints, pale), werewolves (anyone bitten joins the pack), slimes (SPLAT! and he's green and sticky), mummies (they wrap him up), or demons (fireballs leave him sooty). Everyone runs and hides, busy or not, and gets knocked down seeing stars. Nobody's hurt: once they go, the guys come to one by one, look around, say how weird that was, dust off, sweep up the mess, and get back to it. Start one now with **Office: Start Invasion…**."
         },
         "officeSim.quiet": {
           "type": "boolean",

@@ -2,32 +2,44 @@ import type { Accessory, HairStyle, PixelGuyLook } from "./pixelGuy";
 import type { RaceId } from "./pixelRaces";
 import type { Personality } from "./officeVisitors";
 
-// Pure: the invasions that hit the Office now and then. Aliens, zombies, raiders, or vampires come through and trash
-// the place. Nobody gets hurt for real: the guys run around screaming, hide, and get zapped, bitten, bonked, or
+// Pure: the invasions that hit the Office now and then. Aliens, zombies, raiders, vampires, robots, ghosts, werewolves,
+// slimes, mummies, or demons come through and trash the place. Nobody gets hurt for real: the guys run around screaming, hide, and get zapped, bitten, bonked, or
 // tackled, and fall down seeing stars. Then the invaders leave, the guys come to one by one, look around, say
 // something like "wow, that was weird", dust themselves off, sweep up the mess, and get back to it.
 // It's cartoon trouble, never gore: a vampire "drinks" with a SLURP! and his guy goes pale, a zombie's bite turns his
-// guy green for a bit, an alien's zap puts his guy to sleep or floats him up in a beam.
+// guy green for a bit, an alien's zap puts his guy to sleep or floats him up in a beam, a mummy wraps his guy up, a
+// slime leaves his guy sticky, a demon's fireball leaves his guy sooty, a ghost's BOO! makes his guy faint.
 
-export type InvasionKindId = "aliens" | "zombies" | "raiders" | "vampires";
+export type InvasionKindId = "aliens" | "zombies" | "raiders" | "vampires" | "robots" | "ghosts" | "werewolves" | "slimes" | "mummies" | "demons";
 
-export const INVASION_KINDS: readonly InvasionKindId[] = ["aliens", "zombies", "raiders", "vampires"];
+export const INVASION_KINDS: readonly InvasionKindId[] = ["aliens", "zombies", "raiders", "vampires", "robots", "ghosts", "werewolves", "slimes", "mummies", "demons"];
 
-// How the invaders come in and go out: through the door, beamed down and up, or in a puff of smoke (and out as bats).
+// How the invaders come in and go out: through the door, beamed down and up, or in a puff of smoke (and out as bats,
+// in another puff, or fading away).
 export type InvaderEntry = "door" | "beam" | "smoke";
-export type InvaderExit = "door" | "beam" | "bats";
+export type InvaderExit = "door" | "beam" | "bats" | "smoke" | "fade";
 
-// What a hit does. bite: down, then up again as a zombie who chases the rest. drink: a tackle, then a slurp that
-// leaves him pale. zap: from a few tiles off; down, or up in a beam until they leave. bonk: down with stars.
-export type InvaderAttack = "bite" | "drink" | "zap" | "bonk";
+// What a hit does. bite: down, then up again as one of them (the spec's turn), chasing the rest. drink: a tackle, then
+// a slurp that leaves him pale. zap: from a few tiles off; down, or (by floatChance) up in a beam until they leave.
+// bonk: down with stars. spook: a BOO! from a couple of tiles off, and he faints.
+export type InvaderAttack = "bite" | "drink" | "zap" | "bonk" | "spook";
+
+// How a zap looks: a crackling bolt, a straight laser, or a fireball flying across.
+export type ZapStyle = "bolt" | "laser" | "fireball";
+
+// How a guy looks for a while after: turned (zombie, wolf) until he comes to; pale, wrapped, slimed, or sooty until he
+// dusts himself off.
+export type LookVariant = "zombie" | "wolf" | "pale" | "wrapped" | "slimed" | "sooty";
 
 // The mess they leave, swept up after.
-export type DebrisKind = "papers" | "mug" | "goo" | "scorch" | "cans" | "cobweb" | "plant";
+export type DebrisKind = "papers" | "mug" | "goo" | "scorch" | "cans" | "cobweb" | "plant" | "bolts" | "ecto" | "fur" | "sand";
 
-export const DEBRIS_KINDS: readonly DebrisKind[] = ["papers", "mug", "goo", "scorch", "cans", "cobweb", "plant"];
+export const DEBRIS_KINDS: readonly DebrisKind[] = ["papers", "mug", "goo", "scorch", "cans", "cobweb", "plant", "bolts", "ecto", "fur", "sand"];
 
 export interface InvaderOutfit {
   race: RaceId;
+  // Over the race's skin (a mummy's bandages).
+  skin?: string;
   shirt: string;
   pants: string;
   hair?: string;
@@ -57,6 +69,30 @@ export interface InvasionSpec {
   entry: InvaderEntry;
   exit: InvaderExit;
   attack: InvaderAttack;
+  // With attack "bite": who he gets up as, how fast he chases, and what he groans.
+  turn?: { variant: "zombie" | "wolf"; speed: number; lines: readonly string[] };
+  // What a hit leaves on him till he dusts off (a vampire's pale comes from the slurp instead).
+  mark?: LookVariant;
+  // With attack "zap": the chance a zap floats him up in a beam instead, and how it looks.
+  floatChance?: number;
+  zapStyle?: ZapStyle;
+  zapColor?: string;
+  // Walks with his arms out, like a zombie.
+  shamble?: boolean;
+  // Smashing something, he grabs it; he runs off with it.
+  loots?: boolean;
+  // What pops off the door as the first one comes in through it.
+  doorWord?: string;
+  // How much faster than his hunt he heads out the door.
+  exitSpeed?: number;
+  // The puff he comes and goes in, two colors.
+  puff?: readonly [string, string];
+  // How much the room darkens, whether the sunrise chases them off, and how see-through they are (1 is solid).
+  dark?: number;
+  sunrise?: boolean;
+  opacity?: number;
+  // The color of the words off a hit.
+  wordColor: string;
   // Tiles a second, on the hunt; the guys run at FLEE_SPEED.
   speed: number;
   // How close he has to get, in tiles, and how long a strike takes.
@@ -100,6 +136,10 @@ export const INVASIONS: Record<InvasionKindId, InvasionSpec> = {
     entry: "beam",
     exit: "beam",
     attack: "zap",
+    floatChance: 0.35,
+    zapStyle: "bolt",
+    zapColor: "#B4FF5A",
+    wordColor: "#B4FF5A",
     speed: 2.6,
     reach: 2.4,
     strikeSeconds: 0.9,
@@ -130,6 +170,10 @@ export const INVASIONS: Record<InvasionKindId, InvasionSpec> = {
     entry: "door",
     exit: "door",
     attack: "bite",
+    turn: { variant: "zombie", speed: 1.9, lines: ["braaains…", "uuurgh…", "*groan*", "mmm… brains"] },
+    shamble: true,
+    exitSpeed: 1.7,
+    wordColor: "#FFE14A",
     speed: 1.9,
     reach: 0.8,
     strikeSeconds: 1.1,
@@ -160,6 +204,9 @@ export const INVASIONS: Record<InvasionKindId, InvasionSpec> = {
     entry: "door",
     exit: "door",
     attack: "bonk",
+    loots: true,
+    doorWord: "BAM!",
+    wordColor: "#FFE14A",
     speed: 4.4,
     reach: 0.8,
     strikeSeconds: 0.6,
@@ -190,6 +237,10 @@ export const INVASIONS: Record<InvasionKindId, InvasionSpec> = {
     entry: "smoke",
     exit: "bats",
     attack: "drink",
+    puff: ["#6B4A8A", "#3A2A4A"],
+    dark: 0.3,
+    sunrise: true,
+    wordColor: "#FF6B8A",
     speed: 4.8,
     reach: 0.8,
     strikeSeconds: 0.6,
@@ -209,6 +260,215 @@ export const INVASIONS: Record<InvasionKindId, InvasionSpec> = {
     wake: [
       "I feel… lightheaded", "why am I craving tomato juice?", "is the sun out? thank goodness", "my neck itches",
       "I feel weirdly anemic", "did someone say garlic bread?", "the blinds stay open now", "I need a juice box",
+    ],
+  },
+  robots: {
+    id: "robots",
+    label: "Robot Uprising",
+    banner: "ROBOT UPRISING",
+    titles: ["UNIT-7", "RX-404", "B0LT", "SERVO", "K-9000", "D3BUG"],
+    outfit: { race: "robot", shirt: "#6E7B85", pants: "#3A434A", accessory: "none" },
+    entry: "door",
+    exit: "door",
+    attack: "zap",
+    zapStyle: "laser",
+    zapColor: "#FF4040",
+    doorWord: "CLANK!",
+    wordColor: "#FF6B6B",
+    speed: 2.4,
+    reach: 3,
+    strikeSeconds: 0.8,
+    rest: 3,
+    base: 2,
+    perGuys: 5,
+    trashEvery: [6, 12],
+    hitWords: ["ZZZT!", "PEW!", "BEEP!", "DELETED!"],
+    trashWords: ["CLANK!", "BZZT!", "CRUNCH!"],
+    debris: ["bolts", "papers", "scorch", "bolts"],
+    tint: "#FF3B3B",
+    warning: ["did the printer just… blink red?", "why is the coffee machine beeping?", "the Roomba's looking at me", "is the AI… awake?", "uh, guys?"],
+    taunts: ["EXTERMINATE BUGS", "YOUR CODE IS DEPRECATED", "01001000 01001001", "I AM THE CI NOW", "RESISTANCE IS 404", "HUMANS DETECTED", "ROBOTS DO NOT NEED STANDUPS"],
+    exitLines: ["SHUTTING DOWN", "UPDATE REQUIRED", "I'LL BE BACK", "*low battery*"],
+    screams: ["THE ROBOTS!", "unplug them!", "I always said please to the AI!", "where's the power strip?!", "it's the singularity!", "ctrl-alt-delete!"],
+    caught: ["beep—", "not the firmware!", "I'm a person!", "I accept the terms!"],
+    wake: [
+      "did I just get… rebooted?", "I dreamed in binary", "I accept all cookies now", "who turned me off and on again?",
+      "my fillings are buzzing", "I'm thanking the toaster from now on", "I feel… patched", "was that the AI?",
+    ],
+  },
+  ghosts: {
+    id: "ghosts",
+    label: "Haunting",
+    banner: "HAUNTED!",
+    titles: ["The Grey Lady", "Old Man Jenkins", "The Intern (1987)", "Sir Boo", "The Former CTO", "Wisp"],
+    outfit: { race: "ghost", shirt: "#E8EEF4", pants: "#C8D2DC", accessory: "none" },
+    entry: "smoke",
+    exit: "fade",
+    attack: "spook",
+    mark: "pale",
+    puff: ["#DDE8F0", "#9FB4C8"],
+    dark: 0.35,
+    opacity: 0.72,
+    wordColor: "#CDEBFF",
+    speed: 2.2,
+    reach: 2.2,
+    strikeSeconds: 0.7,
+    rest: 2.5,
+    base: 2,
+    perGuys: 5,
+    trashEvery: [7, 13],
+    hitWords: ["BOO!", "BOOO!", "WOOO!"],
+    trashWords: ["RATTLE!", "CREAK!", "WHOOSH!"],
+    debris: ["cobweb", "ecto", "papers", "ecto"],
+    tint: "#9FD8FF",
+    warning: ["is it cold in here?", "the lights are flickering", "did that chair just move?", "who's whispering?", "uh, guys?"],
+    taunts: ["wooooo…", "get ouuut…", "this was MY desk…", "rebase… forever…", "the deadline… never ends…", "BOO!", "I died in a code review…"],
+    exitLines: ["I'll be baaack…", "wooo…", "*fades*", "remember meee…"],
+    screams: ["GHOST!", "who you gonna call?!", "it went through the wall!", "I'm not scared, YOU'RE scared", "it's the old CTO!", "sage! anyone have sage?!"],
+    caught: ["eep!", "it's so cold!", "*faints*", "nope nope nope"],
+    wake: [
+      "I fainted, didn't I", "I'm never working late again", "the old CTO says hi", "why is my coffee cold?",
+      "did I see a ghost?", "I need a nightlight", "my hair's standing up", "I'm moving desks",
+    ],
+  },
+  werewolves: {
+    id: "werewolves",
+    label: "Werewolves",
+    banner: "FULL MOON",
+    titles: ["Lupo", "Fang", "Barkley", "Howler", "Shaggy Steve", "Ruffus"],
+    outfit: { race: "wolffolk", shirt: "#7A3B2E", pants: "#3B4A6B", accessory: "none", sleeveless: true },
+    entry: "door",
+    exit: "door",
+    attack: "bite",
+    turn: { variant: "wolf", speed: 3.4, lines: ["awoo!", "grrr…", "*sniff sniff*", "woof?", "GRRR"] },
+    doorWord: "AWOOO!",
+    exitSpeed: 1.4,
+    dark: 0.3,
+    sunrise: true,
+    wordColor: "#FFD27A",
+    speed: 4,
+    reach: 0.9,
+    strikeSeconds: 0.8,
+    rest: 1.6,
+    base: 2,
+    perGuys: 5,
+    trashEvery: [6, 10],
+    hitWords: ["CHOMP!", "RAWR!", "SNARL!"],
+    trashWords: ["RIP!", "CRASH!", "SHRED!"],
+    debris: ["fur", "papers", "plant", "fur"],
+    tint: "#6A7BD8",
+    warning: ["is that a full moon?", "did someone hear howling?", "why is Steve so hairy today?", "who let the dogs in?", "uh, guys?"],
+    taunts: ["AWOOOO!", "*sniff* fresh devs", "who's a good boy? ME", "GRRRR", "I smell fear… and pizza", "fetch THIS"],
+    exitLines: ["AWOO!", "*yelp*", "the sun!", "*whimper*"],
+    screams: ["WEREWOLF!", "silver! anyone have silver?!", "bad dog! BAD DOG!", "don't let it bite!", "it's a full moon!", "sit! SIT!"],
+    caught: ["not the ankles!", "down boy!", "ow ow ow", "good doggy?"],
+    wake: [
+      "why do I want to chase the mailman?", "I chewed my shoes", "I have fur in my teeth", "did I howl?",
+      "I feel like rolling in the grass", "why is my tail— oh. phew.", "I need a flea bath", "who's a good boy?",
+    ],
+  },
+  slimes: {
+    id: "slimes",
+    label: "Slime Outbreak",
+    banner: "SLIME OUTBREAK",
+    titles: ["Blob", "Gloop", "Squish", "Oozy", "Jiggles", "Splort"],
+    outfit: { race: "slime", shirt: "#4FB548", pants: "#2F7A2C", accessory: "none" },
+    entry: "smoke",
+    exit: "smoke",
+    attack: "bonk",
+    mark: "slimed",
+    puff: ["#7CF06A", "#3FAF3A"],
+    wordColor: "#B4FF5A",
+    speed: 2.2,
+    reach: 1.1,
+    strikeSeconds: 1,
+    rest: 1.2,
+    base: 3,
+    perGuys: 4,
+    trashEvery: [5, 9],
+    hitWords: ["SPLAT!", "SPLORCH!", "GLORP!", "SQUELCH!"],
+    trashWords: ["SPLASH!", "GLUG!"],
+    debris: ["goo", "goo", "papers"],
+    tint: "#7CF06A",
+    warning: ["is the ceiling dripping?", "what's this goo?", "did someone spill something?", "the drain is gurgling…", "uh, guys?"],
+    taunts: ["*blorp*", "gloop gloop", "*jiggles*", "SQUISH!", "absorb… absorb…", "*wobble*"],
+    exitLines: ["*blorp*", "*melts*", "gloop…", "*squelch*"],
+    screams: ["SLIME!", "it's in my shoes!", "don't step in it!", "is it… lime flavored?", "it ate my lunch!", "get a mop!"],
+    caught: ["ew ew ew!", "it's sticky!", "not my hoodie!", "glub—"],
+    wake: [
+      "I'm so sticky", "this is going to stain", "I smell like lime", "I can't feel my socks",
+      "it got in my ears", "I'm… kind of minty?", "why is my keyboard jiggling?", "I need a shower",
+    ],
+  },
+  mummies: {
+    id: "mummies",
+    label: "Mummy's Curse",
+    banner: "THE MUMMY'S CURSE",
+    titles: ["Ramesses the Intern", "Pharaoh Fred", "Nefer-Tito", "King Tut-Tut", "Imhotep (QA)"],
+    outfit: { race: "human", skin: "#D8CDA8", hair: "#D8CDA8", hairStyle: "bald", shirt: "#E6DCBF", pants: "#CFC3A0", accessory: "none" },
+    entry: "door",
+    exit: "door",
+    attack: "bonk",
+    mark: "wrapped",
+    shamble: true,
+    doorWord: "CREAK…",
+    exitSpeed: 1.5,
+    wordColor: "#FFD27A",
+    speed: 2.3,
+    reach: 1.1,
+    strikeSeconds: 1.1,
+    rest: 0.6,
+    base: 3,
+    perGuys: 4,
+    trashEvery: [9, 15],
+    hitWords: ["WRAP!", "THWUMP!", "SWADDLE!"],
+    trashWords: ["CRASH!", "THUD!"],
+    debris: ["sand", "papers", "sand"],
+    tint: "#E8B84A",
+    warning: ["why is there sand everywhere?", "who opened the old crate?", "is that a sarcophagus?", "the delivery said 'do not open'…", "uh, guys?"],
+    taunts: ["mmmmph…", "the curse… of legacy code…", "who… disturbs… my tomb…", "mmmrrrgh", "wrap… them… up…"],
+    exitLines: ["mmmph…", "back… to… the tomb…", "*shuffles off*"],
+    screams: ["MUMMY!", "it's the curse!", "who opened the crate?!", "pull a loose end!", "don't get wrapped!", "it's slow, just walk!"],
+    caught: ["mmph!", "not the tape!", "I'm getting wrapped!", "help, mmph—"],
+    wake: [
+      "mmph— oh, I can talk", "I'm all tangled up", "I look like a burrito", "who wrapped me?",
+      "I'm never opening a delivery again", "the curse is real", "there's sand in my keyboard", "I feel… preserved",
+    ],
+  },
+  demons: {
+    id: "demons",
+    label: "Hellgate",
+    banner: "HELLGATE OPENED",
+    titles: ["Malphas", "Bael", "Grumblor", "Ashley", "Belphegor", "Imp of Merge Conflicts"],
+    outfit: { race: "demon", shirt: "#3A1010", pants: "#1A0A0A", accessory: "none" },
+    entry: "smoke",
+    exit: "smoke",
+    attack: "zap",
+    zapStyle: "fireball",
+    zapColor: "#FF8A2A",
+    mark: "sooty",
+    puff: ["#FF5A1F", "#7A1A10"],
+    dark: 0.15,
+    wordColor: "#FF9A3A",
+    speed: 3,
+    reach: 2.6,
+    strikeSeconds: 0.9,
+    rest: 3,
+    base: 2,
+    perGuys: 5,
+    trashEvery: [7, 12],
+    hitWords: ["FWOOSH!", "BLAM!", "SIZZLE!", "TOASTY!"],
+    trashWords: ["KABOOM!", "FWOOSH!"],
+    debris: ["scorch", "papers", "scorch", "mug"],
+    tint: "#FF3A10",
+    warning: ["is it hot in here?", "why does it smell like sulfur?", "the floor is glowing…", "did someone deploy on a Friday?", "uh, guys?"],
+    taunts: ["YOUR SOUL… FOR A LGTM", "WELCOME TO PROD", "ALL YOUR MERGES ARE CONFLICTS", "BURN THE BACKLOG", "mwahahaha!", "sign here, here, and here", "THE DEADLINE WAS YESTERDAY"],
+    exitLines: ["THIS ISN'T OVER", "back to the pit!", "*poof*", "see you at the retro"],
+    screams: ["DEMONS!", "who deployed on a Friday?!", "it's on fire!", "the floor is lava!", "roll it back! ROLL IT BACK!", "fire extinguisher!"],
+    caught: ["it burns!", "not my eyebrows!", "hot hot hot!", "I didn't sign anything!"],
+    wake: [
+      "I smell like a campfire", "my eyebrows!", "I'm toasted", "never deploying on a Friday again",
+      "is the floor still lava?", "I think I signed something", "I'm… extra crispy", "that was a hellish standup",
     ],
   },
 };
