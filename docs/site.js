@@ -26,6 +26,8 @@
       visitors: "normal",
       performances: "off",
       invasions: "off",
+      quiet: false,
+      sky: null,
       chatter: "tidy",
       talk: "normal",
       activities: "some",

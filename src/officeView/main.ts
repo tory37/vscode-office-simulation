@@ -3,12 +3,12 @@
 // desk and act out the scene events ({ type: "sceneEvent" }) with your monitor; the room looks up too.
 
 import { buildOfficeLayout, Desk, desksNeeded, OFFICE_SCENES, officeShape, OUTDOOR_SCENES, OfficeLayout, OfficeSceneId, officeSceneId, Point, Prop, Station, STATION_DESKS } from "../officeLayout";
-import { DAYTIME_SKY, discLit, earthIllumination, lunarSunElevation, mix, SceneLight, sceneLight, SkyState, skyNow } from "../officeDaylight";
+import { DAYTIME_SKY, NIGHT_SKY, discLit, earthIllumination, lunarSunElevation, mix, SceneLight, sceneLight, SkyState, skyNow } from "../officeDaylight";
 import { critterGap, critterLines, critterPoses, CritterRun, critterRunDone, planCritterRun } from "../officeCritters";
 import { FLIERS, flierGap, flierLines, flierPoses, Flight, flightDone, planFlight } from "../officeFliers";
 import {
   activityFit, Agent, AgentInput, agentPose, callYouBack, createOffice, endShow, isAtStation, LookVariant, lookToward, officeCounts, reactToCritter, relayoutOffice, setYouStatus,
-  startInvasion, startShow, stepOffice, syncOffice, syncYou, visitorAgents, visitorArrives, youAgent,
+  endInvasion, sendVisitorsHome, startInvasion, startShow, stepOffice, syncOffice, syncYou, visitorAgents, visitorArrives, youAgent,
 } from "../officeSim";
 import {
   invaderClothes, INVASIONS, InvasionFrequency, invasionFrequency, invasionGap, InvasionKindId, isInvasionKind, planInvasion,
@@ -49,6 +49,10 @@ interface OfficeMessage {
   visitors?: unknown;
   performances?: unknown;
   invasions?: unknown;
+  // Quiet: no shows, visitors, or invasions come on their own; the buttons still start them.
+  quiet?: boolean;
+  // The Night button: day or night for a while, whatever the clock says.
+  sky?: unknown;
   chatter?: unknown;
   talk?: unknown;
   activities?: unknown;
@@ -97,6 +101,11 @@ interface TintMessage {
 interface PerformanceMessage {
   type: "performance";
   kind?: string;
+}
+
+// The Stop button: end whatever's playing.
+interface StopMessage {
+  type: "stop";
 }
 
 // Start an invasion now (the Start Invasion command): a kind, or anything else for a random one.
@@ -167,6 +176,8 @@ const showEffects = new ShowEffects();
 let invasionsSetting: InvasionFrequency = "normal";
 let nextInvasionAt = invasionGap(Math.random, "normal", true);
 let invasionCount = 0;
+// Quiet: nothing comes on its own.
+let quiet = false;
 
 const random = Math.random;
 
@@ -185,11 +196,15 @@ let nextFlightAt = 20;
 
 // The real sky, worked out again every few seconds, and the light it gives this scene.
 let dayNightOn = true;
+let skyOverride: "day" | "night" | undefined;
 let skyCache: { at: number; sky: SkyState } | undefined;
 let light: SceneLight = sceneLight("office", DAYTIME_SKY);
 let lightMap: HTMLCanvasElement | undefined;
 
 function currentSky(): SkyState {
+  if (skyOverride !== undefined) {
+    return skyOverride === "night" ? NIGHT_SKY : DAYTIME_SKY;
+  }
   if (!dayNightOn) {
     return DAYTIME_SKY;
   }
@@ -234,7 +249,7 @@ new ResizeObserver(() => {
   }
 }).observe(canvas);
 
-window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEventMessage | TintMessage | PerformanceMessage | InvasionMessage | VisitorMessage | SayMessage | MakerMessage>) => {
+window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEventMessage | TintMessage | PerformanceMessage | InvasionMessage | StopMessage | VisitorMessage | SayMessage | MakerMessage>) => {
   const data = event.data;
   if (data !== null && typeof data === "object" && data.type === "maker") {
     const requestId = data.requestId;
@@ -251,6 +266,10 @@ window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEve
   }
   if (data !== null && typeof data === "object" && data.type === "performance") {
     playShow(isPerformanceKind(data.kind) ? data.kind : undefined);
+    return;
+  }
+  if (data !== null && typeof data === "object" && data.type === "stop") {
+    stopEverything();
     return;
   }
   if (data !== null && typeof data === "object" && data.type === "invasion") {
@@ -290,6 +309,8 @@ window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEve
     spriteCache.clear();
   }
   dayNightOn = data.dayNight !== false;
+  quiet = data.quiet === true;
+  skyOverride = data.sky === "night" || data.sky === "day" ? data.sky : undefined;
   const nextVisitors = visitorFrequency(data.visitors);
   if (nextVisitors !== visitorsSetting && nextVisitors !== "off") {
     // A new frequency takes effect now, not after the old gap runs out.
@@ -399,6 +420,10 @@ function stepVisitors(): void {
   if (visitorsSetting === "off" || sceneEvent !== undefined || state.time < nextVisitorAt) {
     return;
   }
+  if (quiet) {
+    nextVisitorAt = state.time + 60;
+    return;
+  }
   if (state.show !== undefined || state.invasion !== undefined) {
     // Nobody drops by in the middle of a show (or an invasion); they'll come a little after.
     nextVisitorAt = state.time + 20;
@@ -459,7 +484,7 @@ function stepShows(): void {
   if (state.show !== undefined || performancesSetting === "off" || sceneEvent !== undefined || state.time < nextShowAt) {
     return;
   }
-  if (state.invasion !== undefined) {
+  if (state.invasion !== undefined || quiet) {
     nextShowAt = state.time + 60;
     return;
   }
@@ -504,8 +529,8 @@ function stepInvasions(): void {
   if (state.invasion !== undefined || invasionsSetting === "off" || state.time < nextInvasionAt) {
     return;
   }
-  if (state.show !== undefined || sceneEvent !== undefined) {
-    nextInvasionAt = state.time + 30;
+  if (state.show !== undefined || sceneEvent !== undefined || quiet) {
+    nextInvasionAt = state.time + (quiet ? 120 : 30);
     return;
   }
   nextInvasionAt = state.time + invasionGap(random, invasionsSetting);
@@ -533,6 +558,19 @@ function playInvasion(kind: InvasionKindId | undefined): void {
   if (startInvasion(state, { kind: plan.kind, invaders, length: plan.length }, random)) {
     nextInvasionAt = Math.max(nextInvasionAt, state.time + 5 * 60);
     vscode.postMessage({ type: "invasionStart", kind: plan.kind });
+  }
+}
+
+// Ends whatever's playing: the show, the invasion (the room snaps back), visitors (they say bye and go), and a scene
+// event.
+function stopEverything(): void {
+  endShow(state, random);
+  endInvasion(state, random);
+  sendVisitorsHome(state);
+  if (sceneEvent !== undefined) {
+    vscode.postMessage({ type: "eventEnd", kind: sceneEvent.kind });
+    sceneEvent = undefined;
+    roomReactions = [];
   }
 }
 

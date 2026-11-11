@@ -212,6 +212,11 @@
           <button id="sim-play-show">play</button>
           <label>on their own <select id="sim-show-frequency"></select></label>
         </fieldset>
+        <fieldset><legend>Buttons</legend>
+          <button id="sim-stop">stop</button>
+          <label><input type="checkbox" id="sim-quiet"> quiet</label>
+          <select id="sim-sky" aria-label="Day or night"><option value="">clock</option><option value="day">day</option><option value="night">night</option></select>
+        </fieldset>
         <fieldset><legend>Invasions</legend>
           <select id="sim-invasion" aria-label="Invasion"></select>
           <button id="sim-start-invasion">start</button>
@@ -373,7 +378,7 @@
 
     <h3>Your guy</h3>
     <p>You get the station in the middle with two monitors. Between events you take breaks: wander, chat, or go look over a busy guy's shoulder. <code>officeYou</code> scripts each moment of an ERROR, HACK, or DEFENSE event (your pose, line, main monitor, and shake), and the room's one-word reactions. A tint message recolors your second monitor's graph with a sweep.</p>
-    <p>The Office view's title bar has four buttons: Switch Scene, Trigger Event, Chatter, and Customize Your Guy. Trigger Event (<code>officeTriggers</code>) starts anything the Office can play, from one list: the scene events, the invasions, the shows, and a visitor from any department, or Surprise Me for any of them. A keybinding can pass an id like <code>"invasion:zombies"</code>. A scene event picked there goes to the host when one has taken over events (<code>onDidRequestEvent</code>), so Overseer plays it in its own views at the same moment.</p>
+    <p>The Office view's title bar has its buttons in this order: Trigger Event, Stop, Quiet, Day / Night, Switch Scene, Chatter, Customize Your Guy, and Settings. Stop ends whatever's playing: the show goes home, an invasion snaps back (everyone up, the mess gone), visitors say bye, and a scene event ends. Quiet (<code>officeSim.quiet</code>, the bell) keeps shows, visitors, invasions, and scene events from coming on their own, in the Office only (a host's own views keep theirs), while Trigger Event still starts any of them. Day / Night makes it night when it's day, or day when it's night, for ten minutes, in every open Office at once; press it again for the clock. Settings opens Settings on <code>officeSim</code>. Trigger Event (<code>officeTriggers</code>) starts anything the Office can play, from one list: the scene events, the invasions, the shows, and a visitor from any department, or Surprise Me for any of them. A keybinding can pass an id like <code>"invasion:zombies"</code>. A scene event picked there goes to the host when one has taken over events (<code>onDidRequestEvent</code>), so Overseer plays it in its own views at the same moment.</p>
     <p>On its own, the Office plays an event every few minutes (<code>officeSim.events</code>) and moves the tint every 20 to 40 seconds. An extension that plays events or sets the tint itself takes over, so Overseer's views and the Office play the same event at the same moment.</p>
 
     <h3>Visitors and shows</h3>
@@ -656,6 +661,9 @@ npx serve docs      # or any static server, then open the page</code></pre>
   simSelect("sim-talk", SITE.talkFrequencies, "normal", "talk");
   simSelect("sim-show-frequency", SITE.performanceFrequencies, "rare", "performances");
   simSelect("sim-invasion-frequency", SITE.invasionFrequencies, "rare", "invasions");
+  document.getElementById("sim-stop").addEventListener("click", () => sim.post({ type: "stop" }));
+  simToggle("sim-quiet", "quiet");
+  document.getElementById("sim-sky").addEventListener("change", (event) => sim.set({ sky: event.target.value || null }));
   const simInvasion = simSelect("sim-invasion", [{ id: "random", label: "Surprise me" }, ...SITE.invasions], "random");
   document.getElementById("sim-start-invasion").addEventListener("click", () => simApi.startInvasion(simInvasion.value));
   simSelect("sim-visitor-frequency", SITE.visitorFrequencies, "often", "visitors");

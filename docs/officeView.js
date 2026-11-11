@@ -280,6 +280,7 @@
     return 9.87 * Math.sin(2 * angle) - 7.53 * Math.cos(angle) - 1.5 * Math.sin(angle);
   }
   var DAYTIME_SKY = skyAt(10.5, 172, 40, 0);
+  var NIGHT_SKY = skyAt(23.5, 172, 40, 0.5);
   var SKY_STOPS = [
     [60, "#79C6F0"],
     [20, "#8FD3F4"],
@@ -5129,6 +5130,13 @@
     const line = visit.smallTalk[Math.floor(random2() * visit.smallTalk.length)];
     visit.remarks += 1;
     say(state2, agent, line, lineSeconds(line));
+  }
+  function sendVisitorsHome(state2) {
+    for (const agent of visitorAgents(state2)) {
+      if (!agent.leaving && agent.scare === void 0) {
+        visitorLeaves(state2, agent);
+      }
+    }
   }
   function visitorLeaves(state2, agent) {
     const farewell = agent.visitor?.farewell;
@@ -11708,6 +11716,7 @@
   var invasionsSetting = "normal";
   var nextInvasionAt = invasionGap(Math.random, "normal", true);
   var invasionCount = 0;
+  var quiet = false;
   var random = Math.random;
   var crittersOn = true;
   var racesOn = true;
@@ -11719,10 +11728,14 @@
   var flightWatchers = /* @__PURE__ */ new Set();
   var nextFlightAt = 20;
   var dayNightOn = true;
+  var skyOverride;
   var skyCache;
   var light = sceneLight("office", DAYTIME_SKY);
   var lightMap;
   function currentSky() {
+    if (skyOverride !== void 0) {
+      return skyOverride === "night" ? NIGHT_SKY : DAYTIME_SKY;
+    }
     if (!dayNightOn) {
       return DAYTIME_SKY;
     }
@@ -11778,6 +11791,10 @@
       playShow(isPerformanceKind(data.kind) ? data.kind : void 0);
       return;
     }
+    if (data !== null && typeof data === "object" && data.type === "stop") {
+      stopEverything();
+      return;
+    }
     if (data !== null && typeof data === "object" && data.type === "invasion") {
       playInvasion(isInvasionKind(data.kind) ? data.kind : void 0);
       return;
@@ -11814,6 +11831,8 @@
       spriteCache.clear();
     }
     dayNightOn = data.dayNight !== false;
+    quiet = data.quiet === true;
+    skyOverride = data.sky === "night" || data.sky === "day" ? data.sky : void 0;
     const nextVisitors = visitorFrequency(data.visitors);
     if (nextVisitors !== visitorsSetting && nextVisitors !== "off") {
       nextVisitorAt = Math.min(nextVisitorAt, state.time + visitorGap(random, nextVisitors, true));
@@ -11913,6 +11932,10 @@
     if (visitorsSetting === "off" || sceneEvent !== void 0 || state.time < nextVisitorAt) {
       return;
     }
+    if (quiet) {
+      nextVisitorAt = state.time + 60;
+      return;
+    }
     if (state.show !== void 0 || state.invasion !== void 0) {
       nextVisitorAt = state.time + 20;
       return;
@@ -11963,7 +11986,7 @@
     if (state.show !== void 0 || performancesSetting === "off" || sceneEvent !== void 0 || state.time < nextShowAt) {
       return;
     }
-    if (state.invasion !== void 0) {
+    if (state.invasion !== void 0 || quiet) {
       nextShowAt = state.time + 60;
       return;
     }
@@ -12006,8 +12029,8 @@
     if (state.invasion !== void 0 || invasionsSetting === "off" || state.time < nextInvasionAt) {
       return;
     }
-    if (state.show !== void 0 || sceneEvent !== void 0) {
-      nextInvasionAt = state.time + 30;
+    if (state.show !== void 0 || sceneEvent !== void 0 || quiet) {
+      nextInvasionAt = state.time + (quiet ? 120 : 30);
       return;
     }
     nextInvasionAt = state.time + invasionGap(random, invasionsSetting);
@@ -12032,6 +12055,16 @@
     if (startInvasion(state, { kind: plan.kind, invaders, length: plan.length }, random)) {
       nextInvasionAt = Math.max(nextInvasionAt, state.time + 5 * 60);
       vscode.postMessage({ type: "invasionStart", kind: plan.kind });
+    }
+  }
+  function stopEverything() {
+    endShow(state, random);
+    endInvasion(state, random);
+    sendVisitorsHome(state);
+    if (sceneEvent !== void 0) {
+      vscode.postMessage({ type: "eventEnd", kind: sceneEvent.kind });
+      sceneEvent = void 0;
+      roomReactions = [];
     }
   }
   function currentEvent() {

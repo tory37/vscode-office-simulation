@@ -96,6 +96,19 @@ export function equationOfTime(day: number): number {
 
 // The fixed sky when the day and night cycle is off: mid-morning, no moon.
 export const DAYTIME_SKY: SkyState = skyAt(10.5, 172, 40, 0);
+// The night the Night button skips to: near midnight, a full moon high up.
+export const NIGHT_SKY: SkyState = skyAt(23.5, 172, 40, 0.5);
+
+export function isNight(sky: SkyState): boolean {
+  return sky.sun.elevation < 0;
+}
+
+// The Night button: night while it's day out, day while it's night.
+export type SkyOverride = "day" | "night";
+
+export function skyToggle(real: SkyState): SkyOverride {
+  return isNight(real) ? "day" : "night";
+}
 
 export interface SceneLight {
   // The color the whole room is multiplied by; white is full daylight.

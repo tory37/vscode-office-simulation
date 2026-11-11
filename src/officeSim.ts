@@ -689,6 +689,15 @@ function stepHangout(state: OfficeState, agent: Agent, random: Random): void {
   say(state, agent, line, lineSeconds(line));
 }
 
+// Every visitor in the room says bye and heads out (the Stop button).
+export function sendVisitorsHome(state: OfficeState): void {
+  for (const agent of visitorAgents(state)) {
+    if (!agent.leaving && agent.scare === undefined) {
+      visitorLeaves(state, agent);
+    }
+  }
+}
+
 // A visitor done hanging around says bye and heads out.
 function visitorLeaves(state: OfficeState, agent: Agent): void {
   const farewell = agent.visitor?.farewell;
