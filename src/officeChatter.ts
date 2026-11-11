@@ -1,7 +1,7 @@
 // Pure: how the Office shows what the guys say, so a chatty room doesn't bury the pixel art.
 // bubbles: every line in a bubble over its speaker, as before.
-// tidy: a few bubbles at once; the rest show a small "..." pip over the speaker until a slot frees up. When there's
-// free space above the room, lines that didn't get a bubble go to the chat log there instead of waiting.
+// tidy: a few bubbles at once; the rest show a small "..." pip over the speaker until a slot frees up. If the view
+// ever leaves free space above the room (the room fills it now), lines that didn't get a bubble go to a chat log there.
 // log: lines go to a chat log above the room, newest at the bottom, and fade; the room shows pips.
 // quiet: pips only.
 // In every style, hovering a guy shows his line, and lines that must be seen (your event lines, a show's act) stay
@@ -13,7 +13,7 @@ export const CHATTER_STYLES: readonly ChatterStyle[] = ["bubbles", "tidy", "log"
 
 export const CHATTER_LABELS: Record<ChatterStyle, { label: string; description: string }> = {
   bubbles: { label: "Bubbles", description: "every line in a bubble" },
-  tidy: { label: "Tidy", description: "a few bubbles at once, the rest as pips (and in a log when there's room above)" },
+  tidy: { label: "Tidy", description: "a few bubbles at once, the rest as pips" },
   log: { label: "Chat Log", description: "lines in a log above the room, pips in it" },
   quiet: { label: "Quiet", description: "pips only, hover a guy to read" },
 };

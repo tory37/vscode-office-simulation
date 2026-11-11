@@ -468,7 +468,14 @@ export function showLightLevel(show: ShowState | undefined, now: number): number
 }
 
 // The comedian's spotlight: the room dims, and a beam falls from the ceiling onto him.
-export function drawSpotlight(kit: Kit, show: ShowState, roomWidth: number, roomHeight: number, level: number): void {
+// The area is what's drawn, in the room's pixels: the room and the edge past it.
+export interface DrawnArea {
+  left: number;
+  width: number;
+  height: number;
+}
+
+export function drawSpotlight(kit: Kit, show: ShowState, area: DrawnArea, level: number): void {
   if (level <= 0) {
     return;
   }
@@ -484,19 +491,20 @@ export function drawSpotlight(kit: Kit, show: ShowState, roomWidth: number, room
     const dy = (y - feetY) / poolY;
     return dy >= 1 ? -1 : Math.round(poolX * Math.sqrt(1 - dy * dy));
   };
+  const right = area.left + area.width;
   context.globalAlpha = 0.5 * level;
-  for (let y = 0; y < roomHeight; y++) {
+  for (let y = 0; y < area.height; y++) {
     const half = halfWidth(y);
     if (half < 0) {
-      kit.rect(0, y, roomWidth, 1, "#05040C");
+      kit.rect(area.left, y, area.width, 1, "#05040C");
       continue;
     }
-    kit.rect(0, y, Math.max(0, centerX - half), 1, "#05040C");
-    kit.rect(centerX + half, y, Math.max(0, roomWidth - centerX - half), 1, "#05040C");
+    kit.rect(area.left, y, Math.max(0, centerX - half - area.left), 1, "#05040C");
+    kit.rect(centerX + half, y, Math.max(0, right - centerX - half), 1, "#05040C");
   }
   context.globalCompositeOperation = "lighter";
   context.globalAlpha = 0.12 * level;
-  for (let y = 0; y < roomHeight; y++) {
+  for (let y = 0; y < area.height; y++) {
     const half = halfWidth(y);
     if (half >= 0) {
       kit.rect(centerX - half, y, half * 2, 1, "#FFE9B8");
@@ -508,14 +516,16 @@ export function drawSpotlight(kit: Kit, show: ShowState, roomWidth: number, room
 
 // The dance party: the room goes dim and purple, a mirror ball turns over the stage, and spots of colored light sweep
 // the floor.
-export function drawDisco(kit: Kit, show: ShowState, roomWidth: number, roomHeight: number, now: number, level: number): void {
+export function drawDisco(kit: Kit, show: ShowState, area: DrawnArea, now: number, level: number): void {
   if (level <= 0) {
     return;
   }
   const context = kit.context;
   const centerX = show.stage.x * TILE + TILE / 2;
+  const roomWidth = area.width;
+  const roomHeight = area.height;
   context.globalAlpha = 0.3 * level;
-  kit.rect(0, 0, roomWidth, roomHeight, "#14062A");
+  kit.rect(area.left, 0, area.width, area.height, "#14062A");
   context.globalAlpha = level;
   // The ball, on a string from the ceiling.
   const ballY = 8;
@@ -540,7 +550,7 @@ export function drawDisco(kit: Kit, show: ShowState, roomWidth: number, roomHeig
   }
   // A wash of color on the beat.
   context.globalAlpha = (Math.floor(now * 2) % 2 === 0 ? 0.06 : 0.02) * level;
-  kit.rect(0, 0, roomWidth, roomHeight, colors[Math.floor(now / 2) % colors.length]);
+  kit.rect(area.left, 0, area.width, area.height, colors[Math.floor(now / 2) % colors.length]);
   context.globalCompositeOperation = "source-over";
   context.globalAlpha = 1;
 }

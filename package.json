@@ -299,7 +299,7 @@
             "quiet"
           ],
           "enumDescriptions": [
-            "A few speech bubbles at once (more in a wider room). The rest go to a chat log above the room when there's empty space there, or show a small \"...\" bubble until a slot frees up.",
+            "A few speech bubbles at once (more in a wider room). The rest show a small \"...\" bubble until a slot frees up.",
             "Every line in a speech bubble over its speaker.",
             "Lines go to a chat log above the room with the speaker's face, and fade after a few seconds. The room shows small \"...\" bubbles.",
             "Only small \"...\" bubbles. Hover a guy to read his line."

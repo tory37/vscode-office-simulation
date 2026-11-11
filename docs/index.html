@@ -61,6 +61,8 @@
   .sim-room[data-size="sidebar"] { max-width: 300px; height: 520px; }
   .sim-room[data-size="panel"] { max-width: 100%; height: 260px; }
   .sim-room[data-size="big"] { max-width: 100%; }
+  /* Any size: drag the corner, and the room fills it. */
+  .sim-room[data-size="free"] { resize: both; overflow: hidden; width: 420px; height: 300px; max-width: 100%; min-width: 120px; min-height: 100px; transition: none; }
   .sim-room:fullscreen { max-width: none; height: 100%; border-radius: 0; }
   .sim-panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 4px 12px 12px; max-height: 720px; overflow-y: auto; }
   .sim-panel fieldset { border: 0; border-top: 1px solid var(--line); margin: 0; padding: 10px 0 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -170,7 +172,7 @@
       <div class="sim-stage">
         <div class="office-frame sim-room" id="sim-room" data-size="big"></div>
         <div class="controls">
-          <label class="sim-size">View <select id="sim-size"><option value="big">Big</option><option value="sidebar">Sidebar</option><option value="panel">Panel</option></select></label>
+          <label class="sim-size">View <select id="sim-size"><option value="big">Big</option><option value="sidebar">Sidebar</option><option value="panel">Panel</option><option value="free">Drag to resize</option></select></label>
           <button id="sim-fullscreen">Full screen</button>
           <span class="tag" id="sim-count"></span>
         </div>
@@ -365,11 +367,12 @@
     <div class="diagram" role="img" aria-label="The extension side sends settings, agents, events, shows, invasions, visitors, and lines to the webview; the webview sends back ready, clicks, and when shows, invasions, and events start and end.">
       <div class="box"><strong>Extension side</strong>Reads <code>officeSim.*</code> settings, registers the view and commands, and exposes the API other extensions call.</div>
       <div class="arrows"><span>office · sceneEvent · tint · performance · invasion · visitor · say →</span><span>← ready · click · showStart · showEnd · invasionStart · invasionEnd · eventEnd</span></div>
-      <div class="box"><strong>Webview</strong>Sizes the room, steps the sim each frame, and draws it back to front at a whole-pixel zoom. Pauses while hidden.</div>
+      <div class="box"><strong>Webview</strong>Sizes the room to fill the view, steps the sim each frame, and draws it back to front at a whole-pixel zoom. Pauses while hidden.</div>
     </div>
 
     <h3>The room</h3>
     <p><code>officeLayout</code> builds a floor plan for a size in tiles: the back wall and door, desk spots in pairs with seats below, and props along the bottom, per scene. <code>officeShape</code> picks pairs per row and rows of desks for the biggest zoom the view allows, with room for ten desks at least, or the workers plus two. When you're in, the pair nearest the middle joins into your station. Paths are breadth-first searches that don't cut across seats.</p>
+    <p>The room fills the view at any size. The zoom is the biggest that still fits the desks the workers need. At that zoom the room takes every whole tile the view has, so a wider or taller view gets more floor and more desk spots (which activities fill), with the desks centered and whole pairs only. The last part of a tile at the sides and bottom is drawn as more of the same floor and wall, lit like the rest at night, so there's never a blank band. When a resize only adds or drops tiles around the desks, everyone moves with them: the guys at their desks keep typing. Try it in the simulator: set View to <strong>Drag to resize</strong> and pull the corner.</p>
 
     <h3>The guys</h3>
     <p><code>officeSim</code> runs everyone. A busy worker types at his desk. An idle one sits back, then goes to a prop, the couch, a walk, or a chat with another idle guy, and runs back when he's busy again. Asleep (a suspended session) is treated as idle: a nap at the desk is just one more idle thing, picked now and then for half a minute to a minute or so, and a few are napping when the view opens. Going between idle and asleep changes nothing he is doing; going busy wakes him and runs him back. A worker that goes away walks out the door. Desks are real objects: when one is missing, two maintenance guys fetch it from the door, carry it to its spot (the partner brings the chair), and build it, and the new guy waits beside the spot meanwhile. A desk with no worker gets taken apart and hauled out. While desks are still waiting, another maintenance guy comes in every moment or so, up to six, so a batch of new or ended sessions gets one job each. When the room grows or shrinks, desks already standing stay, and the crew still brings in or hauls out the rest.</p>
@@ -695,7 +698,7 @@ npx serve docs      # or any static server, then open the page</code></pre>
   document.querySelectorAll("[data-sim-event]").forEach((element) => element.addEventListener("click", () => simApi.playEvent(element.dataset.simEvent)));
   let simTint = 0;
   document.getElementById("sim-tint").addEventListener("click", () => simApi.setTint(++simTint));
-  document.getElementById("sim-size").addEventListener("change", (event) => { simRoom.dataset.size = event.target.value; });
+  document.getElementById("sim-size").addEventListener("change", (event) => { simRoom.dataset.size = event.target.value; simRoom.style.width = ""; simRoom.style.height = ""; });
   document.getElementById("sim-fullscreen").addEventListener("click", () => simRoom.requestFullscreen?.());
 
 

@@ -786,6 +786,12 @@ function stepYou(state: OfficeState, agent: Agent, random: Random): void {
 
 // Swaps in a new floor plan after a resize, keeps desks where it can, and has everyone pick up again from where they are.
 export function relayoutOffice(state: OfficeState, layout: OfficeLayout, random: Random): void {
+  // The room only grew or shrank around the desks: everyone and everything moves with them, so the guys at their
+  // desks stay put as the view is resized.
+  const shift = layoutShift(state.layout, layout);
+  if (shift !== undefined) {
+    shiftOffice(state, shift);
+  }
   // What was standing before: the guys who had their desks, and desks still waiting to be hauled out.
   const hadDesk = new Set(state.agents.filter((agent) => isSession(agent) && !agent.leaving && hasDesk(state, agent)).map((agent) => agent.id));
   const wantedBefore = new Set(state.agents.flatMap((agent) => (isSession(agent) && !agent.leaving && agent.deskIndex !== undefined ? [agent.deskIndex] : [])));
@@ -858,6 +864,57 @@ export function relayoutOffice(state: OfficeState, layout: OfficeLayout, random:
       // A visitor mid-speech keeps talking from where he stands; one still walking in gives up (stepVisitor).
       decide(state, agent, random);
     }
+  }
+}
+
+// How far the desks moved from one layout to the next, when they all moved the same way and none came or went.
+export function layoutShift(before: OfficeLayout, after: OfficeLayout): Point | undefined {
+  if (before.desks.length === 0 || before.desks.length !== after.desks.length || (before.station === undefined) !== (after.station === undefined)) {
+    return undefined;
+  }
+  const dx = after.desks[0].desk.x - before.desks[0].desk.x;
+  const dy = after.desks[0].desk.y - before.desks[0].desk.y;
+  if (dx === 0 && dy === 0) {
+    return undefined;
+  }
+  const moved = (from: Point, to: Point) => to.x - from.x === dx && to.y - from.y === dy;
+  const allMoved = before.desks.every((desk, index) => moved(desk.desk, after.desks[index].desk)) &&
+    (before.station === undefined || after.station === undefined || moved(before.station.desk, after.station.desk));
+  return allMoved ? { x: dx, y: dy } : undefined;
+}
+
+function shiftOffice(state: OfficeState, by: Point): void {
+  // Points can be shared (the stage is one of the show's spots, guys share the door as a work spot): each moves once.
+  const moved = new Set<Point>();
+  const move = (point: Point) => {
+    if (!moved.has(point)) {
+      moved.add(point);
+      point.x += by.x;
+      point.y += by.y;
+    }
+  };
+  for (const agent of state.agents) {
+    agent.x += by.x;
+    agent.y += by.y;
+    agent.path.forEach(move);
+    if (agent.target !== undefined) {
+      move(agent.target);
+    }
+    move(agent.workSpot);
+    if (agent.performer !== undefined) {
+      move(agent.performer.spot);
+    }
+    if (agent.strike !== undefined) {
+      move(agent.strike.at);
+    }
+  }
+  if (state.show !== undefined) {
+    move(state.show.stage);
+    state.show.spots.forEach(move);
+  }
+  const invasion = state.invasion;
+  if (invasion !== undefined) {
+    [...invasion.debris, ...invasion.hits, ...invasion.puffs].forEach(move);
   }
 }
 
