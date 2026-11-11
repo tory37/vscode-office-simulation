@@ -224,6 +224,11 @@
           <button id="sim-start-invasion">start</button>
           <label>on their own <select id="sim-invasion-frequency"></select></label>
         </fieldset>
+        <fieldset><legend>Gatherings</legend>
+          <select id="sim-gathering" aria-label="Gathering"></select>
+          <button id="sim-start-gathering">start</button>
+          <label>on their own <select id="sim-gathering-frequency"></select></label>
+        </fieldset>
         <fieldset><legend>Visitors</legend>
           <select id="sim-visitor" aria-label="Department"></select>
           <button id="sim-send-visitor">send</button>
@@ -315,6 +320,14 @@
       </div>
 
       <div class="demo">
+        <h3>Gatherings</h3>
+        <p>Now and then the whole room stops for something together. Someone calls it, the desks in the middle slide to the sides, and everyone who isn't busy comes over. An instructor leads a yoga class on mats: sun salutation, tree pose, savasana. The fire marshal lights a bin, puts it out with the extinguisher, and has everyone stop, drop, and roll. Two guys have a card duel across a table while the room gasps. In a dance circle, karaoke, or team-building trust falls, each guy takes a turn in the middle (most trust falls get caught). There's a birthday with a song and cake for everyone, an all-hands with a chart on the wall and an awkward silence, a trivia quiz with shouted guesses, and scary stories around a campfire. Busy guys keep working at their desks wherever the desks slid to. Afterwards the desks slide back. <code>officeSim.gatherings</code> sets how often (off, rare, normal, often).</p>
+        <div id="demo-gatherings"></div>
+        <div class="controls" id="gathering-buttons"></div>
+        <p class="log" id="gathering-log"></p>
+      </div>
+
+      <div class="demo">
         <h3>Visitors</h3>
         <p>People from other departments drop by: some say a line and leave, some stay to chat, loom over busy desks, or get coffee. Each guy answers in his own personality.</p>
         <div id="demo-visitors"></div>
@@ -364,9 +377,9 @@
     <h2>How it works</h2>
     <p class="lead">Two halves talk over messages: a small extension side that reads settings and the API, and a webview that runs and draws the whole simulation. Nearly all of the logic is pure TypeScript with no VS Code or DOM in it, so it's unit tested and runs the same on this page.</p>
 
-    <div class="diagram" role="img" aria-label="The extension side sends settings, agents, events, shows, invasions, visitors, and lines to the webview; the webview sends back ready, clicks, and when shows, invasions, and events start and end.">
+    <div class="diagram" role="img" aria-label="The extension side sends settings, agents, events, shows, invasions, gatherings, visitors, and lines to the webview; the webview sends back ready, clicks, and when shows, invasions, gatherings, and events start and end.">
       <div class="box"><strong>Extension side</strong>Reads <code>officeSim.*</code> settings, registers the view and commands, and exposes the API other extensions call.</div>
-      <div class="arrows"><span>office · sceneEvent · tint · performance · invasion · visitor · say →</span><span>← ready · click · showStart · showEnd · invasionStart · invasionEnd · eventEnd</span></div>
+      <div class="arrows"><span>office · sceneEvent · tint · performance · invasion · gathering · visitor · say →</span><span>← ready · click · showStart · showEnd · invasionStart · invasionEnd · gatheringStart · gatheringEnd · eventEnd</span></div>
       <div class="box"><strong>Webview</strong>Sizes the room to fill the view, steps the sim each frame, and draws it back to front at a whole-pixel zoom. Pauses while hidden.</div>
     </div>
 
@@ -381,11 +394,14 @@
 
     <h3>Your guy</h3>
     <p>You get the station in the middle with two monitors. Between events you take breaks: wander, chat, or go look over a busy guy's shoulder. <code>officeYou</code> scripts each moment of an ERROR, HACK, or DEFENSE event (your pose, line, main monitor, and shake), and the room's one-word reactions. A tint message recolors your second monitor's graph with a sweep.</p>
-    <p>The Office view's title bar has its buttons in this order: Trigger Event, Stop, Quiet, Day / Night, Switch Scene, Chatter, Customize Your Guy, and Settings. Stop ends whatever's playing: the show goes home, an invasion snaps back (everyone up, the mess gone), visitors say bye, and a scene event ends. Quiet (<code>officeSim.quiet</code>, the bell) keeps shows, visitors, invasions, and scene events from coming on their own, in the Office only (a host's own views keep theirs), while Trigger Event still starts any of them. Day / Night makes it night when it's day, or day when it's night, for ten minutes, in every open Office at once; press it again for the clock. Settings opens Settings on <code>officeSim</code>. Trigger Event (<code>officeTriggers</code>) starts anything the Office can play, from one list: the scene events, the invasions, the shows, and a visitor from any department, or Surprise Me for any of them. A keybinding can pass an id like <code>"invasion:zombies"</code>. A scene event picked there goes to the host when one has taken over events (<code>onDidRequestEvent</code>), so Overseer plays it in its own views at the same moment.</p>
+    <p>The Office view's title bar has its buttons in this order: Trigger Event, Stop, Quiet, Day / Night, Switch Scene, Chatter, Customize Your Guy, and Settings. Stop ends whatever's playing: the show goes home, an invasion snaps back (everyone up, the mess gone), a gathering breaks up (the desks slide back), visitors say bye, and a scene event ends. Quiet (<code>officeSim.quiet</code>, the bell) keeps shows, visitors, invasions, gatherings, and scene events from coming on their own, in the Office only (a host's own views keep theirs), while Trigger Event still starts any of them. Day / Night makes it night when it's day, or day when it's night, for ten minutes, in every open Office at once; press it again for the clock. Settings opens Settings on <code>officeSim</code>. Trigger Event (<code>officeTriggers</code>) starts anything the Office can play, from one list: the scene events, the invasions, the shows, the gatherings, and a visitor from any department, or Surprise Me for any of them. A keybinding can pass an id like <code>"invasion:zombies"</code>. A scene event picked there goes to the host when one has taken over events (<code>onDidRequestEvent</code>), so Overseer plays it in its own views at the same moment.</p>
     <p>On its own, the Office plays an event every few minutes (<code>officeSim.events</code>) and moves the tint every 20 to 40 seconds. An extension that plays events or sets the tint itself takes over, so Overseer's views and the Office play the same event at the same moment.</p>
 
     <h3>Visitors and shows</h3>
     <p><code>officeVisitors</code> sends people from other departments in on the frequency setting, up to five at once. Some say a line and go, some stay a minute or two, some settle in. Bosses wear ties. Every guy has a personality from his seed (suck-up, grumbler, deadpan, snark, eager) that shapes how he answers a boss or anyone else. <code>officePerformances</code> plans shows: who performs, what they wear, their lines and crowd cues, the closer, and the snacks. The sim walks performers to the stage with the most open floor in front, gathers the free guys as a crowd, and sends everyone back after the bows.</p>
+
+    <h3>Gatherings</h3>
+    <p><code>officeGatherings</code> holds the ten kinds: who leads (a host who walks in, like the yoga instructor, fire marshal, CEO, quiz master, or coach, or one of the guys), whether the room stands in a ring around the middle or in rows facing the front, what stands there (mats, the demo bin, a card table, a cake, a screen on the wall, a mic, a campfire, a boombox), the room's light (calm, disco, a spotlight, firelight), whether the crowd stands, sits, or follows the lead's poses, whether guys take turns in the middle or two face off, and every line. A script line can be said by the lead, the other duelist, or the crowd together. It can set the pose everyone follows, mark a moment (the bin lights, the extinguisher puts it out, the candles go out, the cake's served, a card's played, the chart goes up), and cue the crowd to cheer, laugh, gasp, clap, shout guesses, wince, or go quiet. <code>officeLayout</code>'s <code>pushDesksAside</code> works out the room with its desks pushed out of the way. Each desk row's pairs (and your station) slide toward the nearer side, packed edge to edge, so the widest strip it can open runs down the middle from the wall to the props. The corridors at the edges stay open, and every seat still opens onto the aisle below it. The sim runs it in four parts. In the call, the lead says what's on and the host starts walking in. Then the desks slide aside: each desk keeps its index, so its guy follows it, and the view eases it over with a puff of dust. Everyone free comes to a spot nearest the middle, or in rows nearest the front. Sleeping guys wake up for it, and anyone who goes idle later joins in. While it's on, the lead's lines spread over its length, and for the turn kinds one guy at a time takes the middle. A guy who gets busy goes back to work, and if a lead from the room goes, someone else steps up. In the closing, the closer gets a cheer, everyone goes back to what he was doing, the host heads out, and the desks slide back. Resizing the view ends it with the desks in their new places. An invasion ends it; it waits out a show; and no shows or visitors come while one is on.</p>
 
     <h3>Invasions</h3>
     <p><code>officeInvasions</code> holds the ten kinds: how they come in and go out (the door, a beam, or a puff of smoke, and out as bats or fading away), how they strike (a bite that turns a guy into one of them, a slurp, a zap from a few tiles off drawn as a bolt, a laser, or a fireball, a bonk, or a spook), the mark a hit leaves (pale, wrapped, slimed, or sooty, until he dusts off), whether they shamble, loot, darken the room, or run from the sunrise, how fast they are, how many come for the room's size, the words that pop off a hit, the mess they leave, and everyone's lines. The sim runs it in four parts. In the warning, the room's tint flickers on, a banner goes up, and everyone (busy guys and you too, but not the crew, who've seen worse) drops what he's doing and freezes. In the attack, the invaders come in one by one and chase the nearest guy still standing that nobody else is after. The guys run for open floor far from them, or hide where they are. A guy who's caught struggles until the strike lands, then goes down seeing stars. A zombie's or werewolf's bite gets him up again as one of them, chasing the rest. An alien's zap sometimes floats him up in a beam instead. A vampire's tackle is followed by a slurp over him, and he's pale after. Now and then an invader smashes a desk or a prop and leaves a mess. The attack ends when everyone's down, or after 30 to 45 seconds. In the retreat, the invaders say a line and go: the aliens beam up, the vampires flee the sunrise as bats, ghosts fade away, slimes and demons vanish in a puff, the zombies, mummies, robots, and werewolves go out the door, and the raiders run off with whatever they grabbed. Anyone still caught goes down, guys in a beam drop, and turned guys keel over. In the aftermath, the guys who were never caught come out of it first, and the rest come to one at a time. Each looks around, says something about what hit him (in his own personality), dusts off, and sweeps up the nearest mess nobody's on. Then he goes back to what he was doing, and busy guys head to their desks. A status change in the middle of it waits until he's back to normal. Guys who walk in during the attack get caught up in it too. An invasion cuts a show short, and no shows or visitors come while one is on.</p>
@@ -435,6 +451,7 @@ if (api?.apiVersion === 1) {
           <button data-api="tint">setTint(n)</button>
           <button data-api="show">playShow("magician")</button>
           <button data-api="invasion">startInvasion("vampires")</button>
+          <button data-api="gathering">startGathering("danceCircle")</button>
         </div>
         <div class="controls">
           <label>sendVisitor <select id="api-visitor"></select></label>
@@ -459,6 +476,7 @@ if (api?.apiVersion === 1) {
       <tr><td><code>takeOverEvents()</code></td><td>Stops the Office's own event schedule and tint cycle now, for a host that plays its own. Call it when you hook in, so the two never double up.</td></tr>
       <tr><td><code>playShow(kind?)</code></td><td>Puts on a show now (<span id="api-show-ids"></span>, or <code>"random"</code>), opening the Office first if it's hidden.</td></tr>
       <tr><td><code>startInvasion(kind?)</code></td><td>Starts an invasion now (<span id="api-invasion-ids"></span>, or <code>"random"</code>), opening the Office first if it's hidden. Nothing happens while one is on.</td></tr>
+      <tr><td><code>startGathering(kind?)</code></td><td>Starts a group gathering now (<span id="api-gathering-ids"></span>, or <code>"random"</code>), opening the Office first if it's hidden. Nothing happens while one, a show, or an invasion is on, or if too few are free to come.</td></tr>
       <tr><td><code>sendVisitor(kind?)</code></td><td>Sends in someone from a department (<span id="api-visitor-ids"></span>), or a random one.</td></tr>
       <tr><td><code>say(id, text, seconds?)</code></td><td>Puts a line over an agent's guy, or yours with <code>"you"</code>. Up to 80 characters for 1 to 20 seconds; it goes ahead of the room's own chatter.</td></tr>
     </tbody></table></div>
@@ -481,6 +499,7 @@ if (api?.apiVersion === 1) {
       <tr><td><code>onDidClickAgent</code></td><td>A guy is clicked: his agent id, or <code>"you"</code>.</td></tr>
       <tr><td><code>onDidStartShow</code>, <code>onDidEndShow</code></td><td>A show starts or ends, with its kind.</td></tr>
       <tr><td><code>onDidStartInvasion</code>, <code>onDidEndInvasion</code></td><td>An invasion starts, or ends with everyone back on his feet and the mess swept up, with its kind.</td></tr>
+      <tr><td><code>onDidStartGathering</code>, <code>onDidEndGathering</code></td><td>A group gathering starts, or ends with the desks back in place, with its kind.</td></tr>
       <tr><td><code>onDidFinishEvent</code></td><td>A scene event finishes playing, with its kind.</td></tr>
       <tr><td><code>onDidRequestEvent</code></td><td>Someone asked for a scene event in the Office (its Trigger Event button) after your extension took over events. Play it with <code>playEvent</code> and anywhere else you show events, so they play together. Until something listens, a request plays in the Office alone.</td></tr>
       <tr><td><code>onDidChangeYourLook</code></td><td>Your guy's look changes, from the maker or the setting.</td></tr>
@@ -610,7 +629,7 @@ npx serve docs      # or any static server, then open the page</code></pre>
 
   // Simulator: one room and every control.
   const simRoom = document.getElementById("sim-room");
-  const sim = new OfficeDemo(simRoom, { agents: workers(["working", "working", "idle", "idle", "working", "asleep", "idle"]), visitors: "often", performances: "rare" });
+  const sim = new OfficeDemo(simRoom, { agents: workers(["working", "working", "idle", "idle", "working", "asleep", "idle"]), visitors: "often", performances: "rare", gatherings: "rare" });
   const simApi = sim.api;
   const simLog = document.getElementById("sim-log");
   const simHeard = [];
@@ -645,6 +664,8 @@ npx serve docs      # or any static server, then open the page</code></pre>
   simApi.onDidFinishEvent((kind) => simHear(`onDidFinishEvent → "${kind}"`));
   simApi.onDidStartInvasion((kind) => simHear(`onDidStartInvasion → "${kind}"`));
   simApi.onDidEndInvasion((kind) => simHear(`onDidEndInvasion → "${kind}"`));
+  simApi.onDidStartGathering((kind) => simHear(`onDidStartGathering → "${kind}"`));
+  simApi.onDidEndGathering((kind) => simHear(`onDidEndGathering → "${kind}"`));
   const simSelect = (id, values, current, key) => {
     const select = document.getElementById(id);
     options(select, values, current);
@@ -669,6 +690,9 @@ npx serve docs      # or any static server, then open the page</code></pre>
   document.getElementById("sim-sky").addEventListener("change", (event) => sim.set({ sky: event.target.value || null }));
   const simInvasion = simSelect("sim-invasion", [{ id: "random", label: "Surprise me" }, ...SITE.invasions], "random");
   document.getElementById("sim-start-invasion").addEventListener("click", () => simApi.startInvasion(simInvasion.value));
+  simSelect("sim-gathering-frequency", SITE.gatheringFrequencies, "rare", "gatherings");
+  const simGathering = simSelect("sim-gathering", [{ id: "random", label: "Surprise me" }, ...SITE.gatherings], "random");
+  document.getElementById("sim-start-gathering").addEventListener("click", () => simApi.startGathering(simGathering.value));
   simSelect("sim-visitor-frequency", SITE.visitorFrequencies, "often", "visitors");
   const simShow = simSelect("sim-show", [{ id: "random", label: "Surprise me" }, ...SITE.shows], "random");
   document.getElementById("sim-play-show").addEventListener("click", () => simApi.playShow(simShow.value));
@@ -799,6 +823,15 @@ npx serve docs      # or any static server, then open the page</code></pre>
   invasions.api.onDidStartInvasion((kind) => { invasionLog.textContent = `onDidStartInvasion → "${kind}"`; });
   invasions.api.onDidEndInvasion((kind) => { invasionLog.textContent = `onDidEndInvasion → "${kind}": everyone's back to normal`; });
 
+  // Gatherings.
+  const gatherings = new OfficeDemo(document.getElementById("demo-gatherings"), { agents: workers(["idle", "working", "idle", "asleep", "idle", "working", "idle", "idle"]), visitors: "off" });
+  const gatheringButtons = document.getElementById("gathering-buttons");
+  const gatheringLog = document.getElementById("gathering-log");
+  gatheringButtons.appendChild(button("Surprise me", () => gatherings.api.startGathering("random")));
+  for (const gathering of SITE.gatherings) gatheringButtons.appendChild(button(gathering.label, () => gatherings.api.startGathering(gathering.id)));
+  gatherings.api.onDidStartGathering((kind) => { gatheringLog.textContent = `onDidStartGathering → "${kind}"`; });
+  gatherings.api.onDidEndGathering((kind) => { gatheringLog.textContent = `onDidEndGathering → "${kind}": the desks are back`; });
+
   // Visitors.
   const visitors = new OfficeDemo(document.getElementById("demo-visitors"), { agents: workers(["working", "idle", "working", "idle"]), visitors: "packed" });
   const visitorSelect = document.getElementById("visitor-frequency");
@@ -850,6 +883,8 @@ npx serve docs      # or any static server, then open the page</code></pre>
   api.onDidFinishEvent((kind) => hear(`onDidFinishEvent → "${kind}"`));
   api.onDidStartInvasion((kind) => hear(`onDidStartInvasion → "${kind}"`));
   api.onDidEndInvasion((kind) => hear(`onDidEndInvasion → "${kind}"`));
+  api.onDidStartGathering((kind) => hear(`onDidStartGathering → "${kind}"`));
+  api.onDidEndGathering((kind) => hear(`onDidEndGathering → "${kind}"`));
   const show = (text) => { code.textContent = text; };
   const pushAgents = () => {
     api.setAgents(apiAgents.map((agent, index) => ({ ...agent, highlighted: index === crown })));
@@ -867,6 +902,7 @@ npx serve docs      # or any static server, then open the page</code></pre>
   options(visitorKind, SITE.visitorKinds.map((kind) => ({ id: kind.id, label: kind.title })), "ceo");
   document.getElementById("api-show-ids").innerHTML = SITE.shows.map((item) => `<code>"${item.id}"</code>`).join(", ");
   document.getElementById("api-invasion-ids").innerHTML = SITE.invasions.map((item) => `<code>"${item.id}"</code>`).join(", ");
+  document.getElementById("api-gathering-ids").innerHTML = SITE.gatherings.map((item) => `<code>"${item.id}"</code>`).join(", ");
   document.getElementById("api-visitor-ids").innerHTML = SITE.visitorKinds.map((kind) => `<code>"${kind.id}"</code>`).join(", ");
   const randomColor = () => `#${Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, "0")}`;
   const actions = {
@@ -887,6 +923,7 @@ npx serve docs      # or any static server, then open the page</code></pre>
     tint: () => { api.setTint(++apiTint); show(`api.setTint(${apiTint});`); },
     show: () => { api.playShow("magician"); show('api.playShow("magician");'); },
     invasion: () => { api.startInvasion("vampires"); show('api.startInvasion("vampires");'); },
+    gathering: () => { api.startGathering("danceCircle"); show('api.startGathering("danceCircle");'); },
     visitor: () => { api.sendVisitor(visitorKind.value); show(`api.sendVisitor("${visitorKind.value}");`); },
     say: () => {
       const text = document.getElementById("api-say-text").value;

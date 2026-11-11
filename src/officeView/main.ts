@@ -8,7 +8,7 @@ import { critterGap, critterLines, critterPoses, CritterRun, critterRunDone, pla
 import { FLIERS, flierGap, flierLines, flierPoses, Flight, flightDone, planFlight } from "../officeFliers";
 import {
   activityFit, Agent, AgentInput, agentPose, callYouBack, createOffice, endShow, isAtStation, LookVariant, lookToward, officeCounts, reactToCritter, relayoutOffice, setYouStatus,
-  endInvasion, sendVisitorsHome, startInvasion, startShow, stepOffice, syncOffice, syncYou, visitorAgents, visitorArrives, youAgent,
+  endGathering, endInvasion, sendVisitorsHome, startGathering, startInvasion, startShow, stepOffice, syncOffice, syncYou, visitorAgents, visitorArrives, youAgent,
 } from "../officeSim";
 import {
   invaderClothes, INVASIONS, InvasionFrequency, invasionFrequency, invasionGap, InvasionKindId, isInvasionKind, planInvasion,
@@ -33,6 +33,8 @@ import "./maker.css";
 import { openMaker } from "./maker";
 import { SCENE_PALETTES, ScenePalette } from "./palettes";
 import { drawBroom, drawDebris, drawDizzy, drawDust, drawInvaderGear, drawInvasionBanner, drawInvasionEffects, drawInvasionTint, variantLook } from "./invasions";
+import { drawGatheringFloor, drawGatheringLights, drawHostGear, drawSlideDust, gatheringPieces } from "./gatherings";
+import { GATHERINGS, GatheringFrequency, gatheringFrequency, gatheringGap, GatheringKindId, isGatheringKind, planGathering } from "../officeGatherings";
 import { drawDeskPlate, drawDisco, drawGear, drawSetPiece, drawSnack, drawSpotlight, PerformerSpot, ShowEffects, showLightLevel } from "./shows";
 import { backdropHasSky, drawAfterLight, drawBackdrop, drawGroundDetail, drawSceneryProp, drawWeather, Kit, LIBRARY_WINDOW_EVERY, propLight, skyBottom } from "./scenery";
 
@@ -49,7 +51,8 @@ interface OfficeMessage {
   visitors?: unknown;
   performances?: unknown;
   invasions?: unknown;
-  // Quiet: no shows, visitors, or invasions come on their own; the buttons still start them.
+  gatherings?: unknown;
+  // Quiet: no shows, visitors, invasions, or gatherings come on their own; the buttons still start them.
   quiet?: boolean;
   // The Night button: day or night for a while, whatever the clock says.
   sky?: unknown;
@@ -111,6 +114,12 @@ interface StopMessage {
 // Start an invasion now (the Start Invasion command): a kind, or anything else for a random one.
 interface InvasionMessage {
   type: "invasion";
+  kind?: string;
+}
+
+// Start a group gathering now (the Start Gathering command): a kind, or anything else for a random one.
+interface GatheringMessage {
+  type: "gathering";
   kind?: string;
 }
 
@@ -176,6 +185,11 @@ const showEffects = new ShowEffects();
 let invasionsSetting: InvasionFrequency = "normal";
 let nextInvasionAt = invasionGap(Math.random, "normal", true);
 let invasionCount = 0;
+
+// Group gatherings: how often they come and when the next one does.
+let gatheringsSetting: GatheringFrequency = "normal";
+let nextGatheringAt = gatheringGap(Math.random, "normal", true);
+let gatheringCount = 0;
 // Quiet: nothing comes on its own.
 let quiet = false;
 
@@ -259,7 +273,7 @@ new ResizeObserver(() => {
   }
 }).observe(canvas);
 
-window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEventMessage | TintMessage | PerformanceMessage | InvasionMessage | StopMessage | VisitorMessage | SayMessage | MakerMessage>) => {
+window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEventMessage | TintMessage | PerformanceMessage | InvasionMessage | GatheringMessage | StopMessage | VisitorMessage | SayMessage | MakerMessage>) => {
   const data = event.data;
   if (data !== null && typeof data === "object" && data.type === "maker") {
     const requestId = data.requestId;
@@ -284,6 +298,10 @@ window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEve
   }
   if (data !== null && typeof data === "object" && data.type === "invasion") {
     playInvasion(isInvasionKind(data.kind) ? data.kind : undefined);
+    return;
+  }
+  if (data !== null && typeof data === "object" && data.type === "gathering") {
+    playGathering(isGatheringKind(data.kind) ? data.kind : undefined);
     return;
   }
   if (data !== null && typeof data === "object" && data.type === "sceneEvent") {
@@ -312,7 +330,7 @@ window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEve
     racesOn = nextRaces;
     // Redraw the session guys; your look and visitors already in the room keep theirs.
     for (const key of [...lookCache.keys()]) {
-      if (!key.startsWith("you|") && !key.startsWith("visitor|") && !key.startsWith("show|") && !key.startsWith("invader|") && !customLooks.has(key)) {
+      if (!key.startsWith("you|") && !key.startsWith("visitor|") && !key.startsWith("show|") && !key.startsWith("invader|") && !key.startsWith("gather|") && !customLooks.has(key)) {
         lookCache.delete(key);
       }
     }
@@ -337,6 +355,11 @@ window.addEventListener("message", (event: MessageEvent<OfficeMessage | SceneEve
     nextInvasionAt = Math.min(nextInvasionAt, state.time + invasionGap(random, nextInvasions, true));
   }
   invasionsSetting = nextInvasions;
+  const nextGatherings = gatheringFrequency(data.gatherings);
+  if (nextGatherings !== gatheringsSetting && nextGatherings !== "off") {
+    nextGatheringAt = Math.min(nextGatheringAt, state.time + gatheringGap(random, nextGatherings, true));
+  }
+  gatheringsSetting = nextGatherings;
   state.talk = talkFactor(talkFrequency(data.talk));
   state.activityLevel = activityLevel(data.activities);
   state.activitySwaps = activitySwaps(data.activitySwaps);
@@ -434,8 +457,8 @@ function stepVisitors(): void {
     nextVisitorAt = state.time + 60;
     return;
   }
-  if (state.show !== undefined || state.invasion !== undefined) {
-    // Nobody drops by in the middle of a show (or an invasion); they'll come a little after.
+  if (state.show !== undefined || state.invasion !== undefined || state.gathering !== undefined) {
+    // Nobody drops by in the middle of a show (or an invasion, or a gathering); they'll come a little after.
     nextVisitorAt = state.time + 20;
     return;
   }
@@ -494,7 +517,7 @@ function stepShows(): void {
   if (state.show !== undefined || performancesSetting === "off" || sceneEvent !== undefined || state.time < nextShowAt) {
     return;
   }
-  if (state.invasion !== undefined || quiet) {
+  if (state.invasion !== undefined || state.gathering !== undefined || quiet) {
     nextShowAt = state.time + 60;
     return;
   }
@@ -515,6 +538,7 @@ function playShow(kind: PerformanceKindId | undefined): void {
   if (state.show !== undefined) {
     endShow(state, random);
   }
+  endGathering(state, random);
   const plan = planPerformance(random, kind);
   showCount += 1;
   const performers = PERFORMANCES[plan.kind].roles.map((role, index) => {
@@ -539,7 +563,7 @@ function stepInvasions(): void {
   if (state.invasion !== undefined || invasionsSetting === "off" || state.time < nextInvasionAt) {
     return;
   }
-  if (state.show !== undefined || sceneEvent !== undefined || quiet) {
+  if (state.show !== undefined || state.gathering !== undefined || sceneEvent !== undefined || quiet) {
     nextInvasionAt = state.time + (quiet ? 120 : 30);
     return;
   }
@@ -571,10 +595,61 @@ function playInvasion(kind: InvasionKindId | undefined): void {
   }
 }
 
-// Ends whatever's playing: the show, the invasion (the room snaps back), visitors (they say bye and go), and a scene
-// event.
+// Starts the next group gathering when it's time: not over a show, an invasion, or a scene event, and only with
+// guys free to come.
+function stepGatherings(): void {
+  if (state.gathering !== undefined || gatheringsSetting === "off" || state.time < nextGatheringAt) {
+    return;
+  }
+  if (state.show !== undefined || state.invasion !== undefined || sceneEvent !== undefined || quiet) {
+    nextGatheringAt = state.time + (quiet ? 120 : 45);
+    return;
+  }
+  nextGatheringAt = state.time + gatheringGap(random, gatheringsSetting);
+  if (!playGathering(undefined)) {
+    // Too few free to come: try again in a couple of minutes.
+    nextGatheringAt = state.time + 120;
+  }
+}
+
+// Starts a gathering of this kind, or a random one, unless one is on already. A show on now is cut short.
+function playGathering(kind: GatheringKindId | undefined): boolean {
+  if (state.gathering !== undefined || state.invasion !== undefined) {
+    return false;
+  }
+  endShow(state, random);
+  const plan = planGathering(random, kind);
+  const spec = GATHERINGS[plan.kind];
+  gatheringCount += 1;
+  let host: { id: string; seed: string; title: string } | undefined;
+  if (spec.host !== undefined) {
+    // A few looks per host, each with its own race.
+    const seed = `gather|${plan.kind}|${gatheringCount % 5}`;
+    const look = pixelGuyLook(seed, racesOn);
+    const outfit = spec.host.outfit;
+    lookCache.set(seed, {
+      ...look, shirt: outfit.shirt, pants: outfit.pants, accessory: outfit.accessory ?? look.accessory,
+      accessoryColor: outfit.accessoryColor ?? look.accessoryColor, tie: outfit.tie,
+    });
+    forgetSprites(seed);
+    host = { id: `${seed}|${gatheringCount}`, seed, title: spec.host.title };
+  }
+  const started = startGathering(state, {
+    kind: plan.kind, title: plan.title, call: plan.call, lines: plan.lines, closer: plan.closer, length: plan.length, turnLines: plan.turnLines, host,
+  }, random);
+  if (started) {
+    nextGatheringAt = Math.max(nextGatheringAt, state.time + plan.length + 180);
+    nextShowAt = Math.max(nextShowAt, state.time + plan.length + 60);
+    vscode.postMessage({ type: "gatheringStart", kind: plan.kind });
+  }
+  return started;
+}
+
+// Ends whatever's playing: the show, the invasion (the room snaps back), a gathering (the desks slide back), visitors
+// (they say bye and go), and a scene event.
 function stopEverything(): void {
   endShow(state, random);
+  endGathering(state, random);
   endInvasion(state, random);
   sendVisitorsHome(state);
   if (sceneEvent !== undefined) {
@@ -1824,7 +1899,7 @@ function stationSlide(agent: Agent): number {
 }
 
 // A guy knocked flat: his frame laid on its side on his tile, head left or right, stars going round over his head.
-function drawLying(agent: Agent, pose: Pose, seconds: number): AgentBox {
+function drawLying(agent: Agent, pose: Pose, seconds: number, resting = false): AgentBox {
   const centerX = Math.round(agent.x * TILE + TILE / 2);
   const floorY = Math.round(agent.y * TILE + TILE - 1);
   const headLeft = agent.scare?.headLeft !== false;
@@ -1838,16 +1913,16 @@ function drawLying(agent: Agent, pose: Pose, seconds: number): AgentBox {
   context.drawImage(sprite(agent.seed, pose, "down", 0, agent.variant), -FRAME_WIDTH / 2, -FRAME_HEIGHT / 2 - 1);
   context.restore();
   const headX = centerX + (headLeft ? -6 : 6);
-  if (state.invasion?.phase !== "aftermath" || agent.scare?.woke !== true) {
+  if (!resting && (state.invasion?.phase !== "aftermath" || agent.scare?.woke !== true)) {
     drawDizzy(kit, headX, floorY - 9, seconds + agent.x);
   }
   return { agent, left: centerX - FRAME_WIDTH / 2, top: floorY - 9 };
 }
 
 function drawAgent(agent: Agent, seconds: number): AgentBox {
-  const pose = agentPose(agent, seconds);
+  const pose = agentPose(agent, seconds, state.gathering);
   if (pose.lying === true) {
-    return drawLying(agent, pose.pose, seconds);
+    return drawLying(agent, pose.pose, seconds, pose.resting === true);
   }
   const baseBox = agentBox(agent, pose.seated);
   const box = pose.offset === undefined ? baseBox : { ...baseBox, left: baseBox.left + pose.offset.x, top: baseBox.top + pose.offset.y };
@@ -1859,8 +1934,10 @@ function drawAgent(agent: Agent, seconds: number): AgentBox {
   }
   const show = state.show;
   // The crowd bops to the music.
-  const dancing = agent.mode === "watch" && pose.pose !== "cheer" && show !== undefined && show.phase === "playing" &&
-    (PERFORMANCES[show.kind].effect === "notes" || PERFORMANCES[show.kind].effect === "disco") && Math.floor(seconds * 2.5 + agent.x) % 2 === 0;
+  const dancing = ((agent.mode === "watch" && show !== undefined && show.phase === "playing" &&
+    (PERFORMANCES[show.kind].effect === "notes" || PERFORMANCES[show.kind].effect === "disco")) ||
+    (agent.mode === "gather" && state.gathering?.phase === "on" && GATHERINGS[state.gathering.kind].effect === "disco" && agent.id !== state.gathering.turn?.id)) &&
+    pose.pose !== "cheer" && Math.floor(seconds * 2.5 + agent.x) % 2 === 0;
   const bob = (pose.pose === "walk" && pose.frame % 2 === 1) || dancing ? -1 : 0;
   const performer = agent.performer;
   const gearBox = { left: box.left, top: box.top + bob };
@@ -1881,6 +1958,9 @@ function drawAgent(agent: Agent, seconds: number): AgentBox {
     drawGear(kit, performer.role, gearBox, pose.facing, "front", show, seconds, agent.mode === "perform");
   }
   drawInvaderGear(kit, agent, gearBox, pose.facing, pose.frame, "front");
+  if (agent.gatherHost === true) {
+    drawHostGear(kit, agent, state.gathering, gearBox, pose.facing, seconds);
+  }
   if (agent.mode === "sweep" && agent.path.length === 0) {
     drawBroom(kit, gearBox, pose.facing, pose.frame);
   } else if (agent.mode === "dust") {
@@ -1902,6 +1982,32 @@ function drawAgent(agent: Agent, seconds: number): AgentBox {
     drawCarried(box, crew.carrying === undefined ? undefined : deskStyleOf(crew.carrying), bob, SCENE_PALETTES[sceneId]);
   }
   return box;
+}
+
+// Where a desk is drawn: its spot, or on its way there while the desks slide (state.slideUntil), easing in. dx is
+// which way it's moving (0 at rest), for the dust.
+const deskSlides = new Map<string, { x: number; y: number; at: number }>();
+function slidDesk<T extends { desk: Point; seat: Point }>(key: string, spot: T, seconds: number): { desk: T; dx: number } {
+  const drawn = deskSlides.get(key);
+  const sliding = seconds < (state.slideUntil ?? -Infinity) + 0.5;
+  if (drawn === undefined || !sliding) {
+    deskSlides.set(key, { x: spot.desk.x, y: spot.desk.y, at: seconds });
+    return { desk: spot, dx: 0 };
+  }
+  const ease = Math.min(1, Math.max(0, seconds - drawn.at) * 4.5);
+  const stepX = (spot.desk.x - drawn.x) * ease;
+  drawn.x += stepX;
+  drawn.y += (spot.desk.y - drawn.y) * ease;
+  drawn.at = seconds;
+  const offX = Math.round((drawn.x - spot.desk.x) * TILE) / TILE;
+  const offY = Math.round((drawn.y - spot.desk.y) * TILE) / TILE;
+  if (offX === 0 && offY === 0) {
+    return { desk: spot, dx: 0 };
+  }
+  return {
+    desk: { ...spot, desk: { x: spot.desk.x + offX, y: spot.desk.y + offY }, seat: { x: spot.seat.x + offX, y: spot.seat.y + offY } },
+    dx: Math.abs(stepX) > 0.002 ? Math.sign(stepX) : 0,
+  };
 }
 
 // The selected session's guy wears a little gold crown.
@@ -2255,6 +2361,10 @@ function draw(seconds: number): void {
   light = sceneLight(sceneId, currentSky());
   drawFloor(layout, palette);
   drawWall(layout, palette, seconds);
+  const gathering = state.gathering;
+  if (gathering !== undefined) {
+    drawGatheringFloor(kit, gathering);
+  }
 
   // Everything that stands on the floor, back to front. A fraction orders things on the same row.
   const owners = new Map<number, Agent>();
@@ -2266,12 +2376,19 @@ function draw(seconds: number): void {
   const layers: { depth: number; paint: () => void }[] = [];
   // Only the desks the crew has brought in.
   state.placed.forEach((seed, index) => {
-    const desk = layout.desks[index];
-    if (desk === undefined) {
+    const spot = layout.desks[index];
+    if (spot === undefined) {
       return;
     }
+    // Sliding aside for a gathering, or back after one.
+    const { desk, dx } = slidDesk(`desk${index}`, spot, seconds);
     const style = deskStyleOf(seed);
-    layers.push({ depth: desk.desk.y + 0.4, paint: () => drawDesk(desk, owners.get(index), palette, seconds, index, eventColor, style) });
+    layers.push({ depth: desk.desk.y + 0.4, paint: () => {
+      drawDesk(desk, owners.get(index), palette, seconds, index, eventColor, style);
+      if (dx !== 0) {
+        drawSlideDust(kit, desk.desk.x, desk.desk.y, dx, seconds);
+      }
+    } });
     layers.push({ depth: desk.seat.y + 0.7, paint: () => drawChairBack(desk.seat, palette) });
   });
   // A desk the crew is setting down shows at its spot, screen dark, while they work on it.
@@ -2312,8 +2429,14 @@ function draw(seconds: number): void {
   });
   let youBox: { left: number; top: number } | undefined;
   if (station !== undefined && you !== undefined) {
-    layers.push({ depth: station.desk.y + 0.4, paint: () => drawStation(station, reaction, palette, seconds) });
-    layers.push({ depth: station.seat.y + 0.7, paint: () => drawChairBack(station.seat, palette, TILE / 2) });
+    const { desk: slid, dx } = slidDesk("station", station, seconds);
+    layers.push({ depth: station.desk.y + 0.4, paint: () => {
+      drawStation(slid, reaction, palette, seconds);
+      if (dx !== 0) {
+        drawSlideDust(kit, slid.desk.x + (dx > 0 ? 0 : 1), slid.desk.y, dx, seconds);
+      }
+    } });
+    layers.push({ depth: station.seat.y + 0.7, paint: () => drawChairBack(slid.seat, palette, TILE / 2) });
     if (atStation) {
       layers.push({ depth: station.seat.y + 0.5, paint: () => { youBox = drawYou(station, reaction); } });
     }
@@ -2346,6 +2469,9 @@ function draw(seconds: number): void {
       });
     }
   }
+  for (const piece of gathering === undefined ? [] : gatheringPieces(gathering)) {
+    layers.push({ depth: piece.depth, paint: () => piece.paint(kit, seconds) });
+  }
   for (const piece of state.invasion?.debris ?? []) {
     layers.push({ depth: piece.y + 0.2, paint: () => drawDebris(kit, piece) });
   }
@@ -2367,6 +2493,7 @@ function draw(seconds: number): void {
   drawLighting(layout, owners, atStation || event !== undefined, seconds);
   acrossArea(layout, (areaWidth) => drawAfterLight(kit, sceneId, areaWidth, light));
   drawShowLights(seconds);
+  drawGatheringLights(kit, state.gathering, drawnArea(layout), seconds);
   acrossArea(layout, (areaWidth, areaHeight) => drawInvasionTint(kit, state.invasion, areaWidth, areaHeight, seconds));
   drawInvasionEffects(kit, state.invasion, state.agents, (agent) => boxes.find((box) => box.agent === agent), seconds);
   if (overhead !== undefined) {
@@ -2385,7 +2512,8 @@ function draw(seconds: number): void {
     }
     const bubble = box.agent.bubble;
     if (bubble !== undefined) {
-      const priority = box.agent.performer !== undefined ? "must" : box.agent.visitor !== undefined || box.agent.invader !== undefined || hostLines.has(bubble) ? "high" : "normal";
+      const leading = box.agent.gatherHost === true || box.agent.id === state.gathering?.leadId || box.agent.id === state.gathering?.otherId || box.agent.id === state.gathering?.turn?.id;
+      const priority = box.agent.performer !== undefined || leading ? "must" : box.agent.visitor !== undefined || box.agent.invader !== undefined || hostLines.has(bubble) ? "high" : "normal";
       lines.push(spokenLine(box.agent.id, box.agent.seed, bubble, priority, box, box.top - (crowned ? 14 : 11)));
     }
   });
@@ -2708,6 +2836,16 @@ function noticeInvasionEnd(): void {
   invasionOn = now;
 }
 
+// Notices when a gathering ends, however it ended, for the extension's onDidEndGathering.
+let gatheringOn: string | undefined;
+function noticeGatheringEnd(): void {
+  const now = state.gathering?.kind;
+  if (gatheringOn !== undefined && now !== gatheringOn) {
+    vscode.postMessage({ type: "gatheringEnd", kind: gatheringOn });
+  }
+  gatheringOn = now;
+}
+
 // Notices when a show ends, however it ended, for the extension's onDidEndShow.
 let showOn: string | undefined;
 function noticeShowEnd(): void {
@@ -2747,8 +2885,10 @@ function loop(now: number): void {
     playRoomReactions();
     stepCritters();
     stepFliers();
+    stepGatherings();
     noticeShowEnd();
     noticeInvasionEnd();
+    noticeGatheringEnd();
   }
   lastTime = seconds;
   if (width > 0 && height > 0) {

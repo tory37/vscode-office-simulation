@@ -13,7 +13,7 @@
 // The webview calls syncOffice when the sessions change, syncYou when you come or go, and stepOffice every frame;
 // time is in seconds.
 
-import { DRINK_PROPS, findPath, isWalkable, nearestWalkable, OfficeLayout, openFloorTiles, Point } from "./officeLayout";
+import { ClearedArea, DRINK_PROPS, findPath, isWalkable, nearestWalkable, OfficeLayout, openFloorTiles, Point, pushDesksAside } from "./officeLayout";
 import {
   BACK_LINES, BREAK_LINES, chatPhrase, CREW_BUILD_LINES, CREW_DONE_LINES, CREW_HELP_LINES, CREW_NEVER_MIND_LINES, CREW_REMOVE_LINES,
   CREW_START_LINES, exchangeAnswer, MUSE_LINES, MuseMode, pickExchange, pickPhrase, RUSH_LINES, SLEEP_LINES, THANKS_LINES, TYPING_LINES,
@@ -28,6 +28,9 @@ import {
   screamLine, SURVIVOR_LINES, WARNING_SECONDS, wakeLine,
 } from "./officeInvasions";
 import { MAX_VISITORS, personalityOf, visitorReaction } from "./officeVisitors";
+import {
+  fallerLine, GatherAct, GatherCue, gatherCrowdLine, GatheringKindId, GATHERINGS, GatherLine, GroupPose, turnCrowdLine,
+} from "./officeGatherings";
 import type { Facing, Pose } from "./pixelGuy";
 
 export type AgentStatus = "working" | "idle" | "asleep";
@@ -45,6 +48,8 @@ export type AgentMode =
   | "watch" | "perform"
   // At an activity: playing it (waiting his turn, or for his opponent, is "wait").
   | "play"
+  // At a group gathering: in his spot in the ring or the rows, or taking his turn in the middle.
+  | "gather"
   // In an invasion. The guys: frozen at the warning, catching breath on the run, hiding, caught, knocked down, up in a
   // beam, coming to, dusting off, and sweeping up. The invaders: striking, and beaming or smoking in or out.
   | "alert" | "panic" | "cower" | "struggle" | "down" | "float" | "dazed" | "dust" | "sweep" | "attack" | "beam";
@@ -70,6 +75,8 @@ export type AgentGoal =
   | { kind: "show" }
   // Headed for, or at, one of an activity's spots.
   | { kind: "activity"; activityId: string; activity: ActivityKindId; spot: number }
+  // Headed for, or at, his spot at a group gathering (or the middle, on his turn).
+  | { kind: "gather" }
   // In an invasion: running from them, chasing a guy, headed to trash something, and headed to sweep up a mess.
   | { kind: "flee" }
   | { kind: "hunt"; preyId: string }
@@ -128,6 +135,8 @@ export interface Agent {
   strike?: StrikeState;
   // Drawn another way for a while: turned into a zombie, or pale from a vampire.
   variant?: LookVariant;
+  // Came in to lead a group gathering (the yoga instructor, the fire marshal), not a session.
+  gatherHost?: boolean;
 }
 
 export type { LookVariant };
@@ -377,6 +386,10 @@ export interface OfficeState {
   show?: ShowState;
   // The invasion on now, if any.
   invasion?: InvasionState;
+  // The group gathering on now, if any.
+  gathering?: GatheringState;
+  // Until when the desks are sliding to new spots (a gathering pushing them aside or putting them back), for the view.
+  slideUntil?: number;
   // How much the guys talk on their own (officeChatter's talkFactor): 0 is never, 1 the usual.
   talk?: number;
   // What your guy is up to: auto works at his station with a break now and then; busy stays at the station; idle stays
@@ -424,7 +437,8 @@ const CREW_SPACING_SECONDS = 0.8;
 
 // A session's guy: not you, not a visitor, not the crew, not a performer.
 function isSession(agent: Agent): boolean {
-  return !agent.you && agent.visitor === undefined && agent.crew === undefined && agent.performer === undefined && agent.invader === undefined;
+  return !agent.you && agent.visitor === undefined && agent.crew === undefined && agent.performer === undefined && agent.invader === undefined &&
+    agent.gatherHost !== true;
 }
 
 export function crewAgents(state: OfficeState): Agent[] {
@@ -755,7 +769,7 @@ function stepYou(state: OfficeState, agent: Agent, random: Random): void {
   if (state.youStatus === "idle" && agent.status === "idle") {
     // His break goes on: on to the next thing, unless he's watching a show.
     agent.nextBreakAt = state.time + between(random, 20, 40);
-    if (agent.goal?.kind !== "show" && agent.goal?.kind !== "activity") {
+    if (agent.goal?.kind !== "show" && agent.goal?.kind !== "activity" && agent.goal?.kind !== "gather") {
       pickIdleActivity(state, agent, random);
     }
     return;
@@ -767,12 +781,12 @@ function stepYou(state: OfficeState, agent: Agent, random: Random): void {
     agent.status = "idle";
     agent.nextBreakAt = state.time + between(random, 20, 40);
     say(state, agent, pickPhrase(BREAK_LINES, random), 1.4);
-    if (!joinShow(state, agent, random)) {
+    if (!joinShow(state, agent, random) && !joinGathering(state, agent, random)) {
       pickIdleActivity(state, agent, random);
     }
     return;
   }
-  if (agent.goal?.kind === "show" && state.show !== undefined) {
+  if ((agent.goal?.kind === "show" && state.show !== undefined) || (agent.goal?.kind === "gather" && state.gathering !== undefined)) {
     // You stay for the show.
     agent.nextBreakAt = state.time + 5;
     return;
@@ -786,9 +800,15 @@ function stepYou(state: OfficeState, agent: Agent, random: Random): void {
 
 // Swaps in a new floor plan after a resize, keeps desks where it can, and has everyone pick up again from where they are.
 export function relayoutOffice(state: OfficeState, layout: OfficeLayout, random: Random): void {
+  // A new room ends a gathering: the desks it pushed aside are in the new layout's spots already.
+  endGathering(state, random, false);
+  applyLayout(state, layout, random, true);
+}
+
+function applyLayout(state: OfficeState, layout: OfficeLayout, random: Random, followDesks: boolean): void {
   // The room only grew or shrank around the desks: everyone and everything moves with them, so the guys at their
   // desks stay put as the view is resized.
-  const shift = layoutShift(state.layout, layout);
+  const shift = followDesks ? layoutShift(state.layout, layout) : undefined;
   if (shift !== undefined) {
     shiftOffice(state, shift);
   }
@@ -925,6 +945,7 @@ export function stepOffice(state: OfficeState, seconds: number, random: Random):
   manageCrew(state, random);
   stepActivities(state, random);
   stepShow(state, random);
+  stepGathering(state, random);
   stepInvasion(state, random);
   for (const agent of [...state.agents]) {
     if (agent.bubble !== undefined && state.time >= agent.bubble.until) {
@@ -978,6 +999,9 @@ export function stepOffice(state: OfficeState, seconds: number, random: Random):
     }
     if (agent.mode === "watch") {
       stepWatcher(state, agent, random);
+    }
+    if (agent.mode === "gather") {
+      stepGatherer(state, agent, random);
     }
     if (agent.crew?.phase === "help" && state.time >= agent.nextBubbleAt) {
       say(state, agent, pickPhrase(CREW_HELP_LINES, random), 1.4);
@@ -1047,6 +1071,8 @@ export interface AgentPose {
   offset?: { x: number; y: number };
   // Knocked down: the view lays the frame on its side.
   lying?: boolean;
+  // Lying down on purpose (savasana, stop drop and roll): no dizzy stars.
+  resting?: boolean;
 }
 
 // How fast each pose's frames go at an activity.
@@ -1064,7 +1090,8 @@ function activityPose(agent: Agent, kind: ActivityKindId, time: number, phase: n
   return { pose: spec.pose, facing: agent.facing, frame, seated: spec.seated === true, ...(offset === undefined ? {} : { offset }) };
 }
 
-export function agentPose(agent: Agent, time: number): AgentPose {
+// gathering: the room's group gathering, if one is on (state.gathering).
+export function agentPose(agent: Agent, time: number, gatheringNow?: GatheringState): AgentPose {
   const phase = (agent.id.length * 0.37) % 1;
   const invaded = invasionPose(agent, time, phase);
   if (invaded !== undefined) {
@@ -1072,6 +1099,9 @@ export function agentPose(agent: Agent, time: number): AgentPose {
   }
   if (agent.path.length === 0 && agent.mode === "perform" && agent.performer !== undefined) {
     return performerPose(agent, agent.performer, time);
+  }
+  if (agent.path.length === 0 && agent.mode === "gather" && gatheringNow !== undefined) {
+    return gatherPose(agent, gatheringNow, time, phase);
   }
   if (agent.path.length === 0 && agent.mode === "watch") {
     if (time < agent.cheerUntil) {
@@ -1250,6 +1280,10 @@ function decide(state: OfficeState, agent: Agent, random: Random): void {
     performerDecide(state, agent, random);
     return;
   }
+  if (agent.gatherHost === true) {
+    hostDecide(state, agent, random);
+    return;
+  }
   if (agent.visitor !== undefined) {
     if (isAddressing(agent) || state.time >= agent.visitor.stayUntil) {
       visitorLeaves(state, agent);
@@ -1261,7 +1295,7 @@ function decide(state: OfficeState, agent: Agent, random: Random): void {
     }
     return;
   }
-  if (agent.status !== "working" && joinShow(state, agent, random)) {
+  if (agent.status !== "working" && (joinShow(state, agent, random) || joinGathering(state, agent, random))) {
     return;
   }
   if (agent.status === "working") {
@@ -1345,8 +1379,8 @@ function pickIdleActivity(state: OfficeState, agent: Agent, random: Random): voi
 
 function canChat(agent: Agent): boolean {
   return !agent.leaving && agent.status !== "working" && agent.mode !== "sleep" && agent.performer === undefined && !inInvasion(agent) && agent.goal?.kind !== "chat" && agent.goal?.kind !== "show" &&
-    agent.goal?.kind !== "activity" && agent.crew === undefined &&
-    agent.mode !== "chat" && agent.mode !== "wait" && agent.mode !== "watch";
+    agent.goal?.kind !== "activity" && agent.goal?.kind !== "gather" && agent.crew === undefined && agent.gatherHost !== true &&
+    agent.mode !== "chat" && agent.mode !== "wait" && agent.mode !== "watch" && agent.mode !== "gather";
 }
 
 // Picks two open floor tiles side by side and sends both guys there.
@@ -1549,6 +1583,9 @@ function arrive(state: OfficeState, agent: Agent, random: Random): void {
       }
       return;
     }
+    case "gather":
+      arriveAtGathering(state, agent, random);
+      return;
     case "address":
       agent.facing = "down";
       setMode(state, agent, "address", FOREVER);
@@ -2887,6 +2924,7 @@ export function startInvasion(state: OfficeState, input: InvasionInput, random: 
     return false;
   }
   endShow(state, random);
+  endGathering(state, random);
   state.invasion = {
     kind: input.kind,
     phase: "warning",
@@ -3744,4 +3782,719 @@ function invasionPose(agent: Agent, time: number, phase: number): AgentPose | un
     return { pose: "reach", facing, frame: 0, seated: false };
   }
   return { pose: agent.bubble === undefined ? "stand" : "talk", facing, frame: agent.bubble === undefined ? 0 : Math.floor(time * 5), seated: false };
+}
+
+// ----- Group gatherings -----
+
+// call: the lead calls everyone over (the host walks in). gather: the desks are pushed aside and everyone heads for a
+// spot. on: it happens, the lead's lines spread over its length, turns in the middle for the turn kinds. closing: the
+// closer and a cheer, then everyone goes back and the desks slide back.
+export type GatheringPhase = "call" | "gather" | "on" | "closing";
+
+export interface GatheringTurn {
+  id: string;
+  phase: "going" | "doing" | "back";
+  until: number;
+  // Halfway: a second line; a faller falls.
+  midAt: number;
+  midDone: boolean;
+  caught?: boolean;
+}
+
+export interface GatheringState {
+  kind: GatheringKindId;
+  title: string;
+  phase: GatheringPhase;
+  phaseEndsAt: number;
+  // The room as it was, to put the desks back; undefined until they're pushed.
+  home: OfficeLayout | undefined;
+  // The cleared floor, once the desks are pushed (undefined if no strip would open: it happens on the open floor).
+  area: ClearedArea | undefined;
+  // The middle, where the prop stands or the turns happen; the lead's spot, the other duelist's, and the prop's.
+  center: Point;
+  front: Point | undefined;
+  otherSpot: Point | undefined;
+  propAt: Point | undefined;
+  leadId: string;
+  otherId: string | undefined;
+  hostId: string | undefined;
+  // Each guy's spot in the ring or the rows.
+  spots: Map<string, Point>;
+  call: string;
+  lines: readonly GatherLine[];
+  closer: GatherLine;
+  turnLines: readonly string[];
+  spoken: number;
+  nextLineAt: number;
+  lineGap: number;
+  length: number;
+  endsAt: number;
+  nextGatherAt: number;
+  // What everyone following the lead is doing, and when each moment happened (for the view).
+  pose: GroupPose;
+  acts: Partial<Record<GatherAct, number>>;
+  turn: GatheringTurn | undefined;
+  nextTurnAt: number;
+  turnsTaken: string[];
+}
+
+export interface GatheringInput {
+  kind: GatheringKindId;
+  title: string;
+  call: string;
+  lines: readonly GatherLine[];
+  closer: GatherLine;
+  length: number;
+  turnLines?: readonly string[];
+  // Someone who walks in to lead it; without one, one of the guys leads.
+  host?: { id: string; seed: string; title: string };
+}
+
+// The seconds between the call and the desks moving, and how long they slide.
+export const GATHER_CALL_SECONDS = 1.6;
+export const DESK_SLIDE_SECONDS = 1.6;
+
+// Starts a group gathering: not over a show, an invasion, or another gathering, and only with enough guys free to
+// come. The lead calls everyone over; the desks get pushed aside a moment later.
+export function startGathering(state: OfficeState, input: GatheringInput, random: Random): boolean {
+  const spec = GATHERINGS[input.kind];
+  if (state.gathering !== undefined || state.show !== undefined || state.invasion !== undefined) {
+    return false;
+  }
+  const free = state.agents.filter((agent) => canGather(agent));
+  if (free.length < spec.minGuys) {
+    return false;
+  }
+  // The awake ones first: someone has to have the idea.
+  const awake = free.filter((agent) => agent.mode !== "sleep");
+  const pool = [...(awake.length > 0 ? awake : free)];
+  const takeOne = () => pool.splice(Math.floor(random() * pool.length), 1)[0] ?? free.find((agent) => agent.id !== leadGuy?.id);
+  let leadGuy: Agent | undefined;
+  let host: Agent | undefined;
+  if (input.host !== undefined && spec.host !== undefined) {
+    host = {
+      ...newAgent(state, { id: input.host.id, seed: input.host.seed, status: "working", title: input.host.title }, random),
+      gatherHost: true,
+    };
+    state.agents.push(host);
+  } else {
+    leadGuy = takeOne();
+  }
+  const other = spec.duel === true ? takeOne() : undefined;
+  const lead = host ?? (leadGuy as Agent);
+  state.gathering = {
+    kind: input.kind,
+    title: input.title,
+    phase: "call",
+    phaseEndsAt: state.time + GATHER_CALL_SECONDS,
+    home: undefined,
+    area: undefined,
+    center: state.layout.door,
+    front: undefined,
+    otherSpot: undefined,
+    propAt: undefined,
+    leadId: lead.id,
+    otherId: other?.id,
+    hostId: host?.id,
+    spots: new Map(),
+    call: input.call,
+    lines: input.lines,
+    closer: input.closer,
+    turnLines: input.turnLines ?? [],
+    spoken: 0,
+    nextLineAt: FOREVER,
+    lineGap: 0,
+    length: Math.max(8, input.length),
+    endsAt: FOREVER,
+    nextGatherAt: FOREVER,
+    pose: "stand",
+    acts: {},
+    turn: undefined,
+    nextTurnAt: FOREVER,
+    turnsTaken: [],
+  };
+  for (const agent of [lead, other]) {
+    if (agent !== undefined && agent !== host) {
+      // The lead (and the other duelist) stop what they're doing and stand up for it.
+      endChat(state, agent);
+      agent.watch = undefined;
+      agent.goal = { kind: "gather" };
+      agent.target = undefined;
+      setMode(state, agent, "loiter", FOREVER);
+    }
+  }
+  if (host !== undefined) {
+    host.goal = { kind: "gather" };
+    setMode(state, host, "loiter", FOREVER);
+  }
+  say(state, lead, input.call, 2.4);
+  return true;
+}
+
+// Ends the gathering now: the host heads out, everyone goes back to what he was doing, and (restore) the desks slide
+// back where they were.
+export function endGathering(state: OfficeState, random: Random, restore = true): void {
+  const gathering = state.gathering;
+  if (gathering === undefined) {
+    return;
+  }
+  state.gathering = undefined;
+  for (const agent of [...state.agents]) {
+    if (agent.gatherHost === true) {
+      if (!agent.leaving) {
+        leave(state, agent);
+      }
+    } else if (agent.goal?.kind === "gather") {
+      releaseGatherer(state, agent, random);
+    }
+  }
+  if (restore && gathering.home !== undefined) {
+    applyLayout(state, gathering.home, random, false);
+    state.slideUntil = state.time + DESK_SLIDE_SECONDS;
+  }
+}
+
+export function gatheringHosts(state: OfficeState): Agent[] {
+  return state.agents.filter((agent) => agent.gatherHost === true);
+}
+
+// Free to come: a session's guy (or you, on a break) who isn't busy, leaving, or caught up in something else.
+function canGather(agent: Agent): boolean {
+  return !agent.leaving && agent.status !== "working" && agent.crew === undefined && agent.performer === undefined && agent.visitor === undefined &&
+    agent.gatherHost !== true && !inInvasion(agent) && !isAddressing(agent);
+}
+
+function releaseGatherer(state: OfficeState, agent: Agent, random: Random): void {
+  agent.goal = undefined;
+  agent.target = undefined;
+  agent.snack = undefined;
+  agent.groggy = undefined;
+  agent.react = undefined;
+  agent.cheerUntil = 0;
+  agent.running = false;
+  if (agent.mode === "gather" || agent.mode === "loiter") {
+    setMode(state, agent, "loiter", between(random, 0.3, 2.5));
+  }
+}
+
+// Pushes the desks aside and works out where everything goes: the middle, the front, the duelists, the prop. The
+// spots are worked out on the new layout first, since moving the desks sends everyone to his spot.
+function clearFloor(state: OfficeState, gathering: GatheringState, random: Random): void {
+  const spec = GATHERINGS[gathering.kind];
+  const pushed = pushDesksAside(state.layout);
+  gathering.home = state.layout;
+  gathering.area = pushed?.area;
+  const layout = pushed?.layout ?? state.layout;
+  const open = (point: Point) => layout.tiles[point.y]?.[point.x] === "floor" && point.y >= 1;
+  const nearestOpen = (point: Point, avoid: readonly Point[] = []) => openFloorTiles(layout)
+    .filter((tile) => tile.y >= 1 && !avoid.some((other) => samePoint(other, tile)))
+    .sort((first, second) => Math.hypot(first.x - point.x, first.y - point.y) - Math.hypot(second.x - point.x, second.y - point.y))[0] ?? layout.door;
+  const area = gathering.area;
+  const middle = area?.center ?? { x: Math.floor((layout.cols - 1) / 2), y: Math.round((layout.rows - 1) / 2) };
+  gathering.center = open(middle) ? middle : nearestOpen(middle);
+  const center = gathering.center;
+  if (spec.formation === "rows") {
+    // The lead up front, a step out from the wall so his lines have room above him; the crowd in rows below, and
+    // the demo bin between them.
+    gathering.front = nearestOpen({ x: center.x, y: (area?.top ?? 1) + (layout.rows >= 7 ? 1 : 0) });
+    if (spec.prop === "fireDemo") {
+      gathering.propAt = nearestOpen({ x: gathering.front.x, y: gathering.front.y + 1 }, [gathering.front]);
+    }
+  } else {
+    if (spec.prop === "cake" || spec.prop === "campfire" || spec.prop === "cardTable") {
+      gathering.propAt = center;
+    } else if (spec.prop === "boombox") {
+      gathering.propAt = nearestOpen({ x: center.x, y: area?.top ?? 1 }, [center]);
+    }
+    if (spec.duel === true) {
+      // Across the table from each other, side by side or (in a narrow strip) above and below.
+      const sides: [Point, Point][] = [[{ x: center.x - 1, y: center.y }, { x: center.x + 1, y: center.y }], [{ x: center.x, y: center.y - 1 }, { x: center.x, y: center.y + 1 }]];
+      const first = nearestOpen(center, [center]);
+      const pair = sides.find(([left, right]) => open(left) && open(right)) ?? [first, nearestOpen(center, [center, first])];
+      [gathering.front, gathering.otherSpot] = pair;
+    } else if (spec.prop === "cake" || spec.prop === "campfire") {
+      // Behind the cake, or at the head of the fire.
+      gathering.front = nearestOpen({ x: center.x, y: center.y - 1 }, [center]);
+    } else if (spec.host !== undefined) {
+      gathering.front = nearestOpen({ x: center.x, y: center.y - 2 }, [center]);
+    }
+  }
+  if (pushed !== undefined) {
+    applyLayout(state, pushed.layout, random, false);
+    state.slideUntil = state.time + DESK_SLIDE_SECONDS;
+  }
+}
+
+// Where this guy stands for it: the lead's or the other duelist's spot, the middle on his turn, else his own spot.
+function gatherSpotOf(state: OfficeState, gathering: GatheringState, agent: Agent): Point | undefined {
+  if (agent.id === gathering.leadId && gathering.front !== undefined) {
+    return gathering.front;
+  }
+  if (agent.id === gathering.otherId && gathering.otherSpot !== undefined) {
+    return gathering.otherSpot;
+  }
+  if (gathering.turn?.id === agent.id && gathering.turn.phase !== "back") {
+    return gathering.center;
+  }
+  const kept = gathering.spots.get(agent.id);
+  if (kept !== undefined && state.layout.tiles[kept.y]?.[kept.x] === "floor") {
+    return kept;
+  }
+  const spot = crowdSpotFor(state, gathering, agent);
+  if (spot !== undefined) {
+    gathering.spots.set(agent.id, spot);
+  }
+  return spot;
+}
+
+// The nearest free tile to the middle (a ring), or in front of the lead (rows), never on the reserved spots.
+function crowdSpotFor(state: OfficeState, gathering: GatheringState, agent: Agent): Point | undefined {
+  const spec = GATHERINGS[gathering.kind];
+  // Nobody stands in the middle of a ring, or right in front of what's on the floor there (the cake, the fire).
+  const inFront = spec.formation === "ring" && gathering.propAt !== undefined && samePoint(gathering.propAt, gathering.center)
+    ? { x: gathering.center.x, y: gathering.center.y + 1 } : undefined;
+  const reserved = [gathering.front, gathering.otherSpot, gathering.propAt, spec.formation === "ring" ? gathering.center : undefined, inFront]
+    .filter((point): point is Point => point !== undefined);
+  const taken = (point: Point) => reserved.some((spot) => samePoint(spot, point)) || isTargeted(state, agent, point) ||
+    [...gathering.spots].some(([id, spot]) => id !== agent.id && samePoint(spot, point));
+  const front = gathering.front ?? gathering.center;
+  const rows = spec.formation === "rows";
+  const spots = openFloorTiles(state.layout)
+    .filter((tile) => tile.y >= 1 && !taken(tile) && (!rows || tile.y > front.y))
+    .map((tile) => {
+      const from = rows ? { x: front.x, y: front.y + (gathering.propAt === undefined ? 1 : 2) } : gathering.center;
+      // A ring keeps a step back from the middle; rows fill in close to the front, then back.
+      const distance = Math.hypot(tile.x - from.x, (tile.y - from.y) * (rows ? 1.2 : 1));
+      const inside = gathering.area === undefined || (tile.x >= gathering.area.left && tile.x <= gathering.area.right) ? 0 : 0.6;
+      return { tile, score: distance + inside };
+    })
+    .filter(({ score }) => score < 12)
+    .sort((first, second) => first.score - second.score);
+  return spots[0]?.tile;
+}
+
+// Sends this guy to his spot if a gathering is on and he's free to come. Returns false when there's nothing to join.
+function joinGathering(state: OfficeState, agent: Agent, random: Random): boolean {
+  const gathering = state.gathering;
+  if (gathering === undefined) {
+    return false;
+  }
+  const leading = agent.id === gathering.leadId || agent.id === gathering.otherId;
+  if (!leading && (gathering.phase === "call" || gathering.phase === "closing" || !canGather(agent))) {
+    return false;
+  }
+  if (gathering.phase === "call") {
+    // The lead waits for the desks to move.
+    agent.goal = { kind: "gather" };
+    setMode(state, agent, "loiter", FOREVER);
+    return true;
+  }
+  const spot = gatherSpotOf(state, gathering, agent);
+  if (spot === undefined) {
+    return false;
+  }
+  if (agent.goal?.kind !== "gather") {
+    endChat(state, agent);
+    agent.watch = undefined;
+    if (agent.mode === "sleep") {
+      agent.groggy = true;
+      if (random() < 0.6) {
+        say(state, agent, random() < 0.5 ? "huh? what's going on?" : "*yawn* …ooh!", 1.6);
+      }
+    }
+  }
+  goTo(state, agent, spot, { kind: "gather" }, false, random);
+  return true;
+}
+
+function hostDecide(state: OfficeState, agent: Agent, random: Random): void {
+  const gathering = state.gathering;
+  if (gathering === undefined || gathering.hostId !== agent.id) {
+    leave(state, agent);
+    return;
+  }
+  if (gathering.phase === "call") {
+    setMode(state, agent, "loiter", FOREVER);
+    return;
+  }
+  const spot = gatherSpotOf(state, gathering, agent) ?? gathering.center;
+  goTo(state, agent, spot, { kind: "gather" }, false, random);
+}
+
+function arriveAtGathering(state: OfficeState, agent: Agent, random: Random): void {
+  const gathering = state.gathering;
+  if (gathering === undefined) {
+    setMode(state, agent, "loiter", between(random, 0.5, 1.5));
+    return;
+  }
+  const spec = GATHERINGS[gathering.kind];
+  const turn = gathering.turn;
+  if (turn?.id === agent.id && turn.phase === "going" && isAt(agent, gathering.center)) {
+    agent.facing = "down";
+    setMode(state, agent, "gather", FOREVER);
+    beginTurn(state, gathering, agent, random);
+    return;
+  }
+  if (turn?.id === agent.id && turn.phase === "back") {
+    gathering.turn = undefined;
+    gathering.nextTurnAt = state.time + between(random, 0.4, 1.2);
+  }
+  if (agent.id === gathering.leadId || agent.id === gathering.otherId) {
+    const facingPoint = spec.duel === true ? (agent.id === gathering.leadId ? gathering.otherSpot : gathering.front) : undefined;
+    agent.facing = facingPoint !== undefined ? facingToward(agent, facingPoint) : spec.formation === "rows" || gathering.front !== undefined ? "down" : facingToward(agent, gathering.center);
+  } else if (spec.formation === "rows") {
+    agent.facing = "up";
+  } else {
+    agent.facing = isAt(agent, gathering.center) ? "down" : facingToward(agent, gathering.center);
+  }
+  setMode(state, agent, "gather", FOREVER);
+  agent.nextBubbleAt = state.time + between(random, 3, 8);
+  if (gathering.acts.serve !== undefined) {
+    agent.snack = "cake";
+  }
+}
+
+function stepGathering(state: OfficeState, random: Random): void {
+  const gathering = state.gathering;
+  if (gathering === undefined) {
+    return;
+  }
+  const spec = GATHERINGS[gathering.kind];
+  const find = (id: string | undefined) => (id === undefined ? undefined : state.agents.find((agent) => agent.id === id));
+  const inIt = (agent: Agent | undefined): agent is Agent => agent !== undefined && !agent.leaving && agent.goal?.kind === "gather";
+  for (const id of [...gathering.spots.keys()]) {
+    if (!inIt(find(id))) {
+      gathering.spots.delete(id);
+    }
+  }
+  if (gathering.turn !== undefined && !inIt(find(gathering.turn.id))) {
+    gathering.turn = undefined;
+    gathering.nextTurnAt = state.time + 1;
+  }
+  // Someone else steps up if a lead from the room has to go; without its host, it's over.
+  for (const role of ["lead", "other"] as const) {
+    const id = role === "lead" ? gathering.leadId : gathering.otherId;
+    if (id === undefined || inIt(find(id))) {
+      continue;
+    }
+    if (id === gathering.hostId) {
+      endGathering(state, random);
+      return;
+    }
+    const stand = state.agents.filter((agent) => inIt(agent) && agent.id !== gathering.leadId && agent.id !== gathering.otherId && agent.id !== gathering.turn?.id);
+    const next = stand[Math.floor(random() * stand.length)];
+    if (next === undefined) {
+      endGathering(state, random);
+      return;
+    }
+    gathering.spots.delete(next.id);
+    if (role === "lead") {
+      gathering.leadId = next.id;
+    } else {
+      gathering.otherId = next.id;
+    }
+    if (gathering.phase !== "call") {
+      joinGathering(state, next, random);
+    }
+  }
+  const lead = find(gathering.leadId) as Agent;
+  switch (gathering.phase) {
+    case "call":
+      if (state.time >= gathering.phaseEndsAt) {
+        gathering.phase = "gather";
+        gathering.phaseEndsAt = state.time + 25;
+        gathering.nextGatherAt = state.time + 2;
+        clearFloor(state, gathering, random);
+        // applyLayout sent everyone off already; the host and the leads head for their spots.
+        for (const agent of [lead, find(gathering.otherId)]) {
+          if (agent !== undefined && agent.goal?.kind === "gather" && agent.path.length === 0 && agent.mode === "loiter") {
+            decide(state, agent, random);
+          }
+        }
+        gatherEveryone(state, random);
+      }
+      return;
+    case "gather": {
+      if (state.time >= gathering.nextGatherAt) {
+        gathering.nextGatherAt = state.time + 2;
+        gatherEveryone(state, random);
+      }
+      const ready = (agent: Agent | undefined) => agent === undefined || (agent.mode === "gather" && agent.path.length === 0);
+      const crowdIn = state.agents.filter(inIt).every(ready);
+      if ((ready(lead) && ready(find(gathering.otherId)) && crowdIn) || state.time >= gathering.phaseEndsAt) {
+        gathering.phase = "on";
+        gathering.endsAt = state.time + gathering.length;
+        gathering.lineGap = gathering.length / Math.max(1, gathering.lines.length);
+        gathering.nextLineAt = state.time + 0.6;
+        gathering.nextGatherAt = state.time + 4;
+        gathering.nextTurnAt = state.time + 2.5;
+      }
+      return;
+    }
+    case "on":
+      if (state.time >= gathering.nextGatherAt) {
+        gathering.nextGatherAt = state.time + 4;
+        gatherEveryone(state, random);
+      }
+      if (gathering.spoken < gathering.lines.length && state.time >= gathering.nextLineAt) {
+        sayGatherLine(state, gathering, gathering.lines[gathering.spoken], random);
+        gathering.spoken += 1;
+        gathering.nextLineAt = state.time + gathering.lineGap;
+      }
+      if (spec.turns !== undefined) {
+        stepTurn(state, gathering, random);
+      }
+      if (state.time >= gathering.endsAt && gathering.turn?.phase !== "doing") {
+        gathering.phase = "closing";
+        gathering.phaseEndsAt = state.time + 4.5;
+        const turner = find(gathering.turn?.id);
+        if (turner !== undefined && gathering.turn !== undefined) {
+          gathering.turn.phase = "back";
+          joinGathering(state, turner, random);
+        }
+        sayGatherLine(state, gathering, gathering.closer, random);
+      }
+      return;
+    case "closing":
+      if (state.time >= gathering.phaseEndsAt) {
+        endGathering(state, random);
+      }
+      return;
+  }
+}
+
+// Everyone free to come heads over: the ones who just went idle, woke up, or finished what they were doing.
+function gatherEveryone(state: OfficeState, random: Random): void {
+  for (const agent of state.agents) {
+    if (agent.goal?.kind !== "gather" && agent.watch === undefined && canGather(agent) && (agent.path.length === 0 || agent.goal?.kind !== "work")) {
+      joinGathering(state, agent, random);
+    }
+  }
+}
+
+function participants(state: OfficeState, gathering: GatheringState): Agent[] {
+  return state.agents.filter((agent) => !agent.leaving && agent.goal?.kind === "gather" && agent.id !== gathering.hostId);
+}
+
+function sayGatherLine(state: OfficeState, gathering: GatheringState, line: GatherLine, random: Random): void {
+  const seconds = Math.min(Math.max(2, gathering.lineGap * 0.85), lineSeconds(line.text) + 0.5);
+  const crowd = participants(state, gathering).filter((agent) => agent.id !== gathering.leadId && agent.id !== gathering.otherId);
+  if (line.by === "crowd") {
+    // One guy's bubble carries the line; a couple more chime in, and the rest just join in.
+    const voices = [...crowd].sort(() => random() - 0.5);
+    voices.forEach((agent, index) => {
+      const text = index === 0 ? line.text : index < 3 ? (random() < 0.5 ? "♪" : "♪♪") : "";
+      agent.react = { text, at: state.time + between(random, 0, 0.5), cheer: line.cue === "cheer" };
+    });
+  } else {
+    const speaker = state.agents.find((agent) => agent.id === (line.by === "other" ? gathering.otherId : gathering.leadId));
+    if (speaker !== undefined) {
+      say(state, speaker, line.text, seconds);
+    }
+  }
+  if (line.pose !== undefined) {
+    gathering.pose = line.pose;
+  }
+  if (line.act !== undefined) {
+    gathering.acts[line.act] = state.time;
+    if (line.act === "serve") {
+      for (const agent of participants(state, gathering)) {
+        agent.snack = "cake";
+      }
+    }
+  }
+  if (line.cue !== undefined && line.by !== "crowd") {
+    cueCrowd(state, gathering, crowd, line.cue, random);
+  }
+}
+
+function cueCrowd(state: OfficeState, gathering: GatheringState, crowd: readonly Agent[], cue: GatherCue, random: Random): void {
+  const delay = cue === "answer" ? [0.5, 2.2] : [0.4, 1.3];
+  // A silence is one or two coughs; a question gets a few guesses.
+  const share = cue === "crickets" ? 0.2 : cue === "answer" ? 0.5 : 0.65;
+  for (const agent of crowd) {
+    if (agent.mode !== "gather" || agent.path.length > 0) {
+      continue;
+    }
+    const speaks = random() < share;
+    const cheer = cue === "cheer" || cue === "applause" || (cue === "laugh" && random() < 0.4);
+    if (!speaks && !cheer) {
+      continue;
+    }
+    agent.react = {
+      text: speaks ? gatherCrowdLine(gathering.kind, cue, personalityOf(agent.seed), random) : "",
+      at: state.time + between(random, delay[0], delay[1]),
+      cheer,
+    };
+  }
+}
+
+// A guy at a gathering: answers the last cue, and now and then says something to nobody.
+function stepGatherer(state: OfficeState, agent: Agent, random: Random): void {
+  const gathering = state.gathering;
+  if (gathering === undefined) {
+    return;
+  }
+  const react = agent.react;
+  if (react !== undefined && state.time >= react.at) {
+    agent.react = undefined;
+    if (react.text !== "") {
+      say(state, agent, react.text, 1.8);
+    }
+    if (react.cheer) {
+      agent.cheerUntil = state.time + between(random, 1.2, 2.2);
+    }
+    agent.nextBubbleAt = state.time + between(random, 4, 9);
+    return;
+  }
+  const leading = agent.id === gathering.leadId || agent.id === gathering.otherId || agent.id === gathering.turn?.id;
+  if (!leading && gathering.phase === "on" && state.time >= agent.nextBubbleAt && agent.bubble === undefined) {
+    agent.nextBubbleAt = state.time + between(random, 7, 16);
+    if (random() < 0.4 * Math.min(1, talkOf(state))) {
+      say(state, agent, gatherCrowdLine(gathering.kind, "idle", personalityOf(agent.seed), random), 1.6);
+    }
+  }
+}
+
+// The turn kinds: one guy at a time steps into the middle, the ones who haven't had a go first.
+function stepTurn(state: OfficeState, gathering: GatheringState, random: Random): void {
+  const style = GATHERINGS[gathering.kind].turns;
+  const turn = gathering.turn;
+  if (turn === undefined) {
+    if (state.time < gathering.nextTurnAt || state.time > gathering.endsAt - 5) {
+      return;
+    }
+    const ready = participants(state, gathering).filter((agent) => agent.mode === "gather" && agent.path.length === 0 && agent.id !== gathering.otherId);
+    if (ready.length === 0) {
+      return;
+    }
+    let fresh = ready.filter((agent) => !gathering.turnsTaken.includes(agent.id));
+    if (fresh.length === 0) {
+      gathering.turnsTaken = [];
+      fresh = ready;
+    }
+    const next = fresh[Math.floor(random() * fresh.length)];
+    gathering.turnsTaken.push(next.id);
+    gathering.turn = { id: next.id, phase: "going", until: FOREVER, midAt: FOREVER, midDone: false };
+    joinGathering(state, next, random);
+    return;
+  }
+  const agent = state.agents.find((candidate) => candidate.id === turn.id);
+  if (agent === undefined || turn.phase !== "doing") {
+    return;
+  }
+  if (!turn.midDone && state.time >= turn.midAt) {
+    turn.midDone = true;
+    if (style === "fall") {
+      turn.caught = random() < 0.75;
+      const crowd = participants(state, gathering).filter((other) => other !== agent);
+      for (const other of crowd) {
+        if (random() < 0.55) {
+          other.react = { text: turnCrowdLine("fall", turn.caught ? "good" : "bad", random), at: state.time + between(random, 0.1, 0.6), cheer: turn.caught && random() < 0.5 };
+        }
+      }
+      agent.react = { text: fallerLine(turn.caught, random), at: state.time + 1.4, cheer: false };
+    } else if (gathering.turnLines.length > 0) {
+      say(state, agent, gathering.turnLines[Math.floor(random() * gathering.turnLines.length)], 2);
+    }
+  }
+  if (state.time >= turn.until) {
+    turn.phase = "back";
+    agent.cheerUntil = 0;
+    joinGathering(state, agent, random);
+  }
+}
+
+function beginTurn(state: OfficeState, gathering: GatheringState, agent: Agent, random: Random): void {
+  const turn = gathering.turn as GatheringTurn;
+  const style = GATHERINGS[gathering.kind].turns;
+  turn.phase = "doing";
+  const length = style === "fall" ? between(random, 5, 6.5) : between(random, 5, 7.5);
+  turn.until = state.time + length;
+  turn.midAt = state.time + (style === "fall" ? 2 : length / 2);
+  if (gathering.turnLines.length > 0) {
+    say(state, agent, gathering.turnLines[Math.floor(random() * gathering.turnLines.length)], 2);
+  }
+  if (style === "fall") {
+    return;
+  }
+  // The crowd hypes a dancer; a singer gets cheers or winces.
+  const good = style === "dance" || random() < 0.65;
+  for (const other of participants(state, gathering)) {
+    if (other !== agent && random() < 0.5) {
+      other.react = { text: turnCrowdLine(style ?? "dance", good ? "good" : "bad", random), at: state.time + between(random, 0.6, 2.5), cheer: good };
+    }
+  }
+}
+
+const DANCE_MOVES: readonly Pose[] = ["cheer", "punch", "yoga", "reach", "panic", "build", "cheer", "lift"];
+const SPIN: readonly Facing[] = ["down", "left", "up", "right"];
+
+function gatherPose(agent: Agent, gathering: GatheringState, time: number, phase: number): AgentPose {
+  const spec = GATHERINGS[gathering.kind];
+  const turn = gathering.turn;
+  const talking = agent.bubble !== undefined;
+  if (turn?.id === agent.id && turn.phase === "doing" && agent.path.length === 0) {
+    switch (spec.turns) {
+      case "dance": {
+        const move = DANCE_MOVES[Math.floor(time / 1.1 + phase * 3) % DANCE_MOVES.length];
+        const spinning = Math.floor(time / 1.1 + phase * 3) % 3 === 2;
+        return {
+          pose: move, facing: spinning ? SPIN[Math.floor(time * 6) % 4] : "down", frame: Math.floor(time * 4), seated: false,
+          offset: { x: 0, y: -Math.round(Math.abs(Math.sin(time * 7)) * 3) },
+        };
+      }
+      case "sing":
+        return { pose: time < agent.cheerUntil ? "cheer" : "talk", facing: "down", frame: Math.floor(time * 5), seated: false };
+      case "fall":
+        if (turn.midDone) {
+          return { pose: "down", facing: "down", frame: 0, seated: false, lying: true, resting: turn.caught === true };
+        }
+        return { pose: talking ? "talk" : "stand", facing: "up", frame: Math.floor(time * 5), seated: false };
+    }
+  }
+  if (time < agent.cheerUntil) {
+    return { pose: "cheer", facing: agent.facing, frame: Math.floor(time * 4 + phase * 2), seated: false };
+  }
+  const isLead = (agent.id === gathering.leadId || agent.id === gathering.otherId) && spec.turns === undefined;
+  if (isLead || agent.gatherHost === true) {
+    if (spec.duel === true) {
+      return { pose: talking ? "talk" : "build", facing: agent.facing, frame: Math.floor(time * 2.5 + phase * 2), seated: false };
+    }
+    if (gathering.acts.douse !== undefined && time < gathering.acts.douse + 3.5) {
+      return { pose: "build", facing: agent.facing, frame: Math.floor(time * 6), seated: false };
+    }
+    if (spec.crowd === "follow" && spec.lead === "yoga") {
+      return groupPose(agent, gathering.pose, time, phase, talking);
+    }
+    const pose: Pose = spec.lead === "talk" ? (talking ? "talk" : "stand") : talking && spec.lead === "stand" ? "talk" : spec.lead;
+    return { pose, facing: agent.facing, frame: Math.floor(time * 4), seated: false };
+  }
+  if (agent.snack !== undefined && !talking) {
+    return { pose: "eat", facing: agent.facing, frame: Math.floor(time * 1.2 + phase * 2), seated: false };
+  }
+  if (spec.crowd === "follow") {
+    return groupPose(agent, gathering.pose, time, phase, talking);
+  }
+  if (spec.crowd === "sit") {
+    return { pose: "sit", facing: agent.facing, frame: 0, seated: true };
+  }
+  return { pose: talking ? "talk" : "stand", facing: agent.facing, frame: Math.floor(time * 5), seated: false };
+}
+
+function groupPose(agent: Agent, pose: GroupPose, time: number, phase: number, talking: boolean): AgentPose {
+  switch (pose) {
+    case "sit":
+      return { pose: "sit", facing: agent.facing, frame: 0, seated: true };
+    case "stretch":
+      return { pose: "stretch", facing: agent.facing, frame: 0, seated: true };
+    case "yoga":
+      return { pose: "yoga", facing: agent.facing, frame: Math.floor(time * 0.25 + phase * 2), seated: false };
+    case "cheer":
+      return { pose: "cheer", facing: agent.facing, frame: 0, seated: false };
+    case "down":
+      return { pose: "down", facing: agent.facing, frame: 0, seated: false, lying: true, resting: true };
+    default:
+      return { pose: talking ? "talk" : "stand", facing: agent.facing, frame: Math.floor(time * 5), seated: false };
+  }
 }

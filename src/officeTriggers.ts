@@ -1,20 +1,22 @@
 import { isEventKind } from "./officeEvents";
+import { GATHERING_KINDS, GATHERINGS, GatheringKindId, isGatheringKind } from "./officeGatherings";
 import { INVASION_KINDS, INVASIONS, InvasionKindId, isInvasionKind } from "./officeInvasions";
 import { isPerformanceKind, PERFORMANCE_KINDS, PERFORMANCES, PerformanceKindId } from "./officePerformances";
 import { VISITOR_KINDS } from "./officeVisitors";
 import { SCENE_EVENT_KINDS, SceneEventKind } from "./sceneEventSchedule";
 
-// Pure: everything Trigger Event can start, in one list: the scene events, the invasions, the shows, and a visitor
-// from each department. Each has an id like "invasion:zombies" (a keybinding can pass one) and reads back with
+// Pure: everything Trigger Event can start, in one list: the scene events, the invasions, the shows, the group
+// gatherings, and a visitor from each department. Each has an id like "invasion:zombies" (a keybinding can pass one) and reads back with
 // parseTrigger.
 
 export type Trigger =
   | { kind: "scene"; event: SceneEventKind }
   | { kind: "invasion"; invasion: InvasionKindId }
   | { kind: "show"; show: PerformanceKindId }
+  | { kind: "gathering"; gathering: GatheringKindId }
   | { kind: "visitor"; department: string };
 
-export type TriggerGroup = "Scene events" | "Invasions" | "Shows" | "Visitors";
+export type TriggerGroup = "Scene events" | "Invasions" | "Shows" | "Gatherings" | "Visitors";
 
 export interface TriggerItem {
   id: string;
@@ -52,14 +54,28 @@ const SHOW_DESCRIPTIONS: Record<PerformanceKindId, string> = {
   dj: "a DJ, a mirror ball, and dancing",
 };
 
+const GATHERING_DESCRIPTIONS: Record<GatheringKindId, string> = {
+  yoga: "an instructor leads the room through a class on mats",
+  fireSafety: "the fire marshal lights a bin and puts it out",
+  cardDuel: "two guys duel across a card table, the room watching",
+  danceCircle: "everyone in a circle, one at a time in the middle",
+  birthday: "a cake, a song, and a slice for everyone",
+  allHands: "the CEO, a chart on the wall, and an awkward silence",
+  trivia: "the quiz master asks, the room shouts guesses",
+  karaoke: "one at a time at the mic, good or bad",
+  campfire: "a scary story round the fire",
+  teamBuilding: "trust falls; most get caught",
+};
+
 export const TRIGGER_ITEMS: readonly TriggerItem[] = [
   ...SCENE_EVENT_KINDS.map((event) => ({ id: `scene:${event}`, group: "Scene events" as const, ...SCENE_LABELS[event] })),
   ...INVASION_KINDS.map((id) => ({ id: `invasion:${id}`, group: "Invasions" as const, label: INVASIONS[id].label, description: INVASION_DESCRIPTIONS[id] })),
   ...PERFORMANCE_KINDS.map((id) => ({ id: `show:${id}`, group: "Shows" as const, label: PERFORMANCES[id].label, description: SHOW_DESCRIPTIONS[id] })),
+  ...GATHERING_KINDS.map((id) => ({ id: `gathering:${id}`, group: "Gatherings" as const, label: GATHERINGS[id].label, description: GATHERING_DESCRIPTIONS[id] })),
   ...VISITOR_KINDS.map((kind) => ({ id: `visitor:${kind.id}`, group: "Visitors" as const, label: kind.title, description: kind.boss ? "a boss drops by" : "drops by" })),
 ];
 
-export const TRIGGER_GROUPS: readonly TriggerGroup[] = ["Scene events", "Invasions", "Shows", "Visitors"];
+export const TRIGGER_GROUPS: readonly TriggerGroup[] = ["Scene events", "Invasions", "Shows", "Gatherings", "Visitors"];
 
 export function invasionDescription(id: InvasionKindId): string {
   return INVASION_DESCRIPTIONS[id];
@@ -67,6 +83,10 @@ export function invasionDescription(id: InvasionKindId): string {
 
 export function showDescription(id: PerformanceKindId): string {
   return SHOW_DESCRIPTIONS[id];
+}
+
+export function gatheringDescription(id: GatheringKindId): string {
+  return GATHERING_DESCRIPTIONS[id];
 }
 
 // An id back to what it starts, or undefined for anything else. "random" picks any of them.
@@ -86,6 +106,9 @@ export function parseTrigger(value: unknown, random: () => number = Math.random)
   }
   if (kind === "show" && isPerformanceKind(id)) {
     return { kind: "show", show: id };
+  }
+  if (kind === "gathering" && isGatheringKind(id)) {
+    return { kind: "gathering", gathering: id };
   }
   if (kind === "visitor" && VISITOR_KINDS.some((visitor) => visitor.id === id)) {
     return { kind: "visitor", department: id };

@@ -328,3 +328,135 @@ export function nearestWalkable(layout: OfficeLayout, point: Point): Point {
   }));
   return best;
 }
+
+// The floor a group gathering clears: columns left to right and rows top to bottom, all open floor, and the tile in
+// its middle where the thing happens.
+export interface ClearedArea {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  center: Point;
+}
+
+// For a group gathering: the same room with the desks pushed out of the way. Each desk row's pairs (and your station)
+// slide toward a side, packed edge to edge, only as far as they must, so a strip as wide as want (or as wide as it
+// can) opens near the middle, from the wall to the props. Columns 0 and cols - 1 stay open as corridors, and every
+// seat still opens onto the aisle below it. Desks keep their index, so whoever's desk it is follows it. Undefined
+// when no strip opens.
+export function pushDesksAside(layout: OfficeLayout, want = Math.min(8, Math.max(4, Math.round(layout.cols * 0.35)))): { layout: OfficeLayout; area: ClearedArea } | undefined {
+  type Unit = { left: number; width: number; desks: number[]; station: boolean };
+  const rows = new Map<number, Unit[]>();
+  const unitsOf = (y: number) => rows.get(y) ?? (rows.set(y, []), rows.get(y) as Unit[]);
+  // Desks side by side in a row are one unit (a pair); the gap column between pairs is what gets taken up.
+  const byRow = new Map<number, number[]>();
+  layout.desks.forEach((desk, index) => byRow.set(desk.desk.y, [...(byRow.get(desk.desk.y) ?? []), index]));
+  for (const [y, indexes] of byRow) {
+    const sorted = [...indexes].sort((first, second) => layout.desks[first].desk.x - layout.desks[second].desk.x);
+    for (const index of sorted) {
+      const units = unitsOf(y);
+      const last = units[units.length - 1];
+      const x = layout.desks[index].desk.x;
+      if (last !== undefined && !last.station && last.left + last.width === x) {
+        last.width += 1;
+        last.desks.push(index);
+      } else {
+        units.push({ left: x, width: 1, desks: [index], station: false });
+      }
+    }
+  }
+  if (layout.station !== undefined) {
+    unitsOf(layout.station.desk.y).push({ left: layout.station.desk.x, width: STATION_DESKS, desks: [], station: true });
+  }
+  if (rows.size === 0) {
+    return undefined;
+  }
+  for (const units of rows.values()) {
+    units.sort((first, second) => first.left - second.left);
+  }
+  // The widest strip (up to want) every row can open, nearest the room's middle. A row splits its units in two: the
+  // left ones pack toward column 1, the rest toward cols - 2, each sliding only as far as it must.
+  const plan = (left: number, right: number) => {
+    const moves: { unit: Unit; to: number }[] = [];
+    const middle = (left + right) / 2;
+    for (const units of rows.values()) {
+      let best: { unit: Unit; to: number }[] | undefined;
+      let bestCost = Infinity;
+      for (let split = 0; split <= units.length; split++) {
+        const rowMoves: { unit: Unit; to: number }[] = [];
+        let edge = left - 1;
+        let fits = true;
+        for (const unit of units.slice(0, split).reverse()) {
+          const to = Math.min(unit.left, edge - unit.width + 1);
+          fits &&= to >= 1;
+          rowMoves.push({ unit, to });
+          edge = to - 1;
+        }
+        edge = right + 1;
+        for (const unit of units.slice(split)) {
+          const to = Math.max(unit.left, edge);
+          fits &&= to + unit.width - 1 <= layout.cols - 2;
+          rowMoves.push({ unit, to });
+          edge = to + unit.width;
+        }
+        // Fewest tiles slid, and a unit stays on the side of the strip it was on.
+        const cost = rowMoves.reduce((sum, { unit, to }) => sum + Math.abs(to - unit.left) * unit.width, 0) +
+          units.reduce((sum, unit, index) => sum + ((index < split) !== (unit.left + unit.width / 2 <= middle + 0.5) ? 0.5 : 0), 0);
+        if (fits && cost < bestCost) {
+          best = rowMoves;
+          bestCost = cost;
+        }
+      }
+      if (best === undefined) {
+        return undefined;
+      }
+      moves.push(...best);
+    }
+    return { left, right, moves };
+  };
+  let chosen: ReturnType<typeof plan>;
+  for (let width = Math.min(want, layout.cols - 2); width >= 1 && chosen === undefined; width--) {
+    // Nearest the middle first.
+    const starts = Array.from({ length: layout.cols - 1 - width }, (_, index) => index + 1)
+      .sort((first, second) => Math.abs(first + (width - 1) / 2 - (layout.cols - 1) / 2) - Math.abs(second + (width - 1) / 2 - (layout.cols - 1) / 2));
+    for (const left of starts) {
+      chosen = plan(left, left + width - 1);
+      if (chosen !== undefined) {
+        break;
+      }
+    }
+  }
+  if (chosen === undefined) {
+    return undefined;
+  }
+  const tiles = layout.tiles.map((row) => [...row]);
+  const deskRows = [...rows.keys()];
+  for (const y of deskRows) {
+    for (let x = 1; x < layout.cols - 1; x++) {
+      tiles[y][x] = "floor";
+      tiles[y + 1][x] = "floor";
+    }
+  }
+  const desks = layout.desks.map((desk) => ({ desk: { ...desk.desk }, seat: { ...desk.seat } }));
+  let station = layout.station === undefined ? undefined : { desk: { ...layout.station.desk }, seat: { ...layout.station.seat } };
+  for (const { unit, to } of chosen.moves) {
+    const y = unit.station ? (station as Station).desk.y : layout.desks[unit.desks[0]].desk.y;
+    for (let offset = 0; offset < unit.width; offset++) {
+      tiles[y][to + offset] = "desk";
+      tiles[y + 1][to + offset] = "seat";
+    }
+    if (unit.station && station !== undefined) {
+      station = { desk: { x: to, y }, seat: { x: to, y: y + 1 } };
+    }
+    unit.desks.forEach((index, offset) => {
+      desks[index] = { desk: { x: to + offset, y }, seat: { x: to + offset, y: y + 1 } };
+    });
+  }
+  const top = 1;
+  const bottom = layout.rows - 2;
+  const center = { x: Math.floor((chosen.left + chosen.right) / 2), y: Math.round((top + bottom) / 2) };
+  return {
+    layout: { ...layout, tiles, desks, station, props: layout.props, couchSeats: layout.couchSeats },
+    area: { left: chosen.left, right: chosen.right, top, bottom, center },
+  };
+}

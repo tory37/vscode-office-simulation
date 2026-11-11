@@ -34,6 +34,7 @@ const FOOD_ART: Record<FoodKind, { rows: string[]; colors: Record<string, string
   cookie: { rows: [".cc.", "cdcc", "ccdc", ".cc."], colors: { c: "#C8873A", d: "#4A2A12" } },
   iceCream: { rows: [".pp.", "pppp", "cccc", ".cc.", ".c.."], colors: { p: "#F7A8C4", c: "#D9A441" } },
   popcorn: { rows: ["wwww", "rwrw", "rwrw", "rwrw"], colors: { w: "#FFF6D0", r: "#D64545" } },
+  cake: { rows: ["r...", "wwww", "pppp", "ssss"], colors: { r: "#D64545", w: "#FFFFFF", p: "#F7A8C4", s: "#E8C88A" } },
 };
 
 export function drawFood(kit: Kit, food: FoodKind, x: number, y: number): void {
@@ -475,7 +476,7 @@ export interface DrawnArea {
   height: number;
 }
 
-export function drawSpotlight(kit: Kit, show: ShowState, area: DrawnArea, level: number): void {
+export function drawSpotlight(kit: Kit, show: { stage: { x: number; y: number } }, area: DrawnArea, level: number): void {
   if (level <= 0) {
     return;
   }
@@ -516,7 +517,7 @@ export function drawSpotlight(kit: Kit, show: ShowState, area: DrawnArea, level:
 
 // The dance party: the room goes dim and purple, a mirror ball turns over the stage, and spots of colored light sweep
 // the floor.
-export function drawDisco(kit: Kit, show: ShowState, area: DrawnArea, now: number, level: number): void {
+export function drawDisco(kit: Kit, show: { stage: { x: number; y: number } }, area: DrawnArea, now: number, level: number): void {
   if (level <= 0) {
     return;
   }
