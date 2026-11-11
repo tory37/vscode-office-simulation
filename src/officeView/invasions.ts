@@ -1,12 +1,13 @@
-// The Office's invasions, drawn: the room's tint, the banner, the aliens' beams and zaps, the vampires' smoke and
-// bats, the words that pop off a hit, stars over a guy who's down, the mess on the floor, the invaders' gear (a
-// vampire's cape, an alien's ray gun, a raider's club and his loot), and the broom the guys sweep up with.
+// The Office's invasions, drawn: the room's tint, the banner, the aliens' beams, zaps (bolts, lasers, and fireballs),
+// puffs of smoke and bats, the words that pop off a hit, stars over a guy who's down, the mess on the floor, the
+// invaders' gear (a vampire's cape, an alien's ray gun, a raider's club and his loot, a demon's pitchfork, a mummy's
+// loose bandage, a slime's drips), and the broom the guys sweep up with.
 // All in room pixels. A guy's box is the top-left of his 12-wide frame at the top of his head; a point (x, y) of his
 // pixel grid is at (box.left + x + 1, box.top + y + 1).
 
 import type { Facing, PixelGuyLook } from "../pixelGuy";
 import { lookWithRace, mixHex } from "../pixelGuy";
-import { DebrisKind, INVASIONS, InvasionKindId, WARNING_SECONDS } from "../officeInvasions";
+import { DebrisKind, INVASIONS, WARNING_SECONDS, ZapStyle } from "../officeInvasions";
 import type { Agent, Debris, InvasionState, LookVariant } from "../officeSim";
 import type { Kit } from "./scenery";
 
@@ -25,12 +26,30 @@ function painter(kit: Kit, box: GuyBox, mirror: boolean): Paint {
   return (x, y, w, h, color) => kit.rect(mirror ? box.left + FRAME - x - w : box.left + x, box.top + y, w, h, color);
 }
 
-// A turned guy's look: the zombie race, his own clothes. A bitten one's: his skin gone pale.
+// A turned guy's look: the zombie or wolf race, his own clothes. Pale: his skin gone white. Wrapped: bandages all
+// over. Slimed: green and sticky. Sooty: blackened by a fireball.
 export function variantLook(look: PixelGuyLook, variant: LookVariant): PixelGuyLook {
-  if (variant === "zombie") {
-    return lookWithRace(look, "zombie");
+  const tinted = (color: string, amount: number): PixelGuyLook => ({
+    ...look,
+    skin: mixHex(look.skin, color, amount),
+    hair: mixHex(look.hair, color, amount),
+    shirt: mixHex(look.shirt, color, amount),
+    pants: mixHex(look.pants, color, amount),
+  });
+  switch (variant) {
+    case "zombie":
+      return lookWithRace(look, "zombie");
+    case "wolf":
+      return lookWithRace(look, "wolffolk");
+    case "pale":
+      return { ...look, skin: mixHex(look.skin, "#F2EEF8", 0.65) };
+    case "wrapped":
+      return { ...tinted("#E6DCBF", 0.85), accessory: "none" };
+    case "slimed":
+      return tinted("#6EDC5A", 0.5);
+    case "sooty":
+      return tinted("#2A2420", 0.5);
   }
-  return { ...look, skin: mixHex(look.skin, "#F2EEF8", 0.65) };
 }
 
 // ----- The room -----
@@ -57,16 +76,17 @@ export function drawInvasionTint(kit: Kit, invasion: InvasionState | undefined, 
   const { context } = kit;
   const level = tintLevel(invasion, time);
   if (level > 0) {
-    if (invasion.kind === "vampires") {
+    const dark = INVASIONS[invasion.kind].dark ?? 0;
+    if (dark > 0) {
       // The room goes dark.
-      context.globalAlpha = 0.3 * level;
+      context.globalAlpha = dark * level;
       kit.rect(0, 0, width, height, "#0A0614");
     }
     context.globalAlpha = 0.16 * level;
     kit.rect(0, 0, width, height, INVASIONS[invasion.kind].tint);
     context.globalAlpha = 1;
   }
-  if (invasion.kind === "vampires" && invasion.phase === "retreat") {
+  if (INVASIONS[invasion.kind].sunrise === true && invasion.phase === "retreat") {
     // Sunrise sends them packing.
     const age = time - invasion.phaseStartedAt;
     context.globalAlpha = 0.45 * Math.max(0, 1 - age / 1.6);
@@ -117,17 +137,19 @@ export function drawInvasionEffects(kit: Kit, invasion: InvasionState | undefine
       drawBeam(kit, agent.x * TILE + TILE / 2, agent.y * TILE + TILE - 1, time, 0.3);
     }
   }
+  const spec = INVASIONS[invasion.kind];
   for (const puff of invasion.puffs) {
     const age = time - puff.at;
     const x = puff.x * TILE + TILE / 2;
     const y = puff.y * TILE + TILE - 2;
-    if (INVASIONS[invasion.kind].entry === "beam") {
+    const way = puff.exit ? spec.exit : spec.entry;
+    if (way === "beam") {
       if (age < 1.3) {
         drawBeam(kit, x, y, time, 0.65 * Math.sin((Math.PI * age) / 1.3));
       }
-    } else if (invasion.kind === "vampires") {
-      drawSmoke(kit, x, y - 6, age);
-      if (puff.exit) {
+    } else if (way !== "door") {
+      drawSmoke(kit, x, y - 6, age, spec.puff ?? ["#6B4A8A", "#3A2A4A"]);
+      if (way === "bats") {
         drawBats(kit, x, y - 8, age, puff.x + puff.y);
       }
     }
@@ -138,12 +160,12 @@ export function drawInvasionEffects(kit: Kit, invasion: InvasionState | undefine
     const fromBox = from === undefined ? undefined : boxOf(from);
     const toBox = to === undefined ? undefined : boxOf(to);
     if (from !== undefined && fromBox !== undefined && toBox !== undefined) {
-      drawZap(kit, fromBox, from.facing, toBox, time);
+      drawZap(kit, fromBox, from.facing, toBox, time, zap.until, spec.zapStyle ?? "bolt", spec.zapColor ?? "#B4FF5A", spec.strikeSeconds);
     }
   }
   context.textBaseline = "middle";
   for (const hit of invasion.hits) {
-    drawWord(kit, hit.word, hit.x * TILE + TILE / 2, hit.y * TILE - 2, time - hit.at, invasion.kind);
+    drawWord(kit, hit.word, hit.x * TILE + TILE / 2, hit.y * TILE - 2, time - hit.at, spec.wordColor);
   }
 }
 
@@ -166,7 +188,7 @@ function drawBeam(kit: Kit, x: number, floorY: number, time: number, alpha: numb
   kit.glow(x, floorY, 10, "#9DFFB0", alpha * 0.5);
 }
 
-function drawSmoke(kit: Kit, x: number, y: number, age: number): void {
+function drawSmoke(kit: Kit, x: number, y: number, age: number, colors: readonly [string, string]): void {
   if (age > 1.2) {
     return;
   }
@@ -176,7 +198,7 @@ function drawSmoke(kit: Kit, x: number, y: number, age: number): void {
   for (let index = 0; index < 6; index++) {
     const angle = index * 1.05 + age;
     const size = Math.max(2, Math.round(5 - age * 3));
-    kit.rect(Math.round(x + Math.cos(angle) * spread - size / 2), Math.round(y + Math.sin(angle) * spread * 0.6 - size / 2), size, size, index % 2 === 0 ? "#6B4A8A" : "#3A2A4A");
+    kit.rect(Math.round(x + Math.cos(angle) * spread - size / 2), Math.round(y + Math.sin(angle) * spread * 0.6 - size / 2), size, size, colors[index % 2]);
   }
   context.globalAlpha = 1;
 }
@@ -198,13 +220,42 @@ function drawBats(kit: Kit, x: number, y: number, age: number, seed: number): vo
   }
 }
 
-function drawZap(kit: Kit, from: GuyBox, facing: Facing, to: GuyBox, time: number): void {
+// A zap from his hand to the guy: a crackling bolt, a straight laser, or a fireball flying across and flaring as it
+// lands.
+function drawZap(kit: Kit, from: GuyBox, facing: Facing, to: GuyBox, time: number, until: number, style: ZapStyle, color: string, length: number): void {
   const { context } = kit;
   const startX = from.left + (facing === "left" ? 0 : facing === "right" ? FRAME : FRAME / 2);
   const startY = from.top + 8;
   const endX = to.left + FRAME / 2;
   const endY = to.top + 7;
-  context.strokeStyle = Math.floor(time * 20) % 2 === 0 ? "#B4FF5A" : "#F0FFE0";
+  if (style === "laser") {
+    context.strokeStyle = Math.floor(time * 24) % 2 === 0 ? color : "#FFE0E0";
+    context.lineWidth = 1;
+    context.beginPath();
+    context.moveTo(startX, startY);
+    context.lineTo(endX, endY);
+    context.stroke();
+    kit.glow(endX, endY, 6, color, 0.7);
+    kit.glow(startX, startY, 3, color, 0.6);
+    return;
+  }
+  if (style === "fireball") {
+    // Across in the first part of the strike, then a flare on him.
+    const t = Math.max(0, Math.min(1, (length - (until - time)) / (length * 0.7)));
+    const x = Math.round(startX + (endX - startX) * t);
+    const y = Math.round(startY + (endY - startY) * t - Math.sin(Math.PI * t) * 4);
+    for (let trail = 1; trail <= 3; trail++) {
+      const back = Math.max(0, t - trail * 0.08);
+      context.globalAlpha = 0.6 - trail * 0.15;
+      kit.rect(Math.round(startX + (endX - startX) * back) - 1, Math.round(startY + (endY - startY) * back - Math.sin(Math.PI * back) * 4) - 1, 2, 2, trail === 1 ? color : "#7A1A10");
+    }
+    context.globalAlpha = 1;
+    kit.rect(x - 2, y - 2, 4, 4, color);
+    kit.rect(x - 1, y - 1, 2, 2, "#FFE48A");
+    kit.glow(x, y, t >= 1 ? 10 : 6, color, 0.7);
+    return;
+  }
+  context.strokeStyle = Math.floor(time * 20) % 2 === 0 ? color : "#F0FFE0";
   context.lineWidth = 1;
   context.beginPath();
   context.moveTo(startX, startY);
@@ -214,12 +265,12 @@ function drawZap(kit: Kit, from: GuyBox, facing: Facing, to: GuyBox, time: numbe
   }
   context.lineTo(endX, endY);
   context.stroke();
-  kit.glow(endX, endY, 7, "#B4FF5A", 0.6);
-  kit.glow(startX, startY, 4, "#B4FF5A", 0.5);
+  kit.glow(endX, endY, 7, color, 0.6);
+  kit.glow(startX, startY, 4, color, 0.5);
 }
 
 // A comic word off a hit: pops in big, then drifts up and fades.
-function drawWord(kit: Kit, word: string, x: number, y: number, age: number, kind: InvasionKindId): void {
+function drawWord(kit: Kit, word: string, x: number, y: number, age: number, color: string): void {
   if (age < 0 || age > 1.4) {
     return;
   }
@@ -234,7 +285,7 @@ function drawWord(kit: Kit, word: string, x: number, y: number, age: number, kin
   for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
     context.fillText(word, left + dx, top + dy);
   }
-  context.fillStyle = kind === "aliens" ? "#B4FF5A" : kind === "vampires" ? "#FF6B8A" : "#FFE14A";
+  context.fillStyle = color;
   context.fillText(word, left, top);
   context.globalAlpha = 1;
 }
@@ -276,6 +327,10 @@ const DEBRIS_ART: Record<DebrisKind, { rows: string[]; colors: Record<string, st
   cans: { rows: ["rr.", "rr.", "..s", ".ss"], colors: { r: "#C0392B", s: "#B8B8B8" } },
   cobweb: { rows: ["w.w.w", ".www.", "wwwww", ".www.", "w.w.w"], colors: { w: "#E8E8F0" } },
   plant: { rows: ["..gg.", ".ggg.", "g.g..", "bbsss"], colors: { g: "#4CB944", b: "#B5651D", s: "#5A3A22" } },
+  bolts: { rows: ["s..d.", ".ss..", "...sd", "d.s.."], colors: { s: "#B8BEC4", d: "#6E767E" } },
+  ecto: { rows: [".eee.", "eelee", ".ee.e"], colors: { e: "#9FE8E0", l: "#E8FFFC" } },
+  fur: { rows: ["b.b..", ".bbb.", "..b.b"], colors: { b: "#7A5A3A" } },
+  sand: { rows: ["..yy..", ".yyyy.", "yyoyyy"], colors: { y: "#E2C27A", o: "#C9A45A" } },
 };
 
 export function drawDebris(kit: Kit, piece: Debris): void {
@@ -284,7 +339,7 @@ export function drawDebris(kit: Kit, piece: Debris): void {
   const left = Math.round(piece.x * TILE + TILE / 2 + piece.ox - width / 2);
   const top = Math.round(piece.y * TILE + 10 + piece.oy);
   const { context } = kit;
-  if (piece.kind === "scorch" || piece.kind === "cobweb") {
+  if (piece.kind === "scorch" || piece.kind === "cobweb" || piece.kind === "ecto") {
     context.globalAlpha = 0.7;
   }
   art.rows.forEach((row, y) => [...row].forEach((cell, x) => {
@@ -339,6 +394,53 @@ export function drawInvaderGear(kit: Kit, agent: Agent, box: GuyBox, facing: Fac
       paint(7, 9, 2, 2, "#8A9BA8");
       paint(7, 10, 1, 1, "#7CFF6B");
     }
+    return;
+  }
+  if (kind === "demons") {
+    // A pitchfork, held up, jabbed forward on a throw.
+    const iron = "#3A3A40";
+    const throwing = agent.mode === "attack";
+    if (side) {
+      paint(throwing ? 9 : 10, throwing ? 8 : 2, 1, throwing ? 1 : 12, iron);
+      if (throwing) {
+        paint(9, 8, 4, 1, iron);
+        paint(13, 7, 1, 1, iron);
+        paint(13, 9, 1, 1, iron);
+      } else {
+        paint(9, 0, 3, 1, iron);
+        paint(9, -1, 1, 1, iron);
+        paint(11, -1, 1, 1, iron);
+        paint(10, -2, 1, 2, iron);
+      }
+    } else if (facing === "down") {
+      paint(10, 2, 1, 12, iron);
+      paint(9, 0, 3, 1, iron);
+      paint(9, -1, 1, 1, iron);
+      paint(11, -1, 1, 1, iron);
+    }
+    return;
+  }
+  if (kind === "mummies") {
+    // Bandage seams across his head and body.
+    const seam = "#B8AC88";
+    if (facing !== "up") {
+      paint(3, 2, 6, 1, seam);
+    }
+    paint(3, 9, 6, 1, seam);
+    paint(3, 12, 6, 1, seam);
+    // A loose bandage trailing behind him.
+    if (agent.path.length > 0 && side) {
+      const wave = frame % 2;
+      paint(0, 11 + wave, 2, 1, "#D8CDA8");
+      paint(-2, 12 - wave, 2, 1, "#CFC3A0");
+    }
+    return;
+  }
+  if (kind === "slimes") {
+    // Drips falling off him.
+    const drip = (Math.floor(frame / 2) % 4);
+    paint(3, 12 + drip, 1, 1, "#6EDC5A");
+    paint(8, 14 - drip / 2, 1, 1, "#9AF07A");
     return;
   }
   if (kind === "raiders") {

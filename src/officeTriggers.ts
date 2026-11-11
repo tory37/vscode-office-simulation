@@ -34,6 +34,12 @@ const INVASION_DESCRIPTIONS: Record<InvasionKindId, string> = {
   zombies: "shamble in; anyone bitten joins them for a bit",
   raiders: "burst in, bonk heads, and run off with the snacks",
   vampires: "appear in smoke, tackle, slurp, and leave as bats",
+  robots: "march in and laser you down",
+  ghosts: "drift in, BOO!, and you faint dead white",
+  werewolves: "a full moon; anyone bitten runs with the pack",
+  slimes: "ooze in and SPLAT! you sticky green",
+  mummies: "shuffle in and wrap you up",
+  demons: "a hellgate opens; fireballs leave you sooty",
 };
 
 const SHOW_DESCRIPTIONS: Record<PerformanceKindId, string> = {
