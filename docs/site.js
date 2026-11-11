@@ -26,6 +26,7 @@
       visitors: "normal",
       performances: "off",
       invasions: "off",
+      gatherings: "off",
       quiet: false,
       sky: null,
       chatter: "tidy",
@@ -128,6 +129,7 @@
         setTint: (index, burst = true) => demo.tint(index, burst),
         playShow: (kind = "random") => demo.show(kind),
         startInvasion: (kind = "random") => demo.post({ type: "invasion", kind }),
+        startGathering: (kind = "random") => demo.post({ type: "gathering", kind }),
         sendVisitor: (kind) => demo.post({ type: "visitor", kind }),
         say: (id, text, seconds = 3) => demo.post({ type: "say", id, text, seconds }),
         editLook: (look, title) => new Promise((resolve) => {
@@ -142,6 +144,8 @@
         onDidEndShow: (listener) => demo.on("showEnd", (message) => listener(message.kind)),
         onDidStartInvasion: (listener) => demo.on("invasionStart", (message) => listener(message.kind)),
         onDidEndInvasion: (listener) => demo.on("invasionEnd", (message) => listener(message.kind)),
+        onDidStartGathering: (listener) => demo.on("gatheringStart", (message) => listener(message.kind)),
+        onDidEndGathering: (listener) => demo.on("gatheringEnd", (message) => listener(message.kind)),
         onDidFinishEvent: (listener) => demo.on("eventEnd", (message) => listener(message.kind)),
         // The page has no Trigger Event button, so nothing asks.
         onDidRequestEvent: () => undefined,

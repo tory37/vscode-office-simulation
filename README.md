@@ -27,8 +27,11 @@ The Office shows up in its own activity bar container.
   Idle guys play alone, take turns with a buddy, or face off two at a time.
 - Your guy, who acts out ERROR, HACK, and DEFENSE scene events with his monitors.
 - Visitors with personalities, and shows: a guitarist, a band, lunch, a snack cart, a comedian, a magician, and a DJ.
-- Invasions now and then: aliens, zombies, raiders, or vampires trash the place. Everyone runs, hides, and gets knocked
-  down (cartoon stars, no gore), then they come to one by one, say how weird that was, and sweep up.
+- Invasions now and then: aliens, zombies, raiders, vampires, robots, ghosts, werewolves, slimes, mummies, or demons
+  trash the place. Everyone runs, hides, and gets knocked down (cartoon stars, no gore), then they come to one by one,
+  say how weird that was, and sweep up.
+- Group gatherings: the desks slide to the sides and everyone who isn't busy joins a yoga class, a fire safety lesson,
+  a card duel, a dance circle, a birthday party, an all-hands, a trivia quiz, karaoke, campfire stories, or trust falls.
 - Critters, fliers, the real sun and moon, and 36 races.
 - Chatter styles (bubbles, tidy, a chat log, or quiet) and see-through bubbles.
 
@@ -44,7 +47,8 @@ takes out exactly those.
 ## Hook into it
 
 `activate()` returns an API: send workers in with `setAgents`, drive your guy with `setMainGuy`, play scene events,
-shows, invasions, visitors, and lines, draw portraits, host the Office in your own view, and hear clicks, shows, invasions, and events.
+shows, invasions, gatherings, visitors, and lines, draw portraits, host the Office in your own view, and hear clicks, shows,
+invasions, gatherings, and events.
 Copy [`api/officeSimulationApi.d.ts`](api/officeSimulationApi.d.ts) for the types. The
 [site](https://tory37.github.io/vscode-office-simulation/#hooks) has a live playground and the full reference.
 

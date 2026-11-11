@@ -7,6 +7,7 @@ import { BUBBLE_LOOKS, CHATTER_LABELS, CHATTER_STYLES, TALK_FREQUENCIES } from "
 import { OFFICE_SCENES, OUTDOOR_SCENES } from "../officeLayout";
 import { PERFORMANCE_KINDS, PERFORMANCES } from "../officePerformances";
 import { INVASION_KINDS, INVASIONS } from "../officeInvasions";
+import { GATHERING_KINDS, GATHERINGS } from "../officeGatherings";
 import { VISITOR_KINDS } from "../officeVisitors";
 import { DEFAULT_YOUR_LOOK } from "../pixelGuy";
 import { RACES } from "../pixelRaces";
@@ -24,6 +25,8 @@ export const OFFICE_SITE = {
   performanceFrequencies: ["off", "rare", "normal", "often"],
   invasions: INVASION_KINDS.map((id) => ({ id, label: INVASIONS[id].label })),
   invasionFrequencies: ["off", "rare", "normal", "often"],
+  gatherings: GATHERING_KINDS.map((id) => ({ id, label: GATHERINGS[id].label })),
+  gatheringFrequencies: ["off", "rare", "normal", "often"],
   visitorKinds: [...VISITOR_KINDS],
   activities: ACTIVITY_KINDS.map((id) => ({ id, label: ACTIVITIES[id].label, play: ACTIVITIES[id].play })),
   activityLevels: ["off", "few", "some", "lots"],

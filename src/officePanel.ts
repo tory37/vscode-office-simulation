@@ -9,7 +9,8 @@ import { SCENE_EVENT_KINDS, SceneEventKind } from "./sceneEventSchedule";
 import { isPerformanceKind, PERFORMANCE_KINDS, PERFORMANCES, performanceFrequency, PerformanceKindId } from "./officePerformances";
 import { visitorFrequency } from "./officeVisitors";
 import { INVASION_KINDS, INVASIONS, invasionFrequency, InvasionKindId, isInvasionKind } from "./officeInvasions";
-import { invasionDescription, showDescription } from "./officeTriggers";
+import { GATHERING_KINDS, GATHERINGS, gatheringFrequency, GatheringKindId, isGatheringKind } from "./officeGatherings";
+import { gatheringDescription, invasionDescription, showDescription } from "./officeTriggers";
 import { SkyOverride, skyNow, skyToggle } from "./officeDaylight";
 import { PixelGuyLook, readLook, yourLook } from "./pixelGuy";
 
@@ -29,6 +30,7 @@ const DAY_NIGHT_SETTING = "officeSim.dayNight";
 const VISITORS_SETTING = "officeSim.visitors";
 const PERFORMANCES_SETTING = "officeSim.performances";
 const INVASIONS_SETTING = "officeSim.invasions";
+const GATHERINGS_SETTING = "officeSim.gatherings";
 export const QUIET_SETTING = "officeSim.quiet";
 // How long the Night button's day or night lasts before the clock takes over again.
 export const SKY_OVERRIDE_MS = 10 * 60_000;
@@ -52,6 +54,8 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
   private pendingShow: { kind: PerformanceKindId | "random" } | undefined;
   // The same for an invasion.
   private pendingInvasion: { kind: InvasionKindId | "random" } | undefined;
+  // And a group gathering.
+  private pendingGathering: { kind: GatheringKindId | "random" } | undefined;
   private readonly listeners: vscode.Disposable[];
   // Set once another extension sends agents or drives your guy through the API: the Claude Code bridge then leaves
   // them to it.
@@ -76,6 +80,10 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
   readonly onDidStartInvasion = this.invasionStartEmitter.event;
   private readonly invasionEndEmitter = new vscode.EventEmitter<InvasionKindId>();
   readonly onDidEndInvasion = this.invasionEndEmitter.event;
+  private readonly gatheringStartEmitter = new vscode.EventEmitter<GatheringKindId>();
+  readonly onDidStartGathering = this.gatheringStartEmitter.event;
+  private readonly gatheringEndEmitter = new vscode.EventEmitter<GatheringKindId>();
+  readonly onDidEndGathering = this.gatheringEndEmitter.event;
   private readonly eventEndEmitter = new vscode.EventEmitter<SceneEventKind>();
   readonly onDidFinishEvent = this.eventEndEmitter.event;
   // The character maker's open request: the webview it's in, the look it started from, and who's waiting.
@@ -87,7 +95,7 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
   constructor(private readonly deps: OfficePanelDeps) {
     this.listeners = [
       vscode.workspace.onDidChangeConfiguration((change) => {
-        if ([SCENE_SETTING, YOU_SETTING, YOUR_LOOK_SETTING, CRITTERS_SETTING, FLIERS_SETTING, DAY_NIGHT_SETTING, VISITORS_SETTING, PERFORMANCES_SETTING, INVASIONS_SETTING, QUIET_SETTING, CHATTER_SETTING, TALK_SETTING, BUBBLE_LOOK_SETTING, RACES_SETTING, ACTIVITIES_SETTING, ACTIVITY_SWAPS_SETTING].some((setting) => change.affectsConfiguration(setting))) {
+        if ([SCENE_SETTING, YOU_SETTING, YOUR_LOOK_SETTING, CRITTERS_SETTING, FLIERS_SETTING, DAY_NIGHT_SETTING, VISITORS_SETTING, PERFORMANCES_SETTING, INVASIONS_SETTING, GATHERINGS_SETTING, QUIET_SETTING, CHATTER_SETTING, TALK_SETTING, BUBBLE_LOOK_SETTING, RACES_SETTING, ACTIVITIES_SETTING, ACTIVITY_SWAPS_SETTING].some((setting) => change.affectsConfiguration(setting))) {
           this.postAll();
         }
       }),
@@ -143,7 +151,7 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
     this.webviews.forEach((webview) => void webview.postMessage(message));
   }
 
-  // Ends whatever's playing in every open Office: a show, an invasion, visitors, a scene event.
+  // Ends whatever's playing in every open Office: a show, an invasion, a gathering, visitors, a scene event.
   stopEverything(): void {
     this.broadcast({ type: "stop" });
   }
@@ -168,6 +176,17 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
     const message = { type: "invasion", kind };
     if (![...this.views].some((view) => view.visible)) {
       this.pendingInvasion = this.webviews.size === 0 ? { kind } : undefined;
+      void vscode.commands.executeCommand(`${OFFICE_PANEL_VIEW_ID}.focus`);
+    }
+    this.webviews.forEach((webview) => void webview.postMessage(message));
+  }
+
+  // Starts a group gathering in the Office now, opening the view first if it isn't showing. Nothing happens if one is
+  // on, or nobody's free to come.
+  playGathering(kind: GatheringKindId | "random"): void {
+    const message = { type: "gathering", kind };
+    if (![...this.views].some((view) => view.visible)) {
+      this.pendingGathering = this.webviews.size === 0 ? { kind } : undefined;
       void vscode.commands.executeCommand(`${OFFICE_PANEL_VIEW_ID}.focus`);
     }
     this.webviews.forEach((webview) => void webview.postMessage(message));
@@ -241,7 +260,7 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
   dispose(): void {
     clearTimeout(this.skyTimer);
     this.listeners.forEach((listener) => listener.dispose());
-    [this.clickEmitter, this.readyEmitter, this.showStartEmitter, this.showEndEmitter, this.invasionStartEmitter, this.invasionEndEmitter, this.eventEndEmitter].forEach((emitter) => emitter.dispose());
+    [this.clickEmitter, this.readyEmitter, this.showStartEmitter, this.showEndEmitter, this.invasionStartEmitter, this.invasionEndEmitter, this.gatheringStartEmitter, this.gatheringEndEmitter, this.eventEndEmitter].forEach((emitter) => emitter.dispose());
   }
 
   private handleMessage(webview: vscode.Webview, message: unknown): void {
@@ -259,6 +278,10 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
         void webview.postMessage({ type: "invasion", kind: this.pendingInvasion.kind });
         this.pendingInvasion = undefined;
       }
+      if (this.pendingGathering !== undefined) {
+        void webview.postMessage({ type: "gathering", kind: this.pendingGathering.kind });
+        this.pendingGathering = undefined;
+      }
       this.readyEmitter.fire(webview);
     } else if (type === "makerDone" && requestId === this.makerRequest?.id) {
       this.finishMaker(look === null || typeof look !== "object" ? undefined : (look as PixelGuyLook));
@@ -272,6 +295,10 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
       this.invasionStartEmitter.fire(kind);
     } else if (type === "invasionEnd" && isInvasionKind(kind)) {
       this.invasionEndEmitter.fire(kind);
+    } else if (type === "gatheringStart" && isGatheringKind(kind)) {
+      this.gatheringStartEmitter.fire(kind);
+    } else if (type === "gatheringEnd" && isGatheringKind(kind)) {
+      this.gatheringEndEmitter.fire(kind);
     } else if (type === "eventEnd" && SCENE_EVENT_KINDS.includes(kind as SceneEventKind)) {
       this.eventEndEmitter.fire(kind as SceneEventKind);
     }
@@ -300,6 +327,7 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
     visitors: string;
     performances: string;
     invasions: string;
+    gatherings: string;
     quiet: boolean;
     sky: SkyOverride | null;
     chatter: string;
@@ -324,6 +352,7 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
       visitors: visitorFrequency(configuration.get<unknown>(VISITORS_SETTING)),
       performances: performanceFrequency(configuration.get<unknown>(PERFORMANCES_SETTING)),
       invasions: invasionFrequency(configuration.get<unknown>(INVASIONS_SETTING)),
+      gatherings: gatheringFrequency(configuration.get<unknown>(GATHERINGS_SETTING)),
       quiet: configuration.get<boolean>(QUIET_SETTING, false) === true,
       sky: this.skyOverride ?? null,
       chatter: chatterStyle(configuration.get<unknown>(CHATTER_SETTING)),
@@ -392,6 +421,23 @@ export function registerOfficeCommands(office: OfficePanelProvider): vscode.Disp
       );
       if (picked !== undefined) {
         office.playInvasion(picked.id);
+      }
+    }),
+    // Takes a gathering kind as an argument (for a keybinding), or asks.
+    vscode.commands.registerCommand("officeSim.startGathering", async (kind?: unknown) => {
+      if (isGatheringKind(kind) || kind === "random") {
+        office.playGathering(kind);
+        return;
+      }
+      const picked = await vscode.window.showQuickPick(
+        [
+          { label: "$(question) Surprise Me", id: "random" as const },
+          ...GATHERING_KINDS.map((id) => ({ label: GATHERINGS[id].label, description: gatheringDescription(id), id })),
+        ],
+        { placeHolder: "Which gathering?" },
+      );
+      if (picked !== undefined) {
+        office.playGathering(picked.id);
       }
     }),
     // Takes a style as an argument (for a keybinding), or asks for a style, a bubble look, or how often they talk.

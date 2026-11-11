@@ -5,6 +5,7 @@ import { isEventKind } from "./officeEvents";
 import { OfficePanelProvider } from "./officePanel";
 import { isPerformanceKind } from "./officePerformances";
 import { isInvasionKind } from "./officeInvasions";
+import { isGatheringKind } from "./officeGatherings";
 import type { OfficeLook, OfficeSimulationApi } from "./officeSimulationApi";
 import { VISITOR_KINDS } from "./officeVisitors";
 import { pixelGuyLook, portraitSvg, raceOfSeed, readLook } from "./pixelGuy";
@@ -49,6 +50,9 @@ export function createOfficeApi(office: OfficePanelProvider, director: OfficeDir
     startInvasion(kind = "random") {
       office.playInvasion(isInvasionKind(kind) ? kind : "random");
     },
+    startGathering(kind = "random") {
+      office.playGathering(isGatheringKind(kind) ? kind : "random");
+    },
     sendVisitor(kind) {
       office.broadcast({ type: "visitor", kind: VISITOR_KINDS.some((visitor) => visitor.id === kind) ? kind : undefined });
     },
@@ -77,6 +81,8 @@ export function createOfficeApi(office: OfficePanelProvider, director: OfficeDir
     onDidEndShow: office.onDidEndShow,
     onDidStartInvasion: office.onDidStartInvasion,
     onDidEndInvasion: office.onDidEndInvasion,
+    onDidStartGathering: office.onDidStartGathering,
+    onDidEndGathering: office.onDidEndGathering,
     onDidFinishEvent: office.onDidFinishEvent,
     onDidRequestEvent: (listener, thisArgs, disposables) => {
       director.hostTakesRequests = true;

@@ -96,6 +96,12 @@
         "icon": "$(flame)"
       },
       {
+        "command": "officeSim.startGathering",
+        "title": "Start Gathering…",
+        "category": "Office",
+        "icon": "$(organization)"
+      },
+      {
         "command": "officeSim.chatter",
         "title": "Chatter…",
         "category": "Office",
@@ -373,10 +379,27 @@
           "default": "normal",
           "markdownDescription": "How often something comes through and trashes the Office: aliens (beamed down; they zap guys or float them up in a beam), zombies (anyone bitten joins them for a bit), raiders (they bonk heads and run off with the loot), vampires (they tackle a guy, slurp, and leave him pale), robots (lasers from across the room), ghosts (a BOO! and he faints, pale), werewolves (anyone bitten joins the pack), slimes (SPLAT! and he's green and sticky), mummies (they wrap him up), or demons (fireballs leave him sooty). Everyone runs and hides, busy or not, and gets knocked down seeing stars. Nobody's hurt: once they go, the guys come to one by one, look around, say how weird that was, dust off, sweep up the mess, and get back to it. Start one now with **Office: Start Invasion…**."
         },
+        "officeSim.gatherings": {
+          "type": "string",
+          "enum": [
+            "off",
+            "rare",
+            "normal",
+            "often"
+          ],
+          "enumDescriptions": [
+            "No group gatherings.",
+            "A gathering every 40 to 80 minutes.",
+            "A gathering every 15 to 30 minutes.",
+            "A gathering every 5 to 10 minutes."
+          ],
+          "default": "normal",
+          "markdownDescription": "How often the whole room stops for something together: a yoga class, a fire safety lesson (the marshal lights a bin and puts it out), a card duel, a dance circle (one at a time in the middle), a birthday party with cake, an all-hands meeting, a trivia quiz, karaoke, campfire stories, or team-building trust falls. The desks in the middle slide to the sides, everyone who isn't busy comes over, and it happens in the cleared middle; busy guys keep working at their desks wherever they slid to. Then the desks slide back. A gathering waits until someone is free to come. Start one now with **Office: Start Gathering…**."
+        },
         "officeSim.quiet": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "Quiet: no shows, visitors, invasions, or scene events come on their own, in the Office (a host's own views keep theirs). **Office: Trigger Event…** still starts any of them. The bell on the Office view turns it on and off."
+          "markdownDescription": "Quiet: no shows, visitors, invasions, gatherings, or scene events come on their own, in the Office (a host's own views keep theirs). **Office: Trigger Event…** still starts any of them. The bell on the Office view turns it on and off."
         },
         "officeSim.events": {
           "type": "string",

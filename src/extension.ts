@@ -52,6 +52,9 @@ export function activate(context: vscode.ExtensionContext): OfficeSimulationApi 
         case "show":
           office.playShow(trigger.show);
           return;
+        case "gathering":
+          office.playGathering(trigger.gathering);
+          return;
         case "visitor":
           office.broadcast({ type: "visitor", kind: trigger.department });
           return;

@@ -22,10 +22,10 @@ export interface ShowLine {
   cue?: ShowCue;
 }
 
-export type FoodKind = "pizza" | "taco" | "burger" | "sushi" | "donut" | "cookie" | "iceCream" | "popcorn";
+export type FoodKind = "pizza" | "taco" | "burger" | "sushi" | "donut" | "cookie" | "iceCream" | "popcorn" | "cake";
 
 export const FOOD_NAMES: Record<FoodKind, string> = {
-  pizza: "pizza", taco: "tacos", burger: "burgers", sushi: "sushi", donut: "donuts", cookie: "cookies", iceCream: "ice cream", popcorn: "popcorn",
+  pizza: "pizza", taco: "tacos", burger: "burgers", sushi: "sushi", donut: "donuts", cookie: "cookies", iceCream: "ice cream", popcorn: "popcorn", cake: "cake",
 };
 
 // The room's effect while the show is on: music notes, a spotlight, disco lights, sparkles, or steam off the food.
@@ -256,6 +256,12 @@ const IDLE_LINES: Record<ShowEffect, readonly string[]> = {
 
 const SLEEPY_LINES = ["*yawn*", "wha—? oh, nice.", "zz… ♪ …zz", "is it lunch?", "*rubs eyes*"];
 
+// A crowd's answer to a cue, by personality now and then: shows and group gatherings share these.
+export function cueLine(cue: ShowCue, personality: Personality, random: () => number): string {
+  const lines = CUE_LINES[cue];
+  return random() < 0.35 ? pick(lines[personality], random) : pick(lines.any, random);
+}
+
 export function audienceLine(kind: PerformanceKindId, cue: ShowCue | "idle", personality: Personality, asleep: boolean, random: () => number, food?: FoodKind): string {
   if (asleep && random() < 0.3) {
     return pick(SLEEPY_LINES, random);
@@ -263,8 +269,7 @@ export function audienceLine(kind: PerformanceKindId, cue: ShowCue | "idle", per
   if (cue === "idle") {
     return pick(IDLE_LINES[PERFORMANCES[kind].effect], random).replace("{food}", food === undefined ? "lunch" : FOOD_NAMES[food]);
   }
-  const lines = CUE_LINES[cue];
-  return random() < 0.35 ? pick(lines[personality], random) : pick(lines.any, random);
+  return cueLine(cue, personality, random);
 }
 
 // How often a show comes (overseer.office.performances), as minutes between shows.
