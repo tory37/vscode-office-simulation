@@ -23,6 +23,10 @@ import {
   ACTIVITIES, ActivityKindId, ActivityLevel, ActivitySwaps, activityStay, activityTarget, activityTripGap, activityWidth, CREW_ITEM_LINES, pickActivityKind,
 } from "./officeActivities";
 import { audienceLine, FoodKind, PERFORMANCES, PerformanceKindId, ShowCue, ShowLine, ShowRole } from "./officePerformances";
+import {
+  AFTERMATH_SECONDS, CLEAN_LINES, COWER_LINES, DebrisKind, DONE_LINES, DUST_LINES, FLEE_SPEED, InvasionKindId, INVASIONS, RETREAT_SECONDS,
+  screamLine, SURVIVOR_LINES, WARNING_SECONDS, wakeLine,
+} from "./officeInvasions";
 import { MAX_VISITORS, personalityOf, visitorReaction } from "./officeVisitors";
 import type { Facing, Pose } from "./pixelGuy";
 
@@ -40,7 +44,10 @@ export type AgentMode =
   // In the crowd at a show, and on stage putting one on.
   | "watch" | "perform"
   // At an activity: playing it (waiting his turn, or for his opponent, is "wait").
-  | "play";
+  | "play"
+  // In an invasion. The guys: frozen at the warning, catching breath on the run, hiding, caught, knocked down, up in a
+  // beam, coming to, dusting off, and sweeping up. The invaders: striking, and beaming or smoking in or out.
+  | "alert" | "panic" | "cower" | "struggle" | "down" | "float" | "dazed" | "dust" | "sweep" | "attack" | "beam";
 
 export type AgentGoal =
   | { kind: "work" }
@@ -63,6 +70,11 @@ export type AgentGoal =
   | { kind: "show" }
   // Headed for, or at, one of an activity's spots.
   | { kind: "activity"; activityId: string; activity: ActivityKindId; spot: number }
+  // In an invasion: running from them, chasing a guy, headed to trash something, and headed to sweep up a mess.
+  | { kind: "flee" }
+  | { kind: "hunt"; preyId: string }
+  | { kind: "trash" }
+  | { kind: "sweep"; debrisId: number }
   | { kind: "door" };
 
 export interface Agent {
@@ -106,6 +118,53 @@ export interface Agent {
   snack?: FoodKind;
   // Woken from a nap to watch a show; he answers it sleepily.
   groggy?: boolean;
+  // Tiles a second, when he isn't going the usual walk or run: invaders, and the guys running from them.
+  speed?: number;
+  // An invader, not a session.
+  invader?: InvaderState;
+  // Caught up in an invasion.
+  scare?: ScareState;
+  // The strike he's in the middle of, as an invader or a turned zombie.
+  strike?: StrikeState;
+  // Drawn another way for a while: turned into a zombie, or pale from a vampire.
+  variant?: LookVariant;
+}
+
+export type LookVariant = "zombie" | "pale";
+
+export interface InvaderState {
+  kind: InvasionKindId;
+  nextTauntAt: number;
+  nextTrashAt: number;
+  // When he next looks again for who to chase.
+  repathAt: number;
+  // Raiders run off with something.
+  loot: boolean;
+  // On his way out by beam or bats: gone when his mode runs out.
+  exiting: boolean;
+}
+
+// A strike on a guy, or on the furniture; feeding is the vampire's second part, over a guy he's tackled.
+export interface StrikeState {
+  targetId: string | undefined;
+  at: Point;
+  feeding: boolean;
+}
+
+export interface ScareState {
+  // When his mode started, for floating up in a beam.
+  since: number;
+  nextScreamAt: number;
+  // Knocked down at some point (survivors weren't), and come to since.
+  down: boolean;
+  woke: boolean;
+  // Bitten: up again as a zombie at turnAt, then chasing the others until they leave.
+  turnAt: number | undefined;
+  turned: boolean;
+  // Facing his head to the left on the floor.
+  headLeft: boolean;
+  // When he next looks again for who to chase, as a turned zombie.
+  repathAt: number;
 }
 
 export interface PerformerState {
@@ -152,6 +211,79 @@ export interface ShowInput {
   closer: ShowLine;
   length: number;
   food?: readonly FoodKind[];
+}
+
+// warning: the lights flicker and everyone freezes. attack: they come in and the guys run. retreat: they leave.
+// aftermath: the guys come to one by one, dust off, and sweep up.
+export type InvasionPhase = "warning" | "attack" | "retreat" | "aftermath";
+
+// A bit of mess on the floor, and who's sweeping it up.
+export interface Debris {
+  id: number;
+  x: number;
+  y: number;
+  // Pixels off the tile's middle, so the mess doesn't sit on a grid.
+  ox: number;
+  oy: number;
+  kind: DebrisKind;
+  sweeper: string | undefined;
+}
+
+// For the view: a word popping off a hit, an invader beaming or smoking in (or out), and an alien's zap.
+export interface InvasionHit {
+  x: number;
+  y: number;
+  at: number;
+  word: string;
+}
+
+export interface InvasionPuff {
+  x: number;
+  y: number;
+  at: number;
+  exit: boolean;
+}
+
+export interface InvasionZap {
+  fromId: string;
+  toId: string;
+  until: number;
+}
+
+export interface InvasionState {
+  kind: InvasionKindId;
+  phase: InvasionPhase;
+  startedAt: number;
+  phaseStartedAt: number;
+  phaseEndsAt: number;
+  // Seconds the attack lasts at most.
+  length: number;
+  invaderIds: string[];
+  // Invaders still to come in, one every so often.
+  pending: InvaderInput[];
+  nextSpawnAt: number;
+  debris: Debris[];
+  debrisCount: number;
+  hits: InvasionHit[];
+  puffs: InvasionPuff[];
+  zaps: InvasionZap[];
+  nextGatherAt: number;
+  // When the last guy went down, so the attack ends a moment after.
+  allDownSince: number | undefined;
+  nextWakeAt: number;
+}
+
+export interface InvaderInput {
+  id: string;
+  seed: string;
+  title: string;
+}
+
+export interface InvasionInput {
+  kind: InvasionKindId;
+  invaders: readonly InvaderInput[];
+  // Seconds the attack lasts at most.
+  length: number;
 }
 
 export interface CrewJob {
@@ -243,6 +375,8 @@ export interface OfficeState {
   placed: Map<number, string>;
   // The show on now, if any.
   show?: ShowState;
+  // The invasion on now, if any.
+  invasion?: InvasionState;
   // How much the guys talk on their own (officeChatter's talkFactor): 0 is never, 1 the usual.
   talk?: number;
   // What your guy is up to: auto works at his station with a break now and then; busy stays at the station; idle stays
@@ -290,7 +424,7 @@ const CREW_SPACING_SECONDS = 0.8;
 
 // A session's guy: not you, not a visitor, not the crew, not a performer.
 function isSession(agent: Agent): boolean {
-  return !agent.you && agent.visitor === undefined && agent.crew === undefined && agent.performer === undefined;
+  return !agent.you && agent.visitor === undefined && agent.crew === undefined && agent.performer === undefined && agent.invader === undefined;
 }
 
 export function crewAgents(state: OfficeState): Agent[] {
@@ -496,7 +630,7 @@ function isAddressing(agent: Agent): boolean {
 
 // Turns a standing idle guy to look at a point (a visitor, say) for a moment. Seated and busy guys stay put.
 export function lookToward(state: OfficeState, agent: Agent, at: { x: number; y: number }, seconds: number): void {
-  if (agent.status === "working" || agent.leaving || SEATED_MODES.has(agent.mode) || agent.mode === "chat") {
+  if (agent.status === "working" || agent.leaving || SEATED_MODES.has(agent.mode) || agent.mode === "chat" || inInvasion(agent)) {
     return;
   }
   const dx = at.x - agent.x;
@@ -555,6 +689,15 @@ function stepHangout(state: OfficeState, agent: Agent, random: Random): void {
   say(state, agent, line, lineSeconds(line));
 }
 
+// Every visitor in the room says bye and heads out (the Stop button).
+export function sendVisitorsHome(state: OfficeState): void {
+  for (const agent of visitorAgents(state)) {
+    if (!agent.leaving && agent.scare === undefined) {
+      visitorLeaves(state, agent);
+    }
+  }
+}
+
 // A visitor done hanging around says bye and heads out.
 function visitorLeaves(state: OfficeState, agent: Agent): void {
   const farewell = agent.visitor?.farewell;
@@ -572,7 +715,7 @@ function lineSeconds(line: string): number {
 // A scene event: drop what you're doing and run back to your desk.
 export function callYouBack(state: OfficeState, random: Random): void {
   const agent = youAgent(state);
-  if (agent === undefined) {
+  if (agent === undefined || agent.scare !== undefined) {
     return;
   }
   agent.nextBreakAt = state.youStatus === "busy" ? FOREVER : state.time + between(random, 40, 90);
@@ -702,6 +845,10 @@ export function relayoutOffice(state: OfficeState, layout: OfficeLayout, random:
   if (show !== undefined && !show.spots.every((spot) => layout.tiles[spot.y]?.[spot.x] === "floor" && spot.y >= 1)) {
     endShow(state, random);
   }
+  // The mess stays where there's still floor for it.
+  if (state.invasion !== undefined) {
+    state.invasion.debris = state.invasion.debris.filter((piece) => layout.tiles[piece.y]?.[piece.x] === "floor");
+  }
   for (const agent of state.agents) {
     if (agent.crew !== undefined) {
       crewDecide(state, agent, random);
@@ -721,6 +868,7 @@ export function stepOffice(state: OfficeState, seconds: number, random: Random):
   manageCrew(state, random);
   stepActivities(state, random);
   stepShow(state, random);
+  stepInvasion(state, random);
   for (const agent of [...state.agents]) {
     if (agent.bubble !== undefined && state.time >= agent.bubble.until) {
       agent.bubble = undefined;
@@ -731,14 +879,14 @@ export function stepOffice(state: OfficeState, seconds: number, random: Random):
     if (agent.watch !== undefined) {
       continue;
     }
-    if (agent.you) {
+    if (agent.you && agent.scare === undefined) {
       stepYou(state, agent, random);
     }
     if (isAddressing(agent) && agent.path.length === 0) {
       stepVisitor(state, agent, random);
       continue;
     }
-    if (agent.visitor !== undefined && !agent.leaving && agent.path.length === 0) {
+    if (agent.visitor !== undefined && !agent.leaving && agent.path.length === 0 && agent.scare === undefined) {
       stepHangout(state, agent, random);
     }
     if (agent.path.length > 0) {
@@ -811,7 +959,7 @@ export const CRITTER_REACH = { x: 3, y: 2 };
 export function reactToCritter(state: OfficeState, at: { x: number; y: number }, lines: readonly string[], reacted: ReadonlySet<string>, random: Random): string[] {
   const watchers: string[] = [];
   for (const agent of state.agents) {
-    if (reacted.has(agent.id) || agent.status === "working" || agent.mode === "sleep" || agent.leaving || agent.bubble !== undefined) {
+    if (reacted.has(agent.id) || agent.status === "working" || agent.mode === "sleep" || agent.leaving || agent.bubble !== undefined || inInvasion(agent)) {
       continue;
     }
     const dx = at.x - agent.x;
@@ -840,6 +988,8 @@ export interface AgentPose {
   seated: boolean;
   // Pixels to draw him off his tile: up on a trampoline bounce, side to side in the massage chair.
   offset?: { x: number; y: number };
+  // Knocked down: the view lays the frame on its side.
+  lying?: boolean;
 }
 
 // How fast each pose's frames go at an activity.
@@ -859,6 +1009,10 @@ function activityPose(agent: Agent, kind: ActivityKindId, time: number, phase: n
 
 export function agentPose(agent: Agent, time: number): AgentPose {
   const phase = (agent.id.length * 0.37) % 1;
+  const invaded = invasionPose(agent, time, phase);
+  if (invaded !== undefined) {
+    return invaded;
+  }
   if (agent.path.length === 0 && agent.mode === "perform" && agent.performer !== undefined) {
     return performerPose(agent, agent.performer, time);
   }
@@ -991,7 +1145,8 @@ function assignWorkSpots(state: OfficeState): void {
 // Idle and asleep (a suspended session) look the same in the room: both do idle things, naps among them. Going
 // between the two changes nothing he's doing.
 function onStatusChange(state: OfficeState, agent: Agent, previous: AgentStatus, random: Random): void {
-  if (agent.status !== "working" && previous !== "working") {
+  // In an invasion he has other things on his mind; he picks his status back up after.
+  if ((agent.status !== "working" && previous !== "working") || agent.scare !== undefined) {
     return;
   }
   endChat(state, agent);
@@ -1028,6 +1183,10 @@ function decide(state: OfficeState, agent: Agent, random: Random): void {
   }
   if (agent.leaving) {
     leave(state, agent);
+    return;
+  }
+  if (inInvasion(agent)) {
+    invasionDecide(state, agent, random);
     return;
   }
   if (agent.performer !== undefined) {
@@ -1128,7 +1287,7 @@ function pickIdleActivity(state: OfficeState, agent: Agent, random: Random): voi
 }
 
 function canChat(agent: Agent): boolean {
-  return !agent.leaving && agent.status !== "working" && agent.mode !== "sleep" && agent.performer === undefined && agent.goal?.kind !== "chat" && agent.goal?.kind !== "show" &&
+  return !agent.leaving && agent.status !== "working" && agent.mode !== "sleep" && agent.performer === undefined && !inInvasion(agent) && agent.goal?.kind !== "chat" && agent.goal?.kind !== "show" &&
     agent.goal?.kind !== "activity" && agent.crew === undefined &&
     agent.mode !== "chat" && agent.mode !== "wait" && agent.mode !== "watch";
 }
@@ -1159,6 +1318,13 @@ function wander(state: OfficeState, agent: Agent, random: Random): void {
 
 function leave(state: OfficeState, agent: Agent): void {
   endChat(state, agent);
+  // A guy whose session ends in an invasion gets up and goes.
+  if (agent.scare !== undefined) {
+    agent.scare = undefined;
+    agent.variant = undefined;
+    agent.speed = undefined;
+  }
+  agent.strike = undefined;
   agent.leaving = true;
   agent.deskIndex = undefined;
   const path = findPath(state.layout, here(agent), state.layout.door);
@@ -1202,7 +1368,7 @@ function goTo(state: OfficeState, agent: Agent, target: Point, goal: AgentGoal, 
 }
 
 function move(agent: Agent, dt: number): void {
-  let budget = (agent.running ? RUN_SPEED : WALK_SPEED) * dt;
+  let budget = (agent.speed ?? (agent.running ? RUN_SPEED : WALK_SPEED)) * dt;
   while (budget > 0 && agent.path.length > 0) {
     const next = agent.path[0];
     const dx = next.x - agent.x;
@@ -1227,6 +1393,10 @@ function move(agent: Agent, dt: number): void {
 function arrive(state: OfficeState, agent: Agent, random: Random): void {
   const goal = agent.goal;
   agent.running = false;
+  if (goal?.kind !== "door" && inInvasion(agent)) {
+    invasionArrive(state, agent, random);
+    return;
+  }
   switch (goal?.kind) {
     case "work":
       agent.facing = "up";
@@ -2444,7 +2614,7 @@ function crowdSpot(state: OfficeState, agent: Agent, show: ShowState): Point | u
 // Sends this guy to the crowd if a show is playing and he's free to watch. Returns false when there's nothing to join.
 function joinShow(state: OfficeState, agent: Agent, random: Random): boolean {
   const show = state.show;
-  if (show === undefined || show.phase !== "playing" || agent.leaving || agent.crew !== undefined || agent.performer !== undefined) {
+  if (show === undefined || show.phase !== "playing" || agent.leaving || agent.crew !== undefined || agent.performer !== undefined || inInvasion(agent)) {
     return false;
   }
   if (agent.goal?.kind === "show" || agent.status === "working" || isAddressing(agent)) {
@@ -2608,4 +2778,902 @@ function performerPose(agent: Agent, performer: PerformerState, time: number): A
     default:
       return { pose: "talk", facing: agent.facing, frame: agent.bubble === undefined ? 0 : Math.floor(time * 5), seated: false };
   }
+}
+
+// ----- Invasions -----
+
+// The most mess on the floor at once, and what a turned zombie groans.
+const MAX_DEBRIS = 16;
+const ZOMBIE_LINES = ["braaains…", "uuurgh…", "*groan*", "mmm… brains"];
+
+// An invader, or one of the guys caught up in an invasion.
+function inInvasion(agent: Agent): boolean {
+  return agent.invader !== undefined || agent.scare !== undefined;
+}
+
+// Who an invasion catches up: everyone in the room but the crew (they've seen worse), performers, and the invaders.
+function canBeScared(agent: Agent): boolean {
+  return !agent.leaving && agent.crew === undefined && agent.performer === undefined && agent.invader === undefined && agent.scare === undefined;
+}
+
+export function invaderAgents(state: OfficeState): Agent[] {
+  return state.agents.filter((agent) => agent.invader !== undefined);
+}
+
+// Up on his feet, not caught, not down, not floating.
+function isUp(agent: Agent): boolean {
+  return agent.mode !== "down" && agent.mode !== "float" && agent.mode !== "struggle";
+}
+
+// The ones chasing: invaders on the hunt, and guys turned into zombies.
+function huntersOf(state: OfficeState): Agent[] {
+  return state.agents.filter((agent) =>
+    !agent.leaving && ((agent.invader !== undefined && !agent.invader.exiting && agent.mode !== "beam") || agent.scare?.turned === true),
+  );
+}
+
+function hunterKind(state: OfficeState, agent: Agent): InvasionKindId {
+  return agent.invader?.kind ?? (agent.scare?.turned === true ? "zombies" : state.invasion?.kind ?? "zombies");
+}
+
+const talkChance = (state: OfficeState, chance: number) => chance * Math.min(1, talkOf(state));
+
+// An invasion starts: the lights flicker and everyone freezes, then the invaders come in. Returns false when one is
+// already on, there are no invaders, or nobody's in the room to scare. A show on now is cut short.
+export function startInvasion(state: OfficeState, input: InvasionInput, random: Random): boolean {
+  if (state.invasion !== undefined || input.invaders.length === 0 || !state.agents.some(canBeScared)) {
+    return false;
+  }
+  endShow(state, random);
+  state.invasion = {
+    kind: input.kind,
+    phase: "warning",
+    startedAt: state.time,
+    phaseStartedAt: state.time,
+    phaseEndsAt: state.time + WARNING_SECONDS,
+    length: Math.max(8, input.length),
+    invaderIds: [],
+    pending: [...input.invaders],
+    nextSpawnAt: FOREVER,
+    debris: [],
+    debrisCount: 0,
+    hits: [],
+    puffs: [],
+    zaps: [],
+    nextGatherAt: state.time + 2,
+    allDownSince: undefined,
+    nextWakeAt: FOREVER,
+  };
+  for (const agent of state.agents) {
+    if (canBeScared(agent)) {
+      enlist(state, agent, random);
+    }
+  }
+  return true;
+}
+
+// Ends the invasion now: the invaders vanish, everyone's back on his feet and back to what he was doing, the mess is
+// gone.
+export function endInvasion(state: OfficeState, random: Random): void {
+  if (state.invasion === undefined) {
+    return;
+  }
+  state.invasion = undefined;
+  for (const agent of [...state.agents]) {
+    if (agent.invader !== undefined) {
+      removeAgent(state, agent);
+    } else if (agent.scare !== undefined) {
+      release(state, agent, random, false);
+    }
+  }
+}
+
+// Drops what he's doing and freezes, or with the attack already on, runs.
+function enlist(state: OfficeState, agent: Agent, random: Random): void {
+  const invasion = state.invasion as InvasionState;
+  endChat(state, agent);
+  const napping = agent.mode === "sleep";
+  agent.watch = undefined;
+  agent.react = undefined;
+  agent.reply = undefined;
+  agent.cheerUntil = 0;
+  agent.snack = undefined;
+  agent.groggy = undefined;
+  agent.goal = undefined;
+  agent.scare = {
+    since: state.time,
+    nextScreamAt: state.time + between(random, 0.3, 2.4),
+    down: false,
+    woke: false,
+    turnAt: undefined,
+    turned: false,
+    headLeft: random() < 0.5,
+    repathAt: 0,
+  };
+  if (napping && random() < talkChance(state, 0.7)) {
+    say(state, agent, random() < 0.5 ? "huh?!" : "wha—?", 1.2);
+  }
+  if (agent.path.length > 0) {
+    // Finishes the step he's on, then freezes.
+    agent.path = agent.path.slice(0, 1);
+    agent.target = agent.path[0];
+    return;
+  }
+  agent.target = undefined;
+  if (invasion.phase === "warning") {
+    if (INVASIONS[invasion.kind].entry === "door") {
+      agent.facing = facingToward(agent, state.layout.door);
+    }
+    setMode(state, agent, "alert", invasion.phaseEndsAt - state.time + between(random, 0, 0.7));
+  } else {
+    setMode(state, agent, "alert", between(random, 0.1, 0.5));
+  }
+}
+
+// Each frame of an invasion.
+function stepInvasion(state: OfficeState, random: Random): void {
+  const invasion = state.invasion;
+  if (invasion === undefined) {
+    return;
+  }
+  invasion.hits = invasion.hits.filter((hit) => state.time - hit.at < 2);
+  invasion.puffs = invasion.puffs.filter((puff) => state.time - puff.at < 3);
+  invasion.zaps = invasion.zaps.filter((zap) => state.time < zap.until);
+  const spec = INVASIONS[invasion.kind];
+  switch (invasion.phase) {
+    case "warning":
+      for (const agent of state.agents) {
+        if (agent.scare !== undefined && state.time >= agent.scare.nextScreamAt) {
+          agent.scare.nextScreamAt = FOREVER;
+          if (agent.bubble === undefined && random() < talkChance(state, 0.6)) {
+            say(state, agent, pickPhrase(spec.warning, random), 1.8);
+          }
+        }
+      }
+      if (state.time >= invasion.phaseEndsAt) {
+        beginAttack(state, invasion, random);
+      }
+      return;
+    case "attack":
+      stepAttack(state, invasion, random);
+      return;
+    case "retreat":
+      if (!state.agents.some((agent) => agent.invader !== undefined) || state.time >= invasion.phaseEndsAt) {
+        for (const agent of invaderAgents(state)) {
+          if (!agent.leaving) {
+            invasion.puffs.push({ x: agent.x, y: agent.y, at: state.time, exit: true });
+          }
+          removeAgent(state, agent);
+        }
+        beginAftermath(state, invasion, random);
+      }
+      return;
+    case "aftermath":
+      stepAftermath(state, invasion, random);
+      return;
+  }
+}
+
+function beginAttack(state: OfficeState, invasion: InvasionState, random: Random): void {
+  invasion.phase = "attack";
+  invasion.phaseStartedAt = state.time;
+  invasion.phaseEndsAt = state.time + invasion.length;
+  invasion.nextSpawnAt = state.time;
+  for (const agent of state.agents) {
+    if (agent.scare === undefined) {
+      continue;
+    }
+    agent.scare.nextScreamAt = state.time + between(random, 0.8, 3);
+    if (agent.mode === "alert") {
+      // They bolt one after another, not all at once.
+      agent.modeUntil = state.time + between(random, 0.2, 1.2);
+    }
+  }
+}
+
+function stepAttack(state: OfficeState, invasion: InvasionState, random: Random): void {
+  const pending = invasion.pending[0];
+  if (pending !== undefined && state.time >= invasion.nextSpawnAt) {
+    invasion.pending.shift();
+    spawnInvader(state, invasion, pending, random, invasion.invaderIds.length === 0);
+    invasion.nextSpawnAt = state.time + between(random, 0.6, 1.1);
+  }
+  if (state.time >= invasion.nextGatherAt) {
+    // Anyone who just walked in is in it too.
+    invasion.nextGatherAt = state.time + 2;
+    for (const agent of state.agents) {
+      if (canBeScared(agent)) {
+        enlist(state, agent, random);
+      }
+    }
+  }
+  const hunters = huntersOf(state);
+  for (const agent of state.agents) {
+    const scare = agent.scare;
+    if (scare === undefined) {
+      continue;
+    }
+    if (scare.turnAt !== undefined && state.time >= scare.turnAt && agent.mode === "down") {
+      rise(state, agent, random);
+      continue;
+    }
+    if (agent.mode === "struggle" && !state.agents.some((other) => other.strike?.targetId === agent.id)) {
+      // Whoever had him is gone: he's off again.
+      setMode(state, agent, "alert", 0.2);
+      continue;
+    }
+    if (scare.turned || !isUp(agent) || state.time < scare.nextScreamAt) {
+      continue;
+    }
+    scare.nextScreamAt = state.time + between(random, 3, 7) / Math.max(0.4, Math.sqrt(talkOf(state)));
+    if (agent.bubble === undefined && random() < talkChance(state, 0.55)) {
+      say(state, agent, agent.mode === "cower" ? pickPhrase(COWER_LINES, random) : screamLine(invasion.kind, random), 1.4);
+    }
+  }
+  for (const hunter of hunters) {
+    stepHunter(state, hunter, random);
+  }
+  const standing = state.agents.filter((agent) => agent.scare !== undefined && !agent.scare.turned && isUp(agent) && agent.scare.turnAt === undefined);
+  if (standing.length === 0 && invasion.pending.length === 0) {
+    invasion.allDownSince ??= state.time;
+  } else {
+    invasion.allDownSince = undefined;
+  }
+  if (state.time >= invasion.phaseEndsAt || (invasion.allDownSince !== undefined && state.time - invasion.allDownSince > 2.5)) {
+    beginRetreat(state, invasion, random);
+  }
+}
+
+// An invader comes in: through the door, or beamed down or in a puff of smoke on open floor.
+function spawnInvader(state: OfficeState, invasion: InvasionState, input: InvaderInput, random: Random, first: boolean): void {
+  const spec = INVASIONS[invasion.kind];
+  const agent: Agent = {
+    ...newAgent(state, { id: input.id, seed: input.seed, status: "working", title: input.title }, random),
+    invader: {
+      kind: invasion.kind,
+      nextTauntAt: state.time + between(random, 1.5, 4),
+      nextTrashAt: state.time + between(random, spec.trashEvery[0], spec.trashEvery[1]),
+      repathAt: 0,
+      loot: false,
+      exiting: false,
+    },
+    speed: spec.speed,
+  };
+  if (spec.entry === "door") {
+    if (first) {
+      popWord(state, state.layout.door, invasion.kind === "raiders" ? "BAM!" : "CREAK…");
+    }
+    setMode(state, agent, "alert", 0.2);
+  } else {
+    const deskTiles = deskTileKeys(state.layout);
+    const open = openFloorTiles(state.layout).filter((tile) => tile.y >= 1 && !deskTiles.has(`${tile.x},${tile.y}`) &&
+      !state.agents.some((other) => other.invader !== undefined && Math.round(other.x) === tile.x && Math.round(other.y) === tile.y));
+    const spot = open.length === 0 ? state.layout.door : open[Math.floor(random() * open.length)];
+    agent.x = spot.x;
+    agent.y = spot.y;
+    agent.facing = "down";
+    setMode(state, agent, "beam", 1.2);
+    invasion.puffs.push({ x: spot.x, y: spot.y, at: state.time, exit: false });
+  }
+  state.agents.push(agent);
+  invasion.invaderIds.push(agent.id);
+}
+
+function deskTileKeys(layout: OfficeLayout): Set<string> {
+  return new Set(layout.desks.flatMap((desk) => [desk.desk, desk.seat]).map((point) => `${point.x},${point.y}`));
+}
+
+// A hunter between strikes: now and then a taunt, now and then something to smash, otherwise after the nearest guy
+// still on his feet (one nobody else is after, if he can). Close enough, he strikes.
+function stepHunter(state: OfficeState, hunter: Agent, random: Random): void {
+  if (hunter.mode === "attack" || hunter.mode === "beam") {
+    return;
+  }
+  const kind = hunterKind(state, hunter);
+  const spec = INVASIONS[kind];
+  const invader = hunter.invader;
+  const scare = hunter.scare;
+  if (invader !== undefined && state.time >= invader.nextTauntAt) {
+    invader.nextTauntAt = state.time + between(random, 5, 11);
+    if (hunter.bubble === undefined && random() < talkChance(state, 0.6)) {
+      say(state, hunter, pickPhrase(spec.taunts, random), 1.8);
+    }
+  } else if (scare !== undefined && state.time >= scare.nextScreamAt) {
+    scare.nextScreamAt = state.time + between(random, 5, 10);
+    if (hunter.bubble === undefined && random() < talkChance(state, 0.5)) {
+      say(state, hunter, pickPhrase(ZOMBIE_LINES, random), 1.6);
+    }
+  }
+  const repathAt = invader?.repathAt ?? scare?.repathAt ?? 0;
+  if (state.time < repathAt) {
+    return;
+  }
+  if (invader !== undefined) {
+    invader.repathAt = state.time + 0.45;
+  } else if (scare !== undefined) {
+    scare.repathAt = state.time + 0.45;
+  }
+  if (invader !== undefined && state.time >= invader.nextTrashAt) {
+    invader.nextTrashAt = state.time + between(random, spec.trashEvery[0], spec.trashEvery[1]);
+    if (goTrash(state, hunter, random)) {
+      return;
+    }
+  }
+  if (hunter.goal?.kind === "trash" && hunter.path.length > 0) {
+    return;
+  }
+  const prey = pickPrey(state, hunter);
+  if (prey === undefined) {
+    if (hunter.path.length === 0) {
+      wanderHunt(state, hunter, random);
+    }
+    return;
+  }
+  if (Math.hypot(prey.x - hunter.x, prey.y - hunter.y) <= spec.reach) {
+    strike(state, hunter, prey, random);
+    return;
+  }
+  const tile = here(prey);
+  if (hunter.goal?.kind === "hunt" && hunter.goal.preyId === prey.id && hunter.target !== undefined && samePoint(hunter.target, tile) && hunter.path.length > 0) {
+    return;
+  }
+  goTo(state, hunter, tile, { kind: "hunt", preyId: prey.id }, true, random);
+}
+
+// Nobody left to chase: he prowls about.
+function wanderHunt(state: OfficeState, hunter: Agent, random: Random): void {
+  const open = openFloorTiles(state.layout).filter((tile) => tile.y >= 1);
+  if (open.length === 0) {
+    return;
+  }
+  goTo(state, hunter, open[Math.floor(random() * open.length)], { kind: "hunt", preyId: "" }, false, random);
+}
+
+function pickPrey(state: OfficeState, hunter: Agent): Agent | undefined {
+  const chased = new Set(state.agents.flatMap((other) =>
+    other === hunter ? [] : [...(other.goal?.kind === "hunt" ? [other.goal.preyId] : []), ...(other.strike?.targetId !== undefined ? [other.strike.targetId] : [])],
+  ));
+  let best: { agent: Agent; score: number } | undefined;
+  for (const agent of state.agents) {
+    if (agent === hunter || agent.scare === undefined || agent.scare.turned || agent.leaving || !isUp(agent) || agent.scare.turnAt !== undefined) {
+      continue;
+    }
+    const score = Math.hypot(agent.x - hunter.x, agent.y - hunter.y) + (chased.has(agent.id) ? 4 : 0);
+    if (best === undefined || score < best.score) {
+      best = { agent, score };
+    }
+  }
+  return best?.agent;
+}
+
+// Heads for a desk or a prop to smash. Returns false when there's nothing to get to.
+function goTrash(state: OfficeState, hunter: Agent, random: Random): boolean {
+  const { layout } = state;
+  const spots = [
+    ...[...state.placed.keys()].map((index) => layout.desks[index]).filter((desk) => desk !== undefined).map((desk) => ({ x: desk.seat.x, y: desk.seat.y + 1 })),
+    ...layout.props.flatMap((prop) => (prop.stand === undefined ? [] : [prop.stand])),
+  ].filter((spot) => layout.tiles[spot.y]?.[spot.x] === "floor" && Math.hypot(spot.x - hunter.x, spot.y - hunter.y) < 8 && !isTargeted(state, hunter, spot));
+  if (spots.length === 0) {
+    return false;
+  }
+  goTo(state, hunter, spots[Math.floor(random() * spots.length)], { kind: "trash" }, true, random);
+  return true;
+}
+
+// Grabs, zaps, or swings at a guy: both stop, the guy in a struggle until the strike lands.
+function strike(state: OfficeState, hunter: Agent, prey: Agent, random: Random): void {
+  const spec = INVASIONS[hunterKind(state, hunter)];
+  hunter.facing = facingToward(hunter, prey);
+  prey.facing = facingToward(prey, hunter);
+  hunter.goal = undefined;
+  hunter.target = undefined;
+  hunter.strike = { targetId: prey.id, at: here(prey), feeding: false };
+  setMode(state, hunter, "attack", spec.strikeSeconds);
+  prey.goal = undefined;
+  prey.target = undefined;
+  prey.speed = undefined;
+  setMode(state, prey, "struggle", FOREVER);
+  if (spec.attack === "zap" && hunter.scare === undefined) {
+    state.invasion?.zaps.push({ fromId: hunter.id, toId: prey.id, until: state.time + spec.strikeSeconds });
+  }
+  if (random() < talkChance(state, 0.7)) {
+    say(state, prey, pickPhrase(spec.caught, random), 1.3);
+  }
+}
+
+// The strike lands: on the furniture, leaving a mess, or on the guy, who goes down (or up, in an alien's beam). A
+// vampire's tackle is followed by a slurp over the guy, which leaves him pale.
+function resolveStrike(state: OfficeState, hunter: Agent, random: Random): void {
+  const strikeNow = hunter.strike as StrikeState;
+  hunter.strike = undefined;
+  const kind = hunterKind(state, hunter);
+  const spec = INVASIONS[kind];
+  const huntOn = () => {
+    hunter.mode = "alert";
+    hunter.modeUntil = FOREVER;
+    const pause = state.time + spec.rest * between(random, 0.7, 1.3);
+    if (hunter.invader !== undefined) {
+      hunter.invader.repathAt = pause;
+    } else if (hunter.scare !== undefined) {
+      hunter.scare.repathAt = pause;
+    }
+  };
+  if (strikeNow.targetId === undefined) {
+    popWord(state, strikeNow.at, pickPhrase(spec.trashWords, random));
+    addDebris(state, strikeNow.at, kind, random);
+    if (random() < 0.5) {
+      addDebris(state, strikeNow.at, kind, random);
+    }
+    if (hunter.invader !== undefined && kind === "raiders") {
+      hunter.invader.loot = true;
+    }
+    huntOn();
+    return;
+  }
+  const prey = state.agents.find((agent) => agent.id === strikeNow.targetId);
+  if (prey?.scare === undefined) {
+    huntOn();
+    return;
+  }
+  if (strikeNow.feeding) {
+    if (prey.mode === "down") {
+      prey.variant = "pale";
+      popWord(state, prey, "gulp!");
+    }
+    huntOn();
+    return;
+  }
+  if (prey.mode !== "struggle") {
+    huntOn();
+    return;
+  }
+  const attack = hunter.scare !== undefined ? "bite" : spec.attack;
+  if (attack === "zap" && random() < 0.35) {
+    // Up in the beam, until they go.
+    setMode(state, prey, "float", FOREVER);
+    prey.scare.since = state.time;
+    prey.scare.down = true;
+    popWord(state, prey, "BZZT!");
+  } else {
+    knockDown(state, prey, pickPhrase(spec.hitWords, random));
+  }
+  if (attack === "bite") {
+    prey.scare.turnAt = state.time + between(random, 2.5, 4.5);
+  }
+  if (random() < 0.4) {
+    addDebris(state, prey, kind, random);
+  }
+  if (attack === "drink") {
+    // Leans over him for a slurp.
+    hunter.strike = { targetId: prey.id, at: here(prey), feeding: true };
+    setMode(state, hunter, "attack", 2.2);
+    hunter.facing = prey.x < hunter.x ? "left" : "right";
+    popWord(state, { x: prey.x, y: prey.y - 0.4 }, "SLURP!");
+    return;
+  }
+  huntOn();
+}
+
+function knockDown(state: OfficeState, agent: Agent, word: string | undefined): void {
+  agent.path = [];
+  agent.goal = undefined;
+  agent.target = undefined;
+  agent.speed = undefined;
+  agent.running = false;
+  setMode(state, agent, "down", FOREVER);
+  agent.facing = "down";
+  if (agent.scare !== undefined) {
+    agent.scare.down = true;
+    agent.scare.since = state.time;
+  }
+  if (word !== undefined) {
+    popWord(state, agent, word);
+  }
+}
+
+// A bitten guy gets up again, green, and joins the chase.
+function rise(state: OfficeState, agent: Agent, random: Random): void {
+  const scare = agent.scare as ScareState;
+  scare.turnAt = undefined;
+  scare.turned = true;
+  scare.repathAt = state.time + 0.6;
+  scare.nextScreamAt = state.time + between(random, 3, 6);
+  agent.variant = "zombie";
+  agent.speed = INVASIONS.zombies.speed;
+  if (random() < talkChance(state, 0.8)) {
+    say(state, agent, pickPhrase(ZOMBIE_LINES, random), 1.6);
+  }
+  agent.facing = "down";
+  setMode(state, agent, "alert", FOREVER);
+}
+
+function popWord(state: OfficeState, at: { x: number; y: number }, word: string): void {
+  state.invasion?.hits.push({ x: at.x, y: at.y, at: state.time, word });
+}
+
+// A bit of mess on an open tile near a point, of the invasion's kinds.
+function addDebris(state: OfficeState, near: { x: number; y: number }, kind: InvasionKindId, random: Random): void {
+  const invasion = state.invasion;
+  if (invasion === undefined || invasion.debris.length >= MAX_DEBRIS) {
+    return;
+  }
+  const deskTiles = deskTileKeys(state.layout);
+  const spots = openFloorTiles(state.layout).filter((tile) => tile.y >= 1 && Math.abs(tile.x - near.x) <= 1.5 && Math.abs(tile.y - near.y) <= 1.5 &&
+    !deskTiles.has(`${tile.x},${tile.y}`) && !invasion.debris.some((piece) => piece.x === tile.x && piece.y === tile.y));
+  if (spots.length === 0) {
+    return;
+  }
+  const tile = spots[Math.floor(random() * spots.length)];
+  const kinds = INVASIONS[kind].debris;
+  invasion.debrisCount += 1;
+  invasion.debris.push({
+    id: invasion.debrisCount,
+    x: tile.x,
+    y: tile.y,
+    ox: Math.round(between(random, -4, 4)),
+    oy: Math.round(between(random, -3, 2)),
+    kind: kinds[Math.floor(random() * kinds.length) % kinds.length],
+    sweeper: undefined,
+  });
+}
+
+// Runs from them: to open floor far from the nearest hunter, or now and then hides where he is.
+function flee(state: OfficeState, agent: Agent, random: Random): void {
+  const hunters = huntersOf(state);
+  if (hunters.length > 0 && agent.mode !== "cower" && random() < 0.18) {
+    agent.facing = "down";
+    agent.speed = undefined;
+    setMode(state, agent, "cower", between(random, 2.5, 5));
+    return;
+  }
+  const open = openFloorTiles(state.layout).filter((tile) => tile.y >= 1 && !isTargeted(state, agent, tile));
+  let best: { tile: Point; score: number } | undefined;
+  for (let tries = 0; tries < 14 && open.length > 0; tries++) {
+    const tile = open[Math.floor(random() * open.length)];
+    const danger = hunters.length === 0 ? random() * 4 : Math.min(...hunters.map((hunter) => Math.hypot(tile.x - hunter.x, tile.y - hunter.y)));
+    const score = danger - 0.15 * Math.hypot(tile.x - agent.x, tile.y - agent.y) + random() * 1.2;
+    if (best === undefined || score > best.score) {
+      best = { tile, score };
+    }
+  }
+  if (best === undefined) {
+    setMode(state, agent, "panic", between(random, 0.6, 1.2));
+    return;
+  }
+  agent.speed = FLEE_SPEED;
+  goTo(state, agent, best.tile, { kind: "flee" }, true, random);
+}
+
+// They leave, each his own way: out the door (raiders with something under their arm), beamed up, or off as bats.
+// Anyone still caught goes down, guys up in a beam drop, and turned zombies keel over.
+function beginRetreat(state: OfficeState, invasion: InvasionState, random: Random): void {
+  invasion.phase = "retreat";
+  invasion.phaseStartedAt = state.time;
+  invasion.phaseEndsAt = state.time + RETREAT_SECONDS;
+  invasion.pending = [];
+  invasion.zaps = [];
+  const spec = INVASIONS[invasion.kind];
+  for (const agent of state.agents) {
+    const scare = agent.scare;
+    if (scare !== undefined) {
+      scare.turnAt = undefined;
+      agent.strike = undefined;
+      if (scare.turned || agent.mode === "float" || agent.mode === "struggle") {
+        scare.turned = false;
+        knockDown(state, agent, agent.mode === "float" ? "THUD!" : undefined);
+      } else if (agent.mode !== "down") {
+        // Never caught: he stops where he is and waits for it to be over.
+        agent.path = agent.path.slice(0, 1);
+        agent.goal = undefined;
+        agent.speed = undefined;
+        agent.running = false;
+        if (agent.path.length === 0) {
+          setMode(state, agent, "alert", FOREVER);
+        }
+      }
+      continue;
+    }
+    if (agent.invader === undefined || agent.leaving) {
+      continue;
+    }
+    agent.strike = undefined;
+    if (random() < talkChance(state, 0.7)) {
+      say(state, agent, pickPhrase(spec.exitLines, random), 1.8);
+    }
+    if (invasion.kind === "raiders") {
+      agent.invader.loot = true;
+    }
+    // A moment to say it, then off.
+    setMode(state, agent, "alert", between(random, 0.3, 1.4));
+  }
+}
+
+function invaderLeaves(state: OfficeState, agent: Agent, random: Random): void {
+  const invader = agent.invader as InvaderState;
+  const spec = INVASIONS[invader.kind];
+  if (spec.exit === "door") {
+    agent.speed = spec.speed * (invader.kind === "zombies" ? 1.7 : 1.1);
+    leave(state, agent);
+    agent.running = true;
+    return;
+  }
+  invader.exiting = true;
+  state.invasion?.puffs.push({ x: agent.x, y: agent.y, at: state.time, exit: true });
+  setMode(state, agent, "beam", between(random, 0.9, 1.2));
+}
+
+function beginAftermath(state: OfficeState, invasion: InvasionState, random: Random): void {
+  invasion.phase = "aftermath";
+  invasion.phaseStartedAt = state.time;
+  invasion.phaseEndsAt = state.time + AFTERMATH_SECONDS;
+  invasion.nextWakeAt = state.time + between(random, 2, 3);
+  for (const agent of state.agents) {
+    if (agent.scare !== undefined && !agent.scare.down) {
+      agent.scare.nextScreamAt = state.time + between(random, 0.5, 2.5);
+    }
+  }
+}
+
+// The guys come to one by one; the ones never caught come out of it first. Done when everyone's back to normal.
+function stepAftermath(state: OfficeState, invasion: InvasionState, random: Random): void {
+  if (state.time >= invasion.nextWakeAt) {
+    const downs = state.agents.filter((agent) => agent.scare !== undefined && agent.mode === "down" && !agent.scare.woke);
+    if (downs.length > 0) {
+      wake(state, downs[Math.floor(random() * downs.length)], invasion, random);
+      invasion.nextWakeAt = state.time + between(random, 1, 2.4);
+    } else {
+      invasion.nextWakeAt = FOREVER;
+    }
+  }
+  for (const agent of state.agents) {
+    const scare = agent.scare;
+    if (scare !== undefined && !scare.down && !scare.woke && state.time >= scare.nextScreamAt) {
+      scare.woke = true;
+      if (agent.bubble === undefined && random() < talkChance(state, 0.7)) {
+        say(state, agent, pickPhrase(SURVIVOR_LINES, random), 1.8);
+      }
+      agent.path = [];
+      setMode(state, agent, "dazed", between(random, 1.5, 2.5));
+    }
+  }
+  if (state.time >= invasion.phaseEndsAt) {
+    // Long enough: the room snaps back.
+    invasion.debris = [];
+    endInvasion(state, random);
+    return;
+  }
+  if (!state.agents.some(inInvasion)) {
+    state.invasion = undefined;
+  }
+}
+
+// Comes to: looks around, says something about it, then dusts off. A turned zombie is himself again.
+function wake(state: OfficeState, agent: Agent, invasion: InvasionState, random: Random): void {
+  const scare = agent.scare as ScareState;
+  scare.woke = true;
+  if (agent.variant === "zombie") {
+    agent.variant = undefined;
+  }
+  if (random() < talkChance(state, 0.9)) {
+    say(state, agent, wakeLine(invasion.kind, personalityOf(agent.seed), random), 2.6);
+  }
+  setMode(state, agent, "dazed", between(random, 2.6, 3.6));
+}
+
+// Off to sweep up the nearest mess nobody's on, or, with none left, back to normal.
+function cleanUp(state: OfficeState, agent: Agent, random: Random): void {
+  const invasion = state.invasion;
+  const sweeping = new Set(state.agents.flatMap((other) => (other !== agent && other.goal?.kind === "sweep" ? [other.goal.debrisId] : [])));
+  const free = (invasion?.debris ?? []).filter((piece) => !sweeping.has(piece.id));
+  if (free.length === 0) {
+    release(state, agent, random, true);
+    return;
+  }
+  const nearest = free.reduce((best, piece) =>
+    Math.hypot(piece.x - agent.x, piece.y - agent.y) < Math.hypot(best.x - agent.x, best.y - agent.y) ? piece : best);
+  nearest.sweeper = agent.id;
+  goTo(state, agent, { x: nearest.x, y: nearest.y }, { kind: "sweep", debrisId: nearest.id }, false, random);
+}
+
+// Back to normal: he picks up what he was doing (a working guy heads back to his desk).
+function release(state: OfficeState, agent: Agent, random: Random, lines: boolean): void {
+  agent.scare = undefined;
+  agent.variant = undefined;
+  agent.speed = undefined;
+  agent.strike = undefined;
+  agent.goal = undefined;
+  agent.target = undefined;
+  agent.running = false;
+  if (lines && agent.bubble === undefined && random() < talkChance(state, 0.3)) {
+    say(state, agent, pickPhrase(DONE_LINES, random), 1.8);
+  }
+  setMode(state, agent, "loiter", between(random, 0.4, 1.5));
+}
+
+// What comes next for an invader or a guy caught up in it, when his mode runs out.
+function invasionDecide(state: OfficeState, agent: Agent, random: Random): void {
+  const invasion = state.invasion;
+  if (agent.invader !== undefined) {
+    if (invasion === undefined || agent.invader.exiting) {
+      removeAgent(state, agent);
+      return;
+    }
+    if (agent.strike !== undefined) {
+      resolveStrike(state, agent, random);
+      return;
+    }
+    if (invasion.phase === "retreat" || invasion.phase === "aftermath") {
+      invaderLeaves(state, agent, random);
+      return;
+    }
+    // Back on the hunt; stepHunter takes it from here.
+    agent.invader.repathAt = 0;
+    agent.mode = "alert";
+    agent.modeUntil = FOREVER;
+    return;
+  }
+  const scare = agent.scare as ScareState;
+  if (invasion === undefined) {
+    release(state, agent, random, false);
+    return;
+  }
+  agent.running = false;
+  if (agent.strike !== undefined) {
+    resolveStrike(state, agent, random);
+    return;
+  }
+  switch (agent.mode) {
+    case "down":
+    case "float":
+      setMode(state, agent, agent.mode, FOREVER);
+      return;
+    case "struggle":
+      if (state.agents.some((other) => other.strike?.targetId === agent.id)) {
+        setMode(state, agent, "struggle", FOREVER);
+        return;
+      }
+      break;
+    case "dazed":
+      if (random() < talkChance(state, 0.3) && agent.bubble === undefined) {
+        say(state, agent, pickPhrase(DUST_LINES, random), 1.4);
+      }
+      setMode(state, agent, "dust", between(random, 1.2, 1.8));
+      return;
+    case "dust":
+      agent.variant = undefined;
+      cleanUp(state, agent, random);
+      return;
+    case "sweep": {
+      const goal = agent.goal;
+      if (goal?.kind === "sweep") {
+        invasion.debris = invasion.debris.filter((piece) => piece.id !== goal.debrisId);
+      }
+      if (random() < talkChance(state, 0.25) && agent.bubble === undefined) {
+        say(state, agent, pickPhrase(CLEAN_LINES, random), 1.6);
+      }
+      cleanUp(state, agent, random);
+      return;
+    }
+  }
+  if (scare.turned && invasion.phase === "attack") {
+    scare.repathAt = 0;
+    agent.mode = "alert";
+    agent.modeUntil = FOREVER;
+    agent.path = [];
+    return;
+  }
+  switch (invasion.phase) {
+    case "warning":
+      setMode(state, agent, "alert", Math.max(0, invasion.phaseEndsAt - state.time) + between(random, 0, 0.6));
+      return;
+    case "attack":
+      flee(state, agent, random);
+      return;
+    case "retreat":
+      setMode(state, agent, "alert", FOREVER);
+      return;
+    case "aftermath":
+      if (scare.woke) {
+        cleanUp(state, agent, random);
+      } else {
+        setMode(state, agent, "alert", FOREVER);
+      }
+      return;
+  }
+}
+
+// Got where he was going, in an invasion.
+function invasionArrive(state: OfficeState, agent: Agent, random: Random): void {
+  const goal = agent.goal;
+  switch (goal?.kind) {
+    case "flee":
+      setMode(state, agent, "panic", between(random, 0.3, 1));
+      return;
+    case "hunt":
+      agent.mode = "alert";
+      agent.modeUntil = FOREVER;
+      if (agent.invader !== undefined) {
+        agent.invader.repathAt = 0;
+      } else if (agent.scare !== undefined) {
+        agent.scare.repathAt = 0;
+      }
+      return;
+    case "trash":
+      agent.strike = { targetId: undefined, at: here(agent), feeding: false };
+      agent.facing = "up";
+      setMode(state, agent, "attack", 1);
+      return;
+    case "sweep":
+      if (state.invasion?.debris.some((piece) => piece.id === goal.debrisId) === true) {
+        agent.facing = "down";
+        setMode(state, agent, "sweep", between(random, 2, 3));
+      } else {
+        cleanUp(state, agent, random);
+      }
+      return;
+    default:
+      setMode(state, agent, "alert", 0);
+  }
+}
+
+// How an invader, or a guy caught up in an invasion, stands, walks, and falls.
+function invasionPose(agent: Agent, time: number, phase: number): AgentPose | undefined {
+  const scare = agent.scare;
+  const invader = agent.invader;
+  if (scare === undefined && invader === undefined) {
+    return undefined;
+  }
+  const zombie = invader?.kind === "zombies" || scare?.turned === true;
+  const facing = agent.facing;
+  switch (agent.mode) {
+    case "down":
+      return { pose: "down", facing: "down", frame: 0, seated: false, lying: true };
+    case "float":
+      return { pose: "panic", facing: "down", frame: Math.floor(time * 6 + phase * 2), seated: false, offset: { x: 0, y: -Math.round(Math.min(10, (time - (scare?.since ?? time)) * 8)) } };
+    case "struggle":
+      return { pose: "panic", facing, frame: Math.floor(time * 10), seated: false, offset: { x: Math.floor(time * 16) % 2, y: 0 } };
+    case "cower":
+      return { pose: "cower", facing: "down", frame: 0, seated: false, offset: { x: Math.floor(time * 9 + phase * 3) % 2, y: 1 } };
+    case "dazed":
+      // Looking around.
+      return { pose: agent.bubble === undefined ? "stand" : "talk", facing: (["left", "down", "right", "down"] as const)[Math.floor(time * 1.3 + phase * 4) % 4], frame: Math.floor(time * 5), seated: false };
+    case "dust":
+      return { pose: "build", facing: "down", frame: Math.floor(time * 6), seated: false };
+    case "sweep":
+      return { pose: "build", facing, frame: Math.floor(time * 4 + phase * 2), seated: false };
+    case "beam":
+      return { pose: "stand", facing: "down", frame: 0, seated: false };
+    case "attack": {
+      const attack = zombie ? "bite" : invader === undefined ? "bite" : INVASIONS[invader.kind].attack;
+      if (agent.strike?.targetId === undefined || attack === "bonk") {
+        return { pose: zombie ? "reach" : "punch", facing, frame: Math.floor(time * 5), seated: false };
+      }
+      if (agent.strike.feeding) {
+        // Bent over the guy he tackled.
+        return { pose: "reach", facing, frame: 0, seated: false, offset: { x: 0, y: 3 } };
+      }
+      return { pose: "reach", facing, frame: attack === "zap" ? 0 : Math.floor(time * 8), seated: false };
+    }
+    default:
+      break;
+  }
+  if (agent.path.length > 0) {
+    if (invader?.loot === true) {
+      return { pose: "carry", facing, frame: Math.floor(time * 12), seated: false };
+    }
+    if (zombie) {
+      return { pose: "reach", facing, frame: Math.floor(time * (agent.running ? 6 : 5)), seated: false };
+    }
+    if (scare !== undefined) {
+      return { pose: "panic", facing, frame: Math.floor(time * 12), seated: false };
+    }
+    return { pose: "walk", facing, frame: Math.floor(time * (agent.running ? 12 : 7)), seated: false };
+  }
+  if (agent.mode === "panic") {
+    return { pose: "panic", facing, frame: Math.floor(time * 6 + phase * 2), seated: false };
+  }
+  if (zombie) {
+    return { pose: "reach", facing, frame: 0, seated: false };
+  }
+  return { pose: agent.bubble === undefined ? "stand" : "talk", facing, frame: agent.bubble === undefined ? 0 : Math.floor(time * 5), seated: false };
 }

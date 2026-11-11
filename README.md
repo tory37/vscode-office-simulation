@@ -27,6 +27,8 @@ The Office shows up in its own activity bar container.
   Idle guys play alone, take turns with a buddy, or face off two at a time.
 - Your guy, who acts out ERROR, HACK, and DEFENSE scene events with his monitors.
 - Visitors with personalities, and shows: a guitarist, a band, lunch, a snack cart, a comedian, a magician, and a DJ.
+- Invasions now and then: aliens, zombies, raiders, or vampires trash the place. Everyone runs, hides, and gets knocked
+  down (cartoon stars, no gore), then they come to one by one, say how weird that was, and sweep up.
 - Critters, fliers, the real sun and moon, and 36 races.
 - Chatter styles (bubbles, tidy, a chat log, or quiet) and see-through bubbles.
 
@@ -42,7 +44,7 @@ takes out exactly those.
 ## Hook into it
 
 `activate()` returns an API: send workers in with `setAgents`, drive your guy with `setMainGuy`, play scene events,
-shows, visitors, and lines, draw portraits, host the Office in your own view, and hear clicks, shows, and events.
+shows, invasions, visitors, and lines, draw portraits, host the Office in your own view, and hear clicks, shows, invasions, and events.
 Copy [`api/officeSimulationApi.d.ts`](api/officeSimulationApi.d.ts) for the types. The
 [site](https://tory37.github.io/vscode-office-simulation/#hooks) has a live playground and the full reference.
 

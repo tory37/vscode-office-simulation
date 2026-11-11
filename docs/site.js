@@ -25,6 +25,9 @@
       dayNight: true,
       visitors: "normal",
       performances: "off",
+      invasions: "off",
+      quiet: false,
+      sky: null,
       chatter: "tidy",
       talk: "normal",
       activities: "some",
@@ -79,7 +82,8 @@
       (this.listeners.get(message?.type) ?? []).forEach((listener) => listener(message));
     }
 
-    // What the Office posts back: "ready", "click" (id), "showStart" and "showEnd" (kind), and "eventEnd" (kind).
+    // What the Office posts back: "ready", "click" (id), "showStart" and "showEnd" (kind), "invasionStart" and
+    // "invasionEnd" (kind), and "eventEnd" (kind).
     on(type, listener) {
       this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
     }
@@ -123,6 +127,7 @@
         playEvent: (kind, variant) => demo.post({ type: "sceneEvent", kind, variant: variant ?? Math.floor(Math.random() * SITE.eventVariants) }),
         setTint: (index, burst = true) => demo.tint(index, burst),
         playShow: (kind = "random") => demo.show(kind),
+        startInvasion: (kind = "random") => demo.post({ type: "invasion", kind }),
         sendVisitor: (kind) => demo.post({ type: "visitor", kind }),
         say: (id, text, seconds = 3) => demo.post({ type: "say", id, text, seconds }),
         editLook: (look, title) => new Promise((resolve) => {
@@ -135,7 +140,11 @@
         onDidClickAgent: (listener) => demo.on("click", (message) => listener(message.id)),
         onDidStartShow: (listener) => demo.on("showStart", (message) => listener(message.kind)),
         onDidEndShow: (listener) => demo.on("showEnd", (message) => listener(message.kind)),
+        onDidStartInvasion: (listener) => demo.on("invasionStart", (message) => listener(message.kind)),
+        onDidEndInvasion: (listener) => demo.on("invasionEnd", (message) => listener(message.kind)),
         onDidFinishEvent: (listener) => demo.on("eventEnd", (message) => listener(message.kind)),
+        // The page has no Trigger Event button, so nothing asks.
+        onDidRequestEvent: () => undefined,
       };
     }
   }

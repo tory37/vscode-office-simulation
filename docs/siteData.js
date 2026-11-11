@@ -397,13 +397,163 @@ var OFFICE_SITE_MODULE = (() => {
     dj: { id: "dj", label: "Dance Party", effect: "disco", roles: ["dj"], length: [45, 70] }
   };
 
+  // src/officeInvasions.ts
+  var INVASION_KINDS = ["aliens", "zombies", "raiders", "vampires"];
+  var INVASIONS = {
+    aliens: {
+      id: "aliens",
+      label: "Alien Invasion",
+      banner: "ALIEN INVASION",
+      titles: ["Zorp", "Glarb", "Xix", "Blorbo", "Qwib", "Mmrk"],
+      outfit: { race: "greenAlien", shirt: "#B8C4CC", pants: "#5B6770", accessory: "none" },
+      altRace: "greyAlien",
+      entry: "beam",
+      exit: "beam",
+      attack: "zap",
+      speed: 2.6,
+      reach: 2.4,
+      strikeSeconds: 0.9,
+      rest: 4,
+      base: 2,
+      perGuys: 5,
+      trashEvery: [8, 14],
+      hitWords: ["ZAP!", "BZZT!", "PEW!", "ZORT!"],
+      trashWords: ["ZAP!", "FZZT!", "PEW PEW!"],
+      debris: ["papers", "scorch", "goo", "scorch"],
+      tint: "#3DFF8A",
+      warning: ["did the lights just\u2026", "what's that hum?", "is that\u2026 a UFO?", "why is it green in here?", "uh, guys?"],
+      taunts: ["TAKE US TO YOUR LEAD DEV", "*beep boop*", "PUNY CODERS", "WE COME IN PEACE (no)", "PROBE THEM", "what is\u2026 'Jira'?", "SPECIMEN ACQUIRED"],
+      exitLines: ["WE WILL RETURN", "*beep*", "SAMPLES COLLECTED", "FAREWELL, EARTH DEVS"],
+      screams: ["ALIENS!", "they're green!", "don't let them probe me!", "not the beam!", "I want my mom!", "is this in the SLA?!"],
+      caught: ["bzzzt\u2014", "noooo", "put me dooown!", "I come in peace too!", "wait\u2014"],
+      wake: [
+        "did anyone else see\u2026 lights?",
+        "I think they probed me",
+        "I saw the light, man",
+        "I'm never leaving the lid open again",
+        "why do I know Klingon now?",
+        "they took my notes!",
+        "was that\u2026 a UFO?",
+        "I have missing time"
+      ]
+    },
+    zombies: {
+      id: "zombies",
+      label: "Zombie Takeover",
+      banner: "ZOMBIE TAKEOVER",
+      titles: ["Zombie (Accounting)", "Zombie (Legal)", "Zombie (Marketing)", "Zombie (IT)", "Zombie (Sales)", "Zombie (HR)"],
+      outfit: { race: "zombie", shirt: "#8E9AAF", pants: "#3D405B", tie: "#6B2E3A" },
+      entry: "door",
+      exit: "door",
+      attack: "bite",
+      speed: 1.9,
+      reach: 0.8,
+      strikeSeconds: 1.1,
+      rest: 0.8,
+      base: 2,
+      perGuys: 6,
+      trashEvery: [10, 18],
+      hitWords: ["NOM!", "CHOMP!", "MUNCH!"],
+      trashWords: ["CRASH!", "THUD!"],
+      debris: ["papers", "mug", "goo", "papers"],
+      tint: "#7A9A5A",
+      warning: ["did you hear that?", "who's groaning?", "is that Dave from Accounting?", "why does it smell like Mondays?", "uh, guys?"],
+      taunts: ["braaains\u2026", "uuurgh\u2026", "BRAAAINS", "mmmeetings\u2026", "reply\u2026 alllll\u2026", "need\u2026 coffeeee\u2026", "synergyyy\u2026"],
+      exitLines: ["uuurgh\u2026", "lunch\u2026 time\u2026", "braaains\u2026"],
+      screams: ["ZOMBIES!", "aim for the\u2026 uh\u2026 keyboard!", "don't let them bite you!", "is that Dave?!", "they're slow, just walk!", "I knew Monday would do this"],
+      caught: ["not the brain!", "ow ow ow", "I'm too young to zombie!", "noooo"],
+      wake: [
+        "why do I want\u2026 brains?",
+        "I feel like I ate a stapler",
+        "ugh, I taste keyboard",
+        "was I\u2026 a zombie?",
+        "I chased Dave for ten minutes",
+        "my head\u2026 so many meetings",
+        "I don't feel\u2026 undead anymore",
+        "that was some Monday"
+      ]
+    },
+    raiders: {
+      id: "raiders",
+      label: "Raiders",
+      banner: "RAIDERS!",
+      titles: ["Rust", "Gnash", "Scrap", "Torque", "Grit", "Sprocket"],
+      outfit: { race: "human", shirt: "#5C3B28", pants: "#2B2B2B", hair: "#E2504B", hairStyle: "mohawk", accessory: "glasses", accessoryColor: "#2A2A2A", sleeveless: true },
+      entry: "door",
+      exit: "door",
+      attack: "bonk",
+      speed: 4.4,
+      reach: 0.8,
+      strikeSeconds: 0.6,
+      rest: 1.6,
+      base: 3,
+      perGuys: 4,
+      trashEvery: [4, 8],
+      hitWords: ["BONK!", "POW!", "WHACK!", "THWACK!"],
+      trashWords: ["SMASH!", "CRASH!", "KRAK!"],
+      debris: ["cans", "papers", "mug", "plant", "cans"],
+      tint: "#FF7A2E",
+      warning: ["was that an engine?", "is someone revving outside?", "why's the door shaking?", "uh, guys?", "who ordered a motorcycle?"],
+      taunts: ["WITNESS ME!", "GRAB THE SNACKS!", "THIS OFFICE IS OURS!", "SHINY!", "TAKE THE CHAIRS!", "YEEEHAW!", "WHERE'S THE COFFEE?!"],
+      exitLines: ["GOT THE STAPLER!", "RIDE ON!", "GRAB IT AND GO!", "YEEEHAW!"],
+      screams: ["RAIDERS!", "hide the coffee!", "not the monitors!", "they took my chair!", "run for the stairs!", "is this a team-building thing?"],
+      caught: ["oof!", "ow!", "my head!", "not the face!", "hey!"],
+      wake: [
+        "they took my stapler!",
+        "where's the coffee machine?",
+        "did they\u2026 take the chairs?",
+        "I think I got bonked",
+        "I've got a bump the size of a mouse",
+        "so\u2026 is it Friday?",
+        "who were those guys?",
+        "they left their cans everywhere"
+      ]
+    },
+    vampires: {
+      id: "vampires",
+      label: "Vampires",
+      banner: "VAMPIRES!",
+      titles: ["Count Bytecula", "Countess Nullity", "Lord Fangsworth", "Baron Von Bitrot", "Lady Nightshift"],
+      outfit: { race: "vampire", shirt: "#1A1A22", pants: "#1A1A22", tie: "#9B1B30", accessory: "none" },
+      entry: "smoke",
+      exit: "bats",
+      attack: "drink",
+      speed: 4.8,
+      reach: 0.8,
+      strikeSeconds: 0.6,
+      rest: 1.4,
+      base: 1,
+      perGuys: 4,
+      trashEvery: [12, 20],
+      hitWords: ["POUNCE!", "GOTCHA!", "SWOOP!"],
+      trashWords: ["CRASH!", "WHOOSH!"],
+      debris: ["cobweb", "papers", "mug", "cobweb"],
+      tint: "#5A2A8A",
+      warning: ["who turned the lights down?", "did it get dark?", "was that a bat?", "it's freezing in here\u2026", "uh, guys?"],
+      taunts: ["I vant to drink your\u2026 coffee", "bleh bleh!", "the night is young!", "such lovely necks", "ah, fresh devs", "mwahaha!"],
+      exitLines: ["THE SUN!", "hssss!", "until tonight!", "bleh!"],
+      screams: ["VAMPIRES!", "garlic! anyone have garlic?!", "cover your necks!", "open the blinds!", "not my neck!", "I'm anemic, take him!"],
+      caught: ["eek!", "not the neck!", "noooo", "I'm O negative!", "help!"],
+      wake: [
+        "I feel\u2026 lightheaded",
+        "why am I craving tomato juice?",
+        "is the sun out? thank goodness",
+        "my neck itches",
+        "I feel weirdly anemic",
+        "did someone say garlic bread?",
+        "the blinds stay open now",
+        "I need a juice box"
+      ]
+    }
+  };
+
   // src/pixelCanvas.ts
   var INNER_WIDTH = 10;
   var BODY_HEIGHT = 16;
   var HEAD_ROOM = 2;
   var INNER_HEIGHT = BODY_HEIGHT + HEAD_ROOM;
   function isStepping(pose) {
-    return pose === "walk" || pose === "carry";
+    return pose === "walk" || pose === "carry" || pose === "panic" || pose === "reach";
   }
 
   // src/pixelRaces.ts
@@ -1980,6 +2130,8 @@ var OFFICE_SITE_MODULE = (() => {
     talkFrequencies: [...TALK_FREQUENCIES],
     visitorFrequencies: ["off", "rare", "normal", "often", "packed"],
     performanceFrequencies: ["off", "rare", "normal", "often"],
+    invasions: INVASION_KINDS.map((id) => ({ id, label: INVASIONS[id].label })),
+    invasionFrequencies: ["off", "rare", "normal", "often"],
     visitorKinds: [...VISITOR_KINDS],
     activities: ACTIVITY_KINDS.map((id) => ({ id, label: ACTIVITIES[id].label, play: ACTIVITIES[id].play })),
     activityLevels: ["off", "few", "some", "lots"],
@@ -1991,4 +2143,4 @@ var OFFICE_SITE_MODULE = (() => {
   };
   return __toCommonJS(data_exports);
 })();
-window.OFFICE_SITE = Object.assign(OFFICE_SITE_MODULE.OFFICE_SITE, {"version":"0.1.4","settings":[{"key":"officeSim.scene","type":"string","default":"office","values":["office","serverRoom","forest","field","riverbed","cave","moon","beach","snowfield","desert","reef","library","rooftop"],"description":"The Office view's room. Switch it with **Office: Switch Scene…** or the button on the view."},{"key":"officeSim.critters","type":"boolean","default":true,"description":"Every so often a few critters for the scene run across the Office: mice in the office, foxes and rabbits in the forest, chickens in the field, ducks and frogs by the river, bats in the cave, little aliens on the moon. Idle guys stop to watch."},{"key":"officeSim.fliers","type":"boolean","default":true,"description":"Every so often something for the scene flies over the Office: pigeons and paper planes in the office, drones and ghosts in the server room, owls and hawks in the forest, geese and hot-air balloons over the field, herons and dragonflies by the river, a dragon or a phoenix in the cave, rockets, meteors, and a space whale on the moon. Some only come out by day or by night. Idle guys look up."},{"key":"officeSim.activities","type":"string","default":"some","values":["off","few","some","lots"],"description":"Things to do between jobs on the Office's empty desk spots: pinball, arcade cabinets, a claw machine, arcade hoops, darts, karaoke, a jukebox, ping pong, foosball, air hockey, chess, a punching bag, a treadmill, an exercise bike, a piano, an easel, yoga mats, weights, a trampoline, a beanbag, a massage chair, a meditation cushion, and VR. The maintenance crew carries them in and out now and then, so the room changes, and makes room when a new guy needs the spot. Idle guys go use them: some alone, some taking turns with a buddy, and the table games two at a time. How many stand depends on the free spots, so a bigger room or fewer guys gets more."},{"key":"officeSim.activitySwaps","type":"string","default":"normal","values":["never","rare","normal","often"],"description":"How often the maintenance crew swaps an activity out for something new. How many there are is officeSim.activities. The crew waits for nobody to be on one before taking it out."},{"key":"officeSim.dayNight","type":"boolean","default":true,"description":"Light the Office by your clock: sunrise, golden hour, sunset, and night, with the sun and the real phase of the moon in the sky. Outdoor scenes get dark at night and screens and fires light up around them; the office keeps its lights on; the server room and the cave never see the sky. On the moon a day lasts a month. Off keeps it daytime."},{"key":"officeSim.visitors","type":"string","default":"normal","values":["off","rare","normal","often","packed"],"description":"How often people from other departments (sometimes a manager) drop into the Office. Up to five hang around at once: some say something and leave, others stay a minute or two, and some settle in for a good while to chat, get coffee, and loom over busy guys. Each guy answers in his own way: the suck-up says \"OK BOSS!\", the reasonable ones grumble."},{"key":"officeSim.chatter","type":"string","default":"tidy","values":["tidy","bubbles","log","quiet"],"description":"How the Office shows what the guys say. In every style, hovering a guy shows his line, and your own lines during an event and a show's act are always in bubbles. **Office: Chatter…** switches it from the Office view."},{"key":"officeSim.talk","type":"string","default":"normal","values":["off","rare","normal","often"],"description":"How often the Office guys talk on their own: chats with each other, mutters while typing, and musings while idle. Visitors, shows, events, and critters keep their own lines. **Office: Chatter…** sets it from the Office view."},{"key":"officeSim.bubbleLook","type":"string","default":"soft","values":["solid","soft","faint"],"description":"How the Office's speech bubbles look. The text stays solid, and hovering a guy makes his bubble solid. **Office: Chatter…** sets it from the Office view."},{"key":"officeSim.performances","type":"string","default":"normal","values":["off","rare","normal","often"],"description":"How often someone comes to the Office to put on a show: a guitarist, a band, a lunch or snack trolley, a comedian under a spotlight, a magician, or a DJ with a mirror ball. The idle and sleeping guys gather round to watch, cheer, laugh, and eat; busy guys keep working and get their lunch left on their desks. A show waits until someone is free to watch. Play one now with **Office: Play Show…**."},{"key":"officeSim.events","type":"string","default":"normal","values":["off","rare","normal","often"],"description":"How often your guy acts out a scene event on his own: an ERROR, a HACK, or a DEFENSE, with his monitors and the room joining in. Play one now with **Office: Play Scene Event…**. An extension that plays its own events (Overseer does) takes over from this."},{"key":"officeSim.races","type":"boolean","default":true,"description":"Give the pixel guys races: orcs, elves, aliens, robots, centaurs, ghosts, and 30 more, each as likely as human. Visitors get them too. Pick one for a session with **Pixel Guy → Pick Race…** on its row's menu. Off makes everyone human, except guys you picked a race for."},{"key":"officeSim.you","type":"boolean","default":true,"description":"Put you in the Office: your own guy at a two-monitor station in the middle of the room, who reacts to the ERROR, HACK, and DEFENSE scene events along with his monitors. Make his look with **Office: Customize Your Guy…**."},{"key":"officeSim.yourLook","type":"object","default":{},"description":"Your guy's look. Make it with **Office: Customize Your Guy…** (or click your guy), which opens the character maker and saves here. Leave a field out for the default: a blonde ponytail with one side shaved, blue eyes, a thick orange beard, a black muscle shirt, white shorts, and black flip flops. Colors are `#rrggbb`; `race` takes a race id and `marks` its three colors."},{"key":"officeSim.claude.workers","type":"boolean","default":true,"description":"With Claude Code connected (**Office: Connect Claude Code…**), give each Claude session in this window's folders a worker of its own, busy while Claude works and idle when it stops. Your guy works while any of them does. An extension that sends its own workers (Overseer does) takes over from this."}],"commands":[{"id":"officeSim.switchScene","title":"Office: Switch Scene…"},{"id":"officeSim.playShow","title":"Office: Play Show…"},{"id":"officeSim.chatter","title":"Office: Chatter…"},{"id":"officeSim.playEvent","title":"Office: Play Scene Event…"},{"id":"officeSim.customizeYou","title":"Office: Customize Your Guy…"},{"id":"officeSim.connectClaude","title":"Office: Connect Claude Code…"},{"id":"officeSim.disconnectClaude","title":"Office: Disconnect Claude Code"}]});
+window.OFFICE_SITE = Object.assign(OFFICE_SITE_MODULE.OFFICE_SITE, {"version":"0.1.4","settings":[{"key":"officeSim.scene","type":"string","default":"office","values":["office","serverRoom","forest","field","riverbed","cave","moon","beach","snowfield","desert","reef","library","rooftop"],"description":"The Office view's room. Switch it with **Office: Switch Scene…** or the button on the view."},{"key":"officeSim.critters","type":"boolean","default":true,"description":"Every so often a few critters for the scene run across the Office: mice in the office, foxes and rabbits in the forest, chickens in the field, ducks and frogs by the river, bats in the cave, little aliens on the moon. Idle guys stop to watch."},{"key":"officeSim.fliers","type":"boolean","default":true,"description":"Every so often something for the scene flies over the Office: pigeons and paper planes in the office, drones and ghosts in the server room, owls and hawks in the forest, geese and hot-air balloons over the field, herons and dragonflies by the river, a dragon or a phoenix in the cave, rockets, meteors, and a space whale on the moon. Some only come out by day or by night. Idle guys look up."},{"key":"officeSim.activities","type":"string","default":"some","values":["off","few","some","lots"],"description":"Things to do between jobs on the Office's empty desk spots: pinball, arcade cabinets, a claw machine, arcade hoops, darts, karaoke, a jukebox, ping pong, foosball, air hockey, chess, a punching bag, a treadmill, an exercise bike, a piano, an easel, yoga mats, weights, a trampoline, a beanbag, a massage chair, a meditation cushion, and VR. The maintenance crew carries them in and out now and then, so the room changes, and makes room when a new guy needs the spot. Idle guys go use them: some alone, some taking turns with a buddy, and the table games two at a time. How many stand depends on the free spots, so a bigger room or fewer guys gets more."},{"key":"officeSim.activitySwaps","type":"string","default":"normal","values":["never","rare","normal","often"],"description":"How often the maintenance crew swaps an activity out for something new. How many there are is officeSim.activities. The crew waits for nobody to be on one before taking it out."},{"key":"officeSim.dayNight","type":"boolean","default":true,"description":"Light the Office by your clock: sunrise, golden hour, sunset, and night, with the sun and the real phase of the moon in the sky. Outdoor scenes get dark at night and screens and fires light up around them; the office keeps its lights on; the server room and the cave never see the sky. On the moon a day lasts a month. Off keeps it daytime."},{"key":"officeSim.visitors","type":"string","default":"normal","values":["off","rare","normal","often","packed"],"description":"How often people from other departments (sometimes a manager) drop into the Office. Up to five hang around at once: some say something and leave, others stay a minute or two, and some settle in for a good while to chat, get coffee, and loom over busy guys. Each guy answers in his own way: the suck-up says \"OK BOSS!\", the reasonable ones grumble."},{"key":"officeSim.chatter","type":"string","default":"tidy","values":["tidy","bubbles","log","quiet"],"description":"How the Office shows what the guys say. In every style, hovering a guy shows his line, and your own lines during an event and a show's act are always in bubbles. **Office: Chatter…** switches it from the Office view."},{"key":"officeSim.talk","type":"string","default":"normal","values":["off","rare","normal","often"],"description":"How often the Office guys talk on their own: chats with each other, mutters while typing, and musings while idle. Visitors, shows, events, and critters keep their own lines. **Office: Chatter…** sets it from the Office view."},{"key":"officeSim.bubbleLook","type":"string","default":"soft","values":["solid","soft","faint"],"description":"How the Office's speech bubbles look. The text stays solid, and hovering a guy makes his bubble solid. **Office: Chatter…** sets it from the Office view."},{"key":"officeSim.performances","type":"string","default":"normal","values":["off","rare","normal","often"],"description":"How often someone comes to the Office to put on a show: a guitarist, a band, a lunch or snack trolley, a comedian under a spotlight, a magician, or a DJ with a mirror ball. The idle and sleeping guys gather round to watch, cheer, laugh, and eat; busy guys keep working and get their lunch left on their desks. A show waits until someone is free to watch. Play one now with **Office: Play Show…**."},{"key":"officeSim.invasions","type":"string","default":"normal","values":["off","rare","normal","often"],"description":"How often something comes through and trashes the Office: aliens (beamed down; they zap guys or float them up in a beam), zombies (anyone bitten joins them for a bit), raiders (they bonk heads and run off with the loot), or vampires (they tackle a guy, slurp, and leave him pale). Everyone runs and hides, busy or not, and gets knocked down seeing stars. Nobody's hurt: once they go, the guys come to one by one, look around, say how weird that was, dust off, sweep up the mess, and get back to it. Start one now with **Office: Start Invasion…**."},{"key":"officeSim.quiet","type":"boolean","default":false,"description":"Quiet: no shows, visitors, invasions, or scene events come on their own, in the Office (a host's own views keep theirs). **Office: Trigger Event…** still starts any of them. The bell on the Office view turns it on and off."},{"key":"officeSim.events","type":"string","default":"normal","values":["off","rare","normal","often"],"description":"How often your guy acts out a scene event on his own: an ERROR, a HACK, or a DEFENSE, with his monitors and the room joining in. Play one now with **Office: Play Scene Event…**. An extension that plays its own events (Overseer does) takes over from this."},{"key":"officeSim.races","type":"boolean","default":true,"description":"Give the pixel guys races: orcs, elves, aliens, robots, centaurs, ghosts, and 30 more, each as likely as human. Visitors get them too. Pick one for a session with **Pixel Guy → Pick Race…** on its row's menu. Off makes everyone human, except guys you picked a race for."},{"key":"officeSim.you","type":"boolean","default":true,"description":"Put you in the Office: your own guy at a two-monitor station in the middle of the room, who reacts to the ERROR, HACK, and DEFENSE scene events along with his monitors. Make his look with **Office: Customize Your Guy…**."},{"key":"officeSim.yourLook","type":"object","default":{},"description":"Your guy's look. Make it with **Office: Customize Your Guy…** (or click your guy), which opens the character maker and saves here. Leave a field out for the default: a blonde ponytail with one side shaved, blue eyes, a thick orange beard, a black muscle shirt, white shorts, and black flip flops. Colors are `#rrggbb`; `race` takes a race id and `marks` its three colors."},{"key":"officeSim.claude.workers","type":"boolean","default":true,"description":"With Claude Code connected (**Office: Connect Claude Code…**), give each Claude session in this window's folders a worker of its own, busy while Claude works and idle when it stops. Your guy works while any of them does. An extension that sends its own workers (Overseer does) takes over from this."}],"commands":[{"id":"officeSim.switchScene","title":"Office: Switch Scene…"},{"id":"officeSim.triggerEvent","title":"Office: Trigger Event…"},{"id":"officeSim.stop","title":"Office: Stop Whatever's Playing"},{"id":"officeSim.quietOn","title":"Office: Quiet: Pause Shows, Visitors, Invasions, and Events"},{"id":"officeSim.quietOff","title":"Office: Quiet Is On: Let Things Happen Again"},{"id":"officeSim.toggleNight","title":"Office: Day / Night for Ten Minutes"},{"id":"officeSim.openSettings","title":"Office: Office Settings"},{"id":"officeSim.playShow","title":"Office: Play Show…"},{"id":"officeSim.startInvasion","title":"Office: Start Invasion…"},{"id":"officeSim.chatter","title":"Office: Chatter…"},{"id":"officeSim.playEvent","title":"Office: Play Scene Event…"},{"id":"officeSim.customizeYou","title":"Office: Customize Your Guy…"},{"id":"officeSim.connectClaude","title":"Office: Connect Claude Code…"},{"id":"officeSim.disconnectClaude","title":"Office: Disconnect Claude Code"}]});

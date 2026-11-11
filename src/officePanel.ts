@@ -8,6 +8,9 @@ import type { AgentInput, YouStatus } from "./officeSim";
 import { SCENE_EVENT_KINDS, SceneEventKind } from "./sceneEventSchedule";
 import { isPerformanceKind, PERFORMANCE_KINDS, PERFORMANCES, performanceFrequency, PerformanceKindId } from "./officePerformances";
 import { visitorFrequency } from "./officeVisitors";
+import { INVASION_KINDS, INVASIONS, invasionFrequency, InvasionKindId, isInvasionKind } from "./officeInvasions";
+import { invasionDescription, showDescription } from "./officeTriggers";
+import { SkyOverride, skyNow, skyToggle } from "./officeDaylight";
 import { PixelGuyLook, readLook, yourLook } from "./pixelGuy";
 
 export const OFFICE_PANEL_VIEW_ID = "officeSim.office";
@@ -25,6 +28,10 @@ const RACES_SETTING = "officeSim.races";
 const DAY_NIGHT_SETTING = "officeSim.dayNight";
 const VISITORS_SETTING = "officeSim.visitors";
 const PERFORMANCES_SETTING = "officeSim.performances";
+const INVASIONS_SETTING = "officeSim.invasions";
+export const QUIET_SETTING = "officeSim.quiet";
+// How long the Night button's day or night lasts before the clock takes over again.
+export const SKY_OVERRIDE_MS = 10 * 60_000;
 const CHATTER_SETTING = "officeSim.chatter";
 const TALK_SETTING = "officeSim.talk";
 const ACTIVITIES_SETTING = "officeSim.activities";
@@ -43,6 +50,8 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
   private readonly views = new Set<vscode.WebviewView>();
   // A show asked for before the view was open, played once it says it's ready.
   private pendingShow: { kind: PerformanceKindId | "random" } | undefined;
+  // The same for an invasion.
+  private pendingInvasion: { kind: InvasionKindId | "random" } | undefined;
   private readonly listeners: vscode.Disposable[];
   // Set once another extension sends agents or drives your guy through the API: the Claude Code bridge then leaves
   // them to it.
@@ -51,6 +60,9 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
   private agents: OfficeAgentInput[] = [];
   private focusedId: string | undefined;
   private youStatus: YouStatus = "auto";
+  // The Night button's sky, until the timer gives it back to the clock.
+  private skyOverride: SkyOverride | undefined;
+  private skyTimer: ReturnType<typeof setTimeout> | undefined;
   // Views other extensions host through attachView. While one is open, the Office's own view hides.
   private readonly hostedViews = new Set<vscode.WebviewView>();
   private readonly clickEmitter = new vscode.EventEmitter<string>();
@@ -60,6 +72,10 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
   readonly onDidStartShow = this.showStartEmitter.event;
   private readonly showEndEmitter = new vscode.EventEmitter<PerformanceKindId>();
   readonly onDidEndShow = this.showEndEmitter.event;
+  private readonly invasionStartEmitter = new vscode.EventEmitter<InvasionKindId>();
+  readonly onDidStartInvasion = this.invasionStartEmitter.event;
+  private readonly invasionEndEmitter = new vscode.EventEmitter<InvasionKindId>();
+  readonly onDidEndInvasion = this.invasionEndEmitter.event;
   private readonly eventEndEmitter = new vscode.EventEmitter<SceneEventKind>();
   readonly onDidFinishEvent = this.eventEndEmitter.event;
   // The character maker's open request: the webview it's in, the look it started from, and who's waiting.
@@ -71,7 +87,7 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
   constructor(private readonly deps: OfficePanelDeps) {
     this.listeners = [
       vscode.workspace.onDidChangeConfiguration((change) => {
-        if ([SCENE_SETTING, YOU_SETTING, YOUR_LOOK_SETTING, CRITTERS_SETTING, FLIERS_SETTING, DAY_NIGHT_SETTING, VISITORS_SETTING, PERFORMANCES_SETTING, CHATTER_SETTING, TALK_SETTING, BUBBLE_LOOK_SETTING, RACES_SETTING, ACTIVITIES_SETTING, ACTIVITY_SWAPS_SETTING].some((setting) => change.affectsConfiguration(setting))) {
+        if ([SCENE_SETTING, YOU_SETTING, YOUR_LOOK_SETTING, CRITTERS_SETTING, FLIERS_SETTING, DAY_NIGHT_SETTING, VISITORS_SETTING, PERFORMANCES_SETTING, INVASIONS_SETTING, QUIET_SETTING, CHATTER_SETTING, TALK_SETTING, BUBBLE_LOOK_SETTING, RACES_SETTING, ACTIVITIES_SETTING, ACTIVITY_SWAPS_SETTING].some((setting) => change.affectsConfiguration(setting))) {
           this.postAll();
         }
       }),
@@ -122,6 +138,36 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
     const message = { type: "performance", kind };
     if (![...this.views].some((view) => view.visible)) {
       this.pendingShow = this.webviews.size === 0 ? { kind } : undefined;
+      void vscode.commands.executeCommand(`${OFFICE_PANEL_VIEW_ID}.focus`);
+    }
+    this.webviews.forEach((webview) => void webview.postMessage(message));
+  }
+
+  // Ends whatever's playing in every open Office: a show, an invasion, visitors, a scene event.
+  stopEverything(): void {
+    this.broadcast({ type: "stop" });
+  }
+
+  // The Night button: night while it's day (or day while it's night) for SKY_OVERRIDE_MS, or back to the clock if
+  // it's on already. Returns the sky now, or undefined for the clock.
+  toggleSky(now = new Date()): SkyOverride | undefined {
+    clearTimeout(this.skyTimer);
+    this.skyOverride = this.skyOverride === undefined ? skyToggle(skyNow(now)) : undefined;
+    if (this.skyOverride !== undefined) {
+      this.skyTimer = setTimeout(() => {
+        this.skyOverride = undefined;
+        this.postAll();
+      }, SKY_OVERRIDE_MS);
+    }
+    this.postAll();
+    return this.skyOverride;
+  }
+
+  // Starts an invasion in the Office now, opening the view first if it isn't showing. Nothing happens if one is on.
+  playInvasion(kind: InvasionKindId | "random"): void {
+    const message = { type: "invasion", kind };
+    if (![...this.views].some((view) => view.visible)) {
+      this.pendingInvasion = this.webviews.size === 0 ? { kind } : undefined;
       void vscode.commands.executeCommand(`${OFFICE_PANEL_VIEW_ID}.focus`);
     }
     this.webviews.forEach((webview) => void webview.postMessage(message));
@@ -193,8 +239,9 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
   }
 
   dispose(): void {
+    clearTimeout(this.skyTimer);
     this.listeners.forEach((listener) => listener.dispose());
-    [this.clickEmitter, this.readyEmitter, this.showStartEmitter, this.showEndEmitter, this.eventEndEmitter].forEach((emitter) => emitter.dispose());
+    [this.clickEmitter, this.readyEmitter, this.showStartEmitter, this.showEndEmitter, this.invasionStartEmitter, this.invasionEndEmitter, this.eventEndEmitter].forEach((emitter) => emitter.dispose());
   }
 
   private handleMessage(webview: vscode.Webview, message: unknown): void {
@@ -208,6 +255,10 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
         void webview.postMessage({ type: "performance", kind: this.pendingShow.kind });
         this.pendingShow = undefined;
       }
+      if (this.pendingInvasion !== undefined) {
+        void webview.postMessage({ type: "invasion", kind: this.pendingInvasion.kind });
+        this.pendingInvasion = undefined;
+      }
       this.readyEmitter.fire(webview);
     } else if (type === "makerDone" && requestId === this.makerRequest?.id) {
       this.finishMaker(look === null || typeof look !== "object" ? undefined : (look as PixelGuyLook));
@@ -217,6 +268,10 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
       this.showStartEmitter.fire(kind);
     } else if (type === "showEnd" && isPerformanceKind(kind)) {
       this.showEndEmitter.fire(kind);
+    } else if (type === "invasionStart" && isInvasionKind(kind)) {
+      this.invasionStartEmitter.fire(kind);
+    } else if (type === "invasionEnd" && isInvasionKind(kind)) {
+      this.invasionEndEmitter.fire(kind);
     } else if (type === "eventEnd" && SCENE_EVENT_KINDS.includes(kind as SceneEventKind)) {
       this.eventEndEmitter.fire(kind as SceneEventKind);
     }
@@ -244,6 +299,9 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
     dayNight: boolean;
     visitors: string;
     performances: string;
+    invasions: string;
+    quiet: boolean;
+    sky: SkyOverride | null;
     chatter: string;
     talk: string;
     activities: string;
@@ -265,6 +323,9 @@ export class OfficePanelProvider implements vscode.WebviewViewProvider, vscode.D
       dayNight: configuration.get<boolean>(DAY_NIGHT_SETTING, true),
       visitors: visitorFrequency(configuration.get<unknown>(VISITORS_SETTING)),
       performances: performanceFrequency(configuration.get<unknown>(PERFORMANCES_SETTING)),
+      invasions: invasionFrequency(configuration.get<unknown>(INVASIONS_SETTING)),
+      quiet: configuration.get<boolean>(QUIET_SETTING, false) === true,
+      sky: this.skyOverride ?? null,
       chatter: chatterStyle(configuration.get<unknown>(CHATTER_SETTING)),
       talk: talkFrequency(configuration.get<unknown>(TALK_SETTING)),
       activities: activityLevel(configuration.get<unknown>(ACTIVITIES_SETTING)),
@@ -300,12 +361,37 @@ export function registerOfficeCommands(office: OfficePanelProvider): vscode.Disp
       const picked = await vscode.window.showQuickPick(
         [
           { label: "$(question) Surprise Me", id: "random" as const },
-          ...PERFORMANCE_KINDS.map((id) => ({ label: PERFORMANCES[id].label, description: SHOW_DESCRIPTIONS[id], id })),
+          ...PERFORMANCE_KINDS.map((id) => ({ label: PERFORMANCES[id].label, description: showDescription(id), id })),
         ],
         { placeHolder: "Which show?" },
       );
       if (picked !== undefined) {
         office.playShow(picked.id);
+      }
+    }),
+    vscode.commands.registerCommand("officeSim.stop", () => office.stopEverything()),
+    vscode.commands.registerCommand("officeSim.toggleNight", () => {
+      const sky = office.toggleSky();
+      void vscode.window.setStatusBarMessage(sky === undefined ? "Office: back to the clock" : `Office: ${sky} for ten minutes`, 3000);
+    }),
+    vscode.commands.registerCommand("officeSim.quietOn", () => vscode.workspace.getConfiguration().update(QUIET_SETTING, true, vscode.ConfigurationTarget.Global)),
+    vscode.commands.registerCommand("officeSim.quietOff", () => vscode.workspace.getConfiguration().update(QUIET_SETTING, false, vscode.ConfigurationTarget.Global)),
+    vscode.commands.registerCommand("officeSim.openSettings", () => vscode.commands.executeCommand("workbench.action.openSettings", "officeSim")),
+    // Takes an invasion kind as an argument (for a keybinding), or asks.
+    vscode.commands.registerCommand("officeSim.startInvasion", async (kind?: unknown) => {
+      if (isInvasionKind(kind) || kind === "random") {
+        office.playInvasion(kind);
+        return;
+      }
+      const picked = await vscode.window.showQuickPick(
+        [
+          { label: "$(question) Surprise Me", id: "random" as const },
+          ...INVASION_KINDS.map((id) => ({ label: INVASIONS[id].label, description: invasionDescription(id), id })),
+        ],
+        { placeHolder: "Which invasion?" },
+      );
+      if (picked !== undefined) {
+        office.playInvasion(picked.id);
       }
     }),
     // Takes a style as an argument (for a keybinding), or asks for a style, a bubble look, or how often they talk.
@@ -361,16 +447,6 @@ export function registerOfficeCommands(office: OfficePanelProvider): vscode.Disp
     }),
   ];
 }
-
-const SHOW_DESCRIPTIONS: Record<PerformanceKindId, string> = {
-  guitarist: "a busker with an acoustic guitar",
-  band: "singer, guitar, bass, and drums",
-  lunch: "a trolley of hot lunch for everyone",
-  snacks: "donuts, cookies, ice cream, popcorn",
-  comedian: "stand-up under a spotlight",
-  magician: "card tricks and a rabbit in a hat",
-  dj: "a DJ, a mirror ball, and dancing",
-};
 
 const BUBBLE_LOOK_LABELS: Record<BubbleLook, { label: string; description: string }> = {
   solid: { label: "Bubbles: Solid", description: "opaque bubbles" },

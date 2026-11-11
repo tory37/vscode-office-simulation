@@ -4,6 +4,10 @@ import type { OfficePanelProvider } from "./officePanel";
 import { SceneEventKind, sceneEventMessage } from "./sceneEventSchedule";
 
 export const EVENTS_SETTING = "officeSim.events";
+// The Quiet button's setting (officePanel's QUIET_SETTING): no events on their own.
+const QUIET_SETTING = "officeSim.quiet";
+// A host's event this soon after a request is the answer to it, and plays even while quiet.
+const REQUEST_ANSWER_MS = 5000;
 
 // Plays scene events on the officeSim.events schedule and moves your second monitor's tint, until another extension
 // takes either over through the API. Overseer does both, so its views and the Office play the same event at once.
@@ -14,6 +18,13 @@ export class OfficeDirector implements vscode.Disposable {
   private tintTakenOver = false;
   private tintIndex = 0;
   private readonly listeners: vscode.Disposable[];
+  // Someone asked for an event in the Office (Trigger Event, Play Scene Event) while a host plays them: the host
+  // plays it everywhere it shows events, so its views and the Office play it together.
+  private readonly requestEmitter = new vscode.EventEmitter<SceneEventKind>();
+  readonly onDidRequestEvent = this.requestEmitter.event;
+  // Set once a host listens for requests; until then a request just plays here.
+  hostTakesRequests = false;
+  private lastRequest: { kind: SceneEventKind; at: number } | undefined;
 
   constructor(private readonly office: OfficePanelProvider) {
     this.scheduleEvent(true);
@@ -34,9 +45,27 @@ export class OfficeDirector implements vscode.Disposable {
     if (fromHost) {
       this.eventsTakenOver = true;
       clearTimeout(this.eventTimer);
+      // While quiet, a host's own schedule doesn't reach the Office; the answer to a request does.
+      const answer = this.lastRequest?.kind === kind && Date.now() - this.lastRequest.at < REQUEST_ANSWER_MS;
+      if (quietNow() && !answer) {
+        return;
+      }
+      if (answer) {
+        this.lastRequest = undefined;
+      }
     }
     const message = sceneEventMessage(kind, Math.random);
     this.office.broadcast(variant === undefined ? message : { ...message, variant });
+  }
+
+  // Someone in the Office asked for this event: a host that plays them gets the request, otherwise it plays here.
+  requestEvent(kind: SceneEventKind): void {
+    if (this.eventsTakenOver && this.hostTakesRequests) {
+      this.lastRequest = { kind, at: Date.now() };
+      this.requestEmitter.fire(kind);
+      return;
+    }
+    this.playEvent(kind);
   }
 
   // A host plays events and sets the tint from now on.
@@ -59,6 +88,7 @@ export class OfficeDirector implements vscode.Disposable {
   dispose(): void {
     clearTimeout(this.eventTimer);
     clearTimeout(this.tintTimer);
+    this.requestEmitter.dispose();
     this.listeners.forEach((listener) => listener.dispose());
   }
 
@@ -70,7 +100,9 @@ export class OfficeDirector implements vscode.Disposable {
     const gap = eventGapMs(eventFrequency(vscode.workspace.getConfiguration().get<unknown>(EVENTS_SETTING)), Math.random, first);
     if (gap !== undefined) {
       this.eventTimer = setTimeout(() => {
-        this.playEvent(pickEventKind(Math.random));
+        if (!quietNow()) {
+          this.playEvent(pickEventKind(Math.random));
+        }
         this.scheduleEvent(false);
       }, gap);
     }
@@ -85,4 +117,8 @@ export class OfficeDirector implements vscode.Disposable {
       this.scheduleTint();
     }, tintGapMs(Math.random));
   }
+}
+
+function quietNow(): boolean {
+  return vscode.workspace.getConfiguration().get<boolean>(QUIET_SETTING, false) === true;
 }

@@ -99,6 +99,8 @@ describe("the API", () => {
     api.playShow("band");
     api.playShow("opera" as never);
     api.sendVisitor("ceo");
+    api.startInvasion("zombies");
+    api.startInvasion("goblins" as never);
     api.say("a", "hi there", 2);
     api.say("a", "");
     const types = view.posted.map((message) => message.type);
@@ -106,6 +108,7 @@ describe("the API", () => {
     expect(view.last("tint")).toEqual({ type: "tint", index: 3, burst: true });
     expect(view.posted.filter((message) => message.type === "performance").map((message) => message.kind)).toEqual(["band", "random"]);
     expect(view.last("visitor")).toEqual({ type: "visitor", kind: "ceo" });
+    expect(view.posted.filter((message) => message.type === "invasion").map((message) => message.kind)).toEqual(["zombies", "random"]);
     expect(types.filter((type) => type === "say")).toHaveLength(1);
     expect(view.last("say")).toEqual({ type: "say", id: "a", text: "hi there", seconds: 2 });
   });
@@ -127,6 +130,35 @@ describe("the API", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("plays a requested event in the Office until a host listens, then hands it to the host", () => {
+    const own = new OfficePanelProvider({ extensionUri: Uri.file("/ext") as unknown as vscode.Uri });
+    const director = new OfficeDirector(own);
+    const hostApi = createOfficeApi(own, director, new YourGuy(own, memento()));
+    const room = new FakeWebviewView();
+    own.resolveWebviewView(room as unknown as vscode.WebviewView);
+    room.send({ type: "ready" });
+    director.requestEvent("hack");
+    expect(room.last("sceneEvent")).toMatchObject({ kind: "hack" });
+    const asked: string[] = [];
+    hostApi.onDidRequestEvent((kind) => asked.push(kind));
+    hostApi.takeOverEvents();
+    const before = room.posted.length;
+    director.requestEvent("error");
+    expect(asked).toEqual(["error"]);
+    expect(room.posted.slice(before).filter((message) => message.type === "sceneEvent")).toEqual([]);
+    director.dispose();
+  });
+
+  it("passes on invasions starting and ending", () => {
+    const heard: string[] = [];
+    api.onDidStartInvasion((kind) => heard.push(`start ${kind}`));
+    api.onDidEndInvasion((kind) => heard.push(`end ${kind}`));
+    view.send({ type: "invasionStart", kind: "vampires" });
+    view.send({ type: "invasionEnd", kind: "vampires" });
+    view.send({ type: "invasionStart", kind: "goblins" });
+    expect(heard).toEqual(["start vampires", "end vampires"]);
   });
 
   it("passes on clicks, shows, and finished events", () => {

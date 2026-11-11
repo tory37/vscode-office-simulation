@@ -280,6 +280,7 @@
     return 9.87 * Math.sin(2 * angle) - 7.53 * Math.cos(angle) - 1.5 * Math.sin(angle);
   }
   var DAYTIME_SKY = skyAt(10.5, 172, 40, 0);
+  var NIGHT_SKY = skyAt(23.5, 172, 40, 0.5);
   var SKY_STOPS = [
     [60, "#79C6F0"],
     [20, "#8FD3F4"],
@@ -2150,13 +2151,246 @@
     return text.charAt(0).toUpperCase() + text.slice(1);
   }
 
+  // src/officeInvasions.ts
+  var INVASION_KINDS = ["aliens", "zombies", "raiders", "vampires"];
+  function invaderClothes(outfit) {
+    const { race: _race, ...clothes } = outfit;
+    return clothes;
+  }
+  var MAX_INVADERS = 6;
+  var FLEE_SPEED = 4.2;
+  var INVASIONS = {
+    aliens: {
+      id: "aliens",
+      label: "Alien Invasion",
+      banner: "ALIEN INVASION",
+      titles: ["Zorp", "Glarb", "Xix", "Blorbo", "Qwib", "Mmrk"],
+      outfit: { race: "greenAlien", shirt: "#B8C4CC", pants: "#5B6770", accessory: "none" },
+      altRace: "greyAlien",
+      entry: "beam",
+      exit: "beam",
+      attack: "zap",
+      speed: 2.6,
+      reach: 2.4,
+      strikeSeconds: 0.9,
+      rest: 4,
+      base: 2,
+      perGuys: 5,
+      trashEvery: [8, 14],
+      hitWords: ["ZAP!", "BZZT!", "PEW!", "ZORT!"],
+      trashWords: ["ZAP!", "FZZT!", "PEW PEW!"],
+      debris: ["papers", "scorch", "goo", "scorch"],
+      tint: "#3DFF8A",
+      warning: ["did the lights just\u2026", "what's that hum?", "is that\u2026 a UFO?", "why is it green in here?", "uh, guys?"],
+      taunts: ["TAKE US TO YOUR LEAD DEV", "*beep boop*", "PUNY CODERS", "WE COME IN PEACE (no)", "PROBE THEM", "what is\u2026 'Jira'?", "SPECIMEN ACQUIRED"],
+      exitLines: ["WE WILL RETURN", "*beep*", "SAMPLES COLLECTED", "FAREWELL, EARTH DEVS"],
+      screams: ["ALIENS!", "they're green!", "don't let them probe me!", "not the beam!", "I want my mom!", "is this in the SLA?!"],
+      caught: ["bzzzt\u2014", "noooo", "put me dooown!", "I come in peace too!", "wait\u2014"],
+      wake: [
+        "did anyone else see\u2026 lights?",
+        "I think they probed me",
+        "I saw the light, man",
+        "I'm never leaving the lid open again",
+        "why do I know Klingon now?",
+        "they took my notes!",
+        "was that\u2026 a UFO?",
+        "I have missing time"
+      ]
+    },
+    zombies: {
+      id: "zombies",
+      label: "Zombie Takeover",
+      banner: "ZOMBIE TAKEOVER",
+      titles: ["Zombie (Accounting)", "Zombie (Legal)", "Zombie (Marketing)", "Zombie (IT)", "Zombie (Sales)", "Zombie (HR)"],
+      outfit: { race: "zombie", shirt: "#8E9AAF", pants: "#3D405B", tie: "#6B2E3A" },
+      entry: "door",
+      exit: "door",
+      attack: "bite",
+      speed: 1.9,
+      reach: 0.8,
+      strikeSeconds: 1.1,
+      rest: 0.8,
+      base: 2,
+      perGuys: 6,
+      trashEvery: [10, 18],
+      hitWords: ["NOM!", "CHOMP!", "MUNCH!"],
+      trashWords: ["CRASH!", "THUD!"],
+      debris: ["papers", "mug", "goo", "papers"],
+      tint: "#7A9A5A",
+      warning: ["did you hear that?", "who's groaning?", "is that Dave from Accounting?", "why does it smell like Mondays?", "uh, guys?"],
+      taunts: ["braaains\u2026", "uuurgh\u2026", "BRAAAINS", "mmmeetings\u2026", "reply\u2026 alllll\u2026", "need\u2026 coffeeee\u2026", "synergyyy\u2026"],
+      exitLines: ["uuurgh\u2026", "lunch\u2026 time\u2026", "braaains\u2026"],
+      screams: ["ZOMBIES!", "aim for the\u2026 uh\u2026 keyboard!", "don't let them bite you!", "is that Dave?!", "they're slow, just walk!", "I knew Monday would do this"],
+      caught: ["not the brain!", "ow ow ow", "I'm too young to zombie!", "noooo"],
+      wake: [
+        "why do I want\u2026 brains?",
+        "I feel like I ate a stapler",
+        "ugh, I taste keyboard",
+        "was I\u2026 a zombie?",
+        "I chased Dave for ten minutes",
+        "my head\u2026 so many meetings",
+        "I don't feel\u2026 undead anymore",
+        "that was some Monday"
+      ]
+    },
+    raiders: {
+      id: "raiders",
+      label: "Raiders",
+      banner: "RAIDERS!",
+      titles: ["Rust", "Gnash", "Scrap", "Torque", "Grit", "Sprocket"],
+      outfit: { race: "human", shirt: "#5C3B28", pants: "#2B2B2B", hair: "#E2504B", hairStyle: "mohawk", accessory: "glasses", accessoryColor: "#2A2A2A", sleeveless: true },
+      entry: "door",
+      exit: "door",
+      attack: "bonk",
+      speed: 4.4,
+      reach: 0.8,
+      strikeSeconds: 0.6,
+      rest: 1.6,
+      base: 3,
+      perGuys: 4,
+      trashEvery: [4, 8],
+      hitWords: ["BONK!", "POW!", "WHACK!", "THWACK!"],
+      trashWords: ["SMASH!", "CRASH!", "KRAK!"],
+      debris: ["cans", "papers", "mug", "plant", "cans"],
+      tint: "#FF7A2E",
+      warning: ["was that an engine?", "is someone revving outside?", "why's the door shaking?", "uh, guys?", "who ordered a motorcycle?"],
+      taunts: ["WITNESS ME!", "GRAB THE SNACKS!", "THIS OFFICE IS OURS!", "SHINY!", "TAKE THE CHAIRS!", "YEEEHAW!", "WHERE'S THE COFFEE?!"],
+      exitLines: ["GOT THE STAPLER!", "RIDE ON!", "GRAB IT AND GO!", "YEEEHAW!"],
+      screams: ["RAIDERS!", "hide the coffee!", "not the monitors!", "they took my chair!", "run for the stairs!", "is this a team-building thing?"],
+      caught: ["oof!", "ow!", "my head!", "not the face!", "hey!"],
+      wake: [
+        "they took my stapler!",
+        "where's the coffee machine?",
+        "did they\u2026 take the chairs?",
+        "I think I got bonked",
+        "I've got a bump the size of a mouse",
+        "so\u2026 is it Friday?",
+        "who were those guys?",
+        "they left their cans everywhere"
+      ]
+    },
+    vampires: {
+      id: "vampires",
+      label: "Vampires",
+      banner: "VAMPIRES!",
+      titles: ["Count Bytecula", "Countess Nullity", "Lord Fangsworth", "Baron Von Bitrot", "Lady Nightshift"],
+      outfit: { race: "vampire", shirt: "#1A1A22", pants: "#1A1A22", tie: "#9B1B30", accessory: "none" },
+      entry: "smoke",
+      exit: "bats",
+      attack: "drink",
+      speed: 4.8,
+      reach: 0.8,
+      strikeSeconds: 0.6,
+      rest: 1.4,
+      base: 1,
+      perGuys: 4,
+      trashEvery: [12, 20],
+      hitWords: ["POUNCE!", "GOTCHA!", "SWOOP!"],
+      trashWords: ["CRASH!", "WHOOSH!"],
+      debris: ["cobweb", "papers", "mug", "cobweb"],
+      tint: "#5A2A8A",
+      warning: ["who turned the lights down?", "did it get dark?", "was that a bat?", "it's freezing in here\u2026", "uh, guys?"],
+      taunts: ["I vant to drink your\u2026 coffee", "bleh bleh!", "the night is young!", "such lovely necks", "ah, fresh devs", "mwahaha!"],
+      exitLines: ["THE SUN!", "hssss!", "until tonight!", "bleh!"],
+      screams: ["VAMPIRES!", "garlic! anyone have garlic?!", "cover your necks!", "open the blinds!", "not my neck!", "I'm anemic, take him!"],
+      caught: ["eek!", "not the neck!", "noooo", "I'm O negative!", "help!"],
+      wake: [
+        "I feel\u2026 lightheaded",
+        "why am I craving tomato juice?",
+        "is the sun out? thank goodness",
+        "my neck itches",
+        "I feel weirdly anemic",
+        "did someone say garlic bread?",
+        "the blinds stay open now",
+        "I need a juice box"
+      ]
+    }
+  };
+  var PERSONALITY_WAKE = {
+    suckUp: ["should I tell the boss?", "I'll file an incident report!", "I'm fine! totally fine! still productive!", "nobody tell my manager"],
+    grumbler: ["this is not in my job description", "every single quarter", "I'm billing overtime for this", "I should've stayed home"],
+    deadpan: ["huh.", "that happened.", "well.", "neat."],
+    snark: ["great. love that for us.", "HR is gonna hear about this", "best team-building yet", "five stars, would not repeat"],
+    eager: ["that was AWESOME", "can we do that again?!", "did anyone film that?!", "best day ever!"]
+  };
+  var GENERIC_WAKE = [
+    "wow, that was weird",
+    "what just happened?",
+    "\u2026ow",
+    "is it over?",
+    "did we\u2026 win?",
+    "huh?",
+    "where am I?",
+    "five more minutes\u2026",
+    "was that real?",
+    "my head\u2026"
+  ];
+  var SURVIVOR_LINES = ["is it over?", "are they gone?", "I'm not coming out", "phew", "did we win?", "hello\u2026?"];
+  var COWER_LINES = ["*whimper*", "please no please no", "I'm not here", "hide hide hide", "mommy\u2026", "shhh!"];
+  var GENERIC_SCREAMS = ["AAAAH!", "RUN!", "HELP!", "not like this!", "every dev for himself!", "EEEK!", "save the laptops!", "why today?!"];
+  var DUST_LINES = ["*dusts off*", "okay. okay.", "*shakes it off*", "where's my mug?", "ugh"];
+  var CLEAN_LINES = ["what a mess", "is this\u2026 goo?", "who's paying for this?", "I'll get the broom", "somebody call maintenance", "gross"];
+  var DONE_LINES = ["back to work, I guess", "let's never speak of this", "so\u2026 standup?", "okay, where was I?", "good as new"];
+  function pick2(list, random2) {
+    return list[Math.min(list.length - 1, Math.floor(random2() * list.length))];
+  }
+  function wakeLine(kind, personality, random2) {
+    const roll = random2();
+    if (roll < 0.5) {
+      return pick2(INVASIONS[kind].wake, random2);
+    }
+    return roll < 0.75 ? pick2(PERSONALITY_WAKE[personality], random2) : pick2(GENERIC_WAKE, random2);
+  }
+  function screamLine(kind, random2) {
+    return random2() < 0.45 ? pick2(INVASIONS[kind].screams, random2) : pick2(GENERIC_SCREAMS, random2);
+  }
+  function invaderCount(kind, guys) {
+    const spec = INVASIONS[kind];
+    return Math.max(1, Math.min(MAX_INVADERS, spec.base + Math.floor(Math.max(0, guys) / spec.perGuys)));
+  }
+  var ATTACK_SECONDS = [30, 45];
+  var WARNING_SECONDS = 3.5;
+  var RETREAT_SECONDS = 10;
+  var AFTERMATH_SECONDS = 80;
+  function planInvasion(random2, kind, guys) {
+    const id = kind ?? pick2(INVASION_KINDS, random2);
+    const spec = INVASIONS[id];
+    const count = invaderCount(id, guys);
+    const offset = Math.floor(random2() * spec.titles.length);
+    return {
+      kind: id,
+      label: spec.label,
+      titles: Array.from({ length: count }, (_, index) => spec.titles[(offset + index) % spec.titles.length]),
+      length: ATTACK_SECONDS[0] + random2() * (ATTACK_SECONDS[1] - ATTACK_SECONDS[0])
+    };
+  }
+  var INVASION_FREQUENCIES = {
+    rare: [45, 90],
+    normal: [20, 40],
+    often: [6, 12]
+  };
+  function invasionFrequency(value) {
+    if (value === false) {
+      return "off";
+    }
+    return value === "off" || typeof value === "string" && value in INVASION_FREQUENCIES ? value : "normal";
+  }
+  function invasionGap(random2, frequency = "normal", first = false) {
+    const [low, high] = INVASION_FREQUENCIES[frequency];
+    const minutes = first ? low * (0.5 + random2() * 0.5) : low + random2() * (high - low);
+    return minutes * 60;
+  }
+  function isInvasionKind(value) {
+    return typeof value === "string" && INVASION_KINDS.includes(value);
+  }
+
   // src/pixelCanvas.ts
   var INNER_WIDTH = 10;
   var BODY_HEIGHT = 16;
   var HEAD_ROOM = 2;
   var INNER_HEIGHT = BODY_HEIGHT + HEAD_ROOM;
   function isStepping(pose) {
-    return pose === "walk" || pose === "carry";
+    return pose === "walk" || pose === "carry" || pose === "panic" || pose === "reach";
   }
   var Canvas = class _Canvas {
     cells = Array.from({ length: INNER_HEIGHT }, () => Array(INNER_WIDTH).fill(null));
@@ -3235,7 +3469,7 @@
   // src/pixelGuy.ts
   var FRAME_WIDTH = INNER_WIDTH + 2;
   var FRAME_HEIGHT = INNER_HEIGHT + 2;
-  var POSE_FRAMES = { stand: 1, walk: 4, type: 2, sit: 1, stretch: 1, drink: 1, talk: 2, sleep: 2, carry: 4, build: 2, cheer: 2, eat: 2, punch: 2, lift: 2, yoga: 2 };
+  var POSE_FRAMES = { stand: 1, walk: 4, type: 2, sit: 1, stretch: 1, drink: 1, talk: 2, sleep: 2, carry: 4, build: 2, cheer: 2, eat: 2, punch: 2, lift: 2, yoga: 2, panic: 4, down: 1, cower: 1, reach: 4 };
   var SKINS = ["#F9D4B4", "#EDB98A", "#D08B5B", "#AE5D29", "#8D4A28", "#614335"];
   var HAIRS = ["#2C1B12", "#5A3825", "#A0522D", "#D9A441", "#E8D9A0", "#B8B8B8", "#E2504B", "#7C5CE0", "#3FA7D6", "#2E2E2E"];
   var SHIRTS = ["#E4572E", "#F3A712", "#4C6EF5", "#2E86AB", "#4CB944", "#A23B72", "#F06595", "#12B886", "#7950F2", "#FAB005", "#E03131", "#E9ECEF"];
@@ -3269,16 +3503,16 @@
   var pickFrom = (random2) => (items) => items[Math.floor(random2() * items.length) % items.length];
   function pixelGuyLook(seed, races = true) {
     const base2 = seedWithoutRace(seed);
-    const pick3 = pickFrom(seededRandom(hashSeed(base2)));
+    const pick4 = pickFrom(seededRandom(hashSeed(base2)));
     const look = {
-      skin: pick3(SKINS),
-      hair: pick3(HAIRS),
-      hairStyle: pick3(HAIR_STYLES),
-      shirt: pick3(SHIRTS),
-      pants: pick3(PANTS),
-      shoes: pick3(SHOES),
-      accessory: pick3(ACCESSORIES),
-      accessoryColor: pick3(ACCESSORY_COLORS)
+      skin: pick4(SKINS),
+      hair: pick4(HAIRS),
+      hairStyle: pick4(HAIR_STYLES),
+      shirt: pick4(SHIRTS),
+      pants: pick4(PANTS),
+      shoes: pick4(SHOES),
+      accessory: pick4(ACCESSORIES),
+      accessoryColor: pick4(ACCESSORY_COLORS)
     };
     const race = pickedRace(seed) ?? (races ? RACE_IDS[hashSeed(`${base2}|race`) % RACE_IDS.length] : "human");
     return withRace(look, race, seededRandom(hashSeed(`${base2}|${race}`)));
@@ -3288,19 +3522,19 @@
       return look;
     }
     const spec = raceSpec(race);
-    const pick3 = pickFrom(random2);
-    const next = { ...look, race, marks: defaultMarks(spec, pick3) };
+    const pick4 = pickFrom(random2);
+    const next = { ...look, race, marks: defaultMarks(spec, pick4) };
     if (spec.skins !== void 0) {
-      next.skin = pick3(spec.skins);
+      next.skin = pick4(spec.skins);
     }
     if (spec.hairs !== void 0) {
-      next.hair = pick3(spec.hairs);
+      next.hair = pick4(spec.hairs);
     }
     if (spec.hairStyles !== void 0) {
-      next.hairStyle = pick3(spec.hairStyles);
+      next.hairStyle = pick4(spec.hairStyles);
     }
     if (spec.eyes !== void 0) {
-      next.eyes = pick3(spec.eyes);
+      next.eyes = pick4(spec.eyes);
     }
     if (spec.sleeveless === true) {
       next.sleeveless = true;
@@ -3326,9 +3560,9 @@
     }
     return withRace({ ...look, sleeveless: look.sleeveless }, race, () => 0);
   }
-  function defaultMarks(spec, pick3 = (items) => items[0]) {
+  function defaultMarks(spec, pick4 = (items) => items[0]) {
     const marks = spec.marks ?? [["#FFFFFF"], ["#FFFFFF"], ["#FFFFFF"]];
-    return [pick3(marks[0]), pick3(marks[1]), pick3(marks[2])];
+    return [pick4(marks[0]), pick4(marks[1]), pick4(marks[2])];
   }
   function pixelGuyFrame(look, pose, facing, frame) {
     const step = (Math.floor(frame) % POSE_FRAMES[pose] + POSE_FRAMES[pose]) % POSE_FRAMES[pose];
@@ -3397,9 +3631,9 @@
     if (isBack) {
       drawBackHair(canvas2, look.hairStyle);
     } else {
-      canvas2.set(3, 4, "eye");
-      canvas2.set(6, 4, "eye");
-      if ((pose === "talk" || pose === "cheer" || pose === "eat") && step === 1) {
+      canvas2.set(3, 4, pose === "down" ? "skinShade" : "eye");
+      canvas2.set(6, 4, pose === "down" ? "skinShade" : "eye");
+      if ((pose === "talk" || pose === "cheer" || pose === "eat") && step === 1 || pose === "panic") {
         canvas2.rect(4, 5, 2, 1, "mouth");
       }
       drawFrontHair(canvas2, look.hairStyle);
@@ -3420,7 +3654,7 @@
     }
     return canvas2;
   }
-  var isSeatedPose = (pose) => pose === "type" || pose === "sit" || pose === "sleep";
+  var isSeatedPose = (pose) => pose === "type" || pose === "sit" || pose === "sleep" || pose === "cower";
   function dressed(canvas2, look, pose, facing) {
     const seated = isSeatedPose(pose);
     canvas2.each((key, x, y) => {
@@ -3523,6 +3757,35 @@
       canvas2.rect(8, 7, 2, 1, "sleeve");
       canvas2.set(0, 8, "skin");
       canvas2.set(9, 8, "skin");
+      return;
+    }
+    if (pose === "panic") {
+      const [left, right] = step % 2 === 0 ? [2, 4] : [4, 2];
+      canvas2.rect(1, left + 1, 1, 7 - left, "sleeve");
+      canvas2.set(1, left, "skin");
+      canvas2.rect(8, right + 1, 1, 7 - right, "sleeve");
+      canvas2.set(8, right, "skin");
+      return;
+    }
+    if (pose === "down") {
+      canvas2.rect(0, 7, 2, 1, "sleeve");
+      canvas2.rect(8, 7, 2, 1, "sleeve");
+      canvas2.set(0, 8, "skin");
+      canvas2.set(9, 8, "skin");
+      return;
+    }
+    if (pose === "cower") {
+      canvas2.rect(1, 2, 1, 6, "sleeve");
+      canvas2.rect(8, 2, 1, 6, "sleeve");
+      canvas2.set(2, 1, "skin");
+      canvas2.set(7, 1, "skin");
+      return;
+    }
+    if (pose === "reach") {
+      canvas2.rect(1, 7, 1, 2, "sleeve");
+      canvas2.rect(8, 7, 1, 2, "sleeve");
+      canvas2.set(2, 8, "skin");
+      canvas2.set(7, 8, "skin");
       return;
     }
     if (pose === "cheer") {
@@ -3717,7 +3980,7 @@
     canvas2.set(3, 6, null);
     canvas2.set(8, 4, "skin");
     canvas2.set(6, 4, "eye");
-    if ((pose === "talk" || pose === "cheer" || pose === "eat") && step === 1) {
+    if ((pose === "talk" || pose === "cheer" || pose === "eat") && step === 1 || pose === "panic") {
       canvas2.set(7, 5, "mouth");
     }
     canvas2.rect(3, 7, 4, 5, "shirt");
@@ -3745,6 +4008,21 @@
     canvas2.rect(4, 15, 3, 1, "shoes");
   }
   function drawSideArm(canvas2, pose, step) {
+    if (pose === "reach") {
+      canvas2.rect(4, 7, 4, 1, "sleeveShade");
+      canvas2.set(8, 7, "skin");
+      return;
+    }
+    if (pose === "cower") {
+      canvas2.rect(5, 2, 1, 6, "sleeveShade");
+      canvas2.set(6, 1, "skin");
+      return;
+    }
+    if (pose === "panic") {
+      canvas2.rect(5, step % 2 === 0 ? 2 : 3, 1, step % 2 === 0 ? 6 : 5, "sleeveShade");
+      canvas2.set(step % 2 === 0 ? 5 : 6, step % 2 === 0 ? 1 : 2, "skin");
+      return;
+    }
     if (pose === "cheer") {
       canvas2.rect(5, step === 0 ? 2 : 3, 1, step === 0 ? 6 : 5, "sleeveShade");
       canvas2.set(step === 0 ? 5 : 6, step === 0 ? 1 : 2, "skin");
@@ -4568,9 +4846,9 @@
       }
     }
     kind = VISITOR_KINDS.find((candidate) => candidate.id === kindId) ?? kind;
-    const lines = [pick2(kind.openers, random2)];
+    const lines = [pick3(kind.openers, random2)];
     const stay = visitorStay(random2);
-    const closer = random2() < 0.7 ? pick2(kind.closers, random2) : void 0;
+    const closer = random2() < 0.7 ? pick3(kind.closers, random2) : void 0;
     if (stay === 0 && closer !== void 0) {
       lines.push(closer);
     }
@@ -4591,12 +4869,12 @@
   }
   function visitorReaction(personality, boss, asleep, random2) {
     if (asleep) {
-      return random2() < 0.4 ? pick2(ASLEEP_MUMBLES, random2) : void 0;
+      return random2() < 0.4 ? pick3(ASLEEP_MUMBLES, random2) : void 0;
     }
     if (!(personality === "suckUp" && boss) && random2() >= 0.65) {
       return void 0;
     }
-    return pick2(REACTIONS[personality][boss ? "boss" : "other"], random2);
+    return pick3(REACTIONS[personality][boss ? "boss" : "other"], random2);
   }
   var VISITOR_FREQUENCIES = {
     rare: [180, 360],
@@ -4614,7 +4892,7 @@
     const [low, high] = VISITOR_FREQUENCIES[frequency];
     return first ? low * 0.4 + random2() * low * 0.6 : low + random2() * (high - low);
   }
-  function pick2(list, random2) {
+  function pick3(list, random2) {
     return list[Math.min(list.length - 1, Math.floor(random2() * list.length))];
   }
 
@@ -4634,7 +4912,7 @@
   var MAX_CREW = 6;
   var CREW_SPACING_SECONDS = 0.8;
   function isSession(agent) {
-    return !agent.you && agent.visitor === void 0 && agent.crew === void 0 && agent.performer === void 0;
+    return !agent.you && agent.visitor === void 0 && agent.crew === void 0 && agent.performer === void 0 && agent.invader === void 0;
   }
   function crewAgents(state2) {
     return state2.agents.filter((agent) => agent.crew !== void 0);
@@ -4801,7 +5079,7 @@
     return agent.visitor !== void 0 && agent.goal?.kind === "address";
   }
   function lookToward(state2, agent, at, seconds) {
-    if (agent.status === "working" || agent.leaving || SEATED_MODES.has(agent.mode) || agent.mode === "chat") {
+    if (agent.status === "working" || agent.leaving || SEATED_MODES.has(agent.mode) || agent.mode === "chat" || inInvasion(agent)) {
       return;
     }
     const dx = at.x - agent.x;
@@ -4853,6 +5131,13 @@
     visit.remarks += 1;
     say(state2, agent, line, lineSeconds(line));
   }
+  function sendVisitorsHome(state2) {
+    for (const agent of visitorAgents(state2)) {
+      if (!agent.leaving && agent.scare === void 0) {
+        visitorLeaves(state2, agent);
+      }
+    }
+  }
   function visitorLeaves(state2, agent) {
     const farewell = agent.visitor?.farewell;
     if (farewell !== void 0 && agent.visitor?.stayUntil !== 0) {
@@ -4865,7 +5150,7 @@
   }
   function callYouBack(state2, random2) {
     const agent = youAgent(state2);
-    if (agent === void 0) {
+    if (agent === void 0 || agent.scare !== void 0) {
       return;
     }
     agent.nextBreakAt = state2.youStatus === "busy" ? FOREVER : state2.time + between(random2, 40, 90);
@@ -4981,6 +5266,9 @@
     if (show !== void 0 && !show.spots.every((spot) => layout.tiles[spot.y]?.[spot.x] === "floor" && spot.y >= 1)) {
       endShow(state2, random2);
     }
+    if (state2.invasion !== void 0) {
+      state2.invasion.debris = state2.invasion.debris.filter((piece) => layout.tiles[piece.y]?.[piece.x] === "floor");
+    }
     for (const agent of state2.agents) {
       if (agent.crew !== void 0) {
         crewDecide(state2, agent, random2);
@@ -4998,6 +5286,7 @@
     manageCrew(state2, random2);
     stepActivities(state2, random2);
     stepShow(state2, random2);
+    stepInvasion(state2, random2);
     for (const agent of [...state2.agents]) {
       if (agent.bubble !== void 0 && state2.time >= agent.bubble.until) {
         agent.bubble = void 0;
@@ -5008,14 +5297,14 @@
       if (agent.watch !== void 0) {
         continue;
       }
-      if (agent.you) {
+      if (agent.you && agent.scare === void 0) {
         stepYou(state2, agent, random2);
       }
       if (isAddressing(agent) && agent.path.length === 0) {
         stepVisitor(state2, agent, random2);
         continue;
       }
-      if (agent.visitor !== void 0 && !agent.leaving && agent.path.length === 0) {
+      if (agent.visitor !== void 0 && !agent.leaving && agent.path.length === 0 && agent.scare === void 0) {
         stepHangout(state2, agent, random2);
       }
       if (agent.path.length > 0) {
@@ -5080,7 +5369,7 @@
   function reactToCritter(state2, at, lines, reacted, random2) {
     const watchers = [];
     for (const agent of state2.agents) {
-      if (reacted.has(agent.id) || agent.status === "working" || agent.mode === "sleep" || agent.leaving || agent.bubble !== void 0) {
+      if (reacted.has(agent.id) || agent.status === "working" || agent.mode === "sleep" || agent.leaving || agent.bubble !== void 0 || inInvasion(agent)) {
         continue;
       }
       const dx = at.x - agent.x;
@@ -5112,6 +5401,10 @@
   }
   function agentPose(agent, time) {
     const phase = agent.id.length * 0.37 % 1;
+    const invaded = invasionPose(agent, time, phase);
+    if (invaded !== void 0) {
+      return invaded;
+    }
     if (agent.path.length === 0 && agent.mode === "perform" && agent.performer !== void 0) {
       return performerPose(agent, agent.performer, time);
     }
@@ -5232,7 +5525,7 @@
     }
   }
   function onStatusChange(state2, agent, previous, random2) {
-    if (agent.status !== "working" && previous !== "working") {
+    if (agent.status !== "working" && previous !== "working" || agent.scare !== void 0) {
       return;
     }
     endChat(state2, agent);
@@ -5266,6 +5559,10 @@
     }
     if (agent.leaving) {
       leave(state2, agent);
+      return;
+    }
+    if (inInvasion(agent)) {
+      invasionDecide(state2, agent, random2);
       return;
     }
     if (agent.performer !== void 0) {
@@ -5357,7 +5654,7 @@
     options[options.length - 1].run();
   }
   function canChat(agent) {
-    return !agent.leaving && agent.status !== "working" && agent.mode !== "sleep" && agent.performer === void 0 && agent.goal?.kind !== "chat" && agent.goal?.kind !== "show" && agent.goal?.kind !== "activity" && agent.crew === void 0 && agent.mode !== "chat" && agent.mode !== "wait" && agent.mode !== "watch";
+    return !agent.leaving && agent.status !== "working" && agent.mode !== "sleep" && agent.performer === void 0 && !inInvasion(agent) && agent.goal?.kind !== "chat" && agent.goal?.kind !== "show" && agent.goal?.kind !== "activity" && agent.crew === void 0 && agent.mode !== "chat" && agent.mode !== "wait" && agent.mode !== "watch";
   }
   function startChat(state2, agent, partner, random2) {
     const pairs = openFloorTiles(state2.layout).filter(
@@ -5381,6 +5678,12 @@
   }
   function leave(state2, agent) {
     endChat(state2, agent);
+    if (agent.scare !== void 0) {
+      agent.scare = void 0;
+      agent.variant = void 0;
+      agent.speed = void 0;
+    }
+    agent.strike = void 0;
     agent.leaving = true;
     agent.deskIndex = void 0;
     const path = findPath(state2.layout, here(agent), state2.layout.door);
@@ -5420,7 +5723,7 @@
     }
   }
   function move(agent, dt) {
-    let budget = (agent.running ? RUN_SPEED : WALK_SPEED) * dt;
+    let budget = (agent.speed ?? (agent.running ? RUN_SPEED : WALK_SPEED)) * dt;
     while (budget > 0 && agent.path.length > 0) {
       const next = agent.path[0];
       const dx = next.x - agent.x;
@@ -5444,6 +5747,10 @@
   function arrive(state2, agent, random2) {
     const goal = agent.goal;
     agent.running = false;
+    if (goal?.kind !== "door" && inInvasion(agent)) {
+      invasionArrive(state2, agent, random2);
+      return;
+    }
     switch (goal?.kind) {
       case "work":
         agent.facing = "up";
@@ -6515,7 +6822,7 @@
   }
   function joinShow(state2, agent, random2) {
     const show = state2.show;
-    if (show === void 0 || show.phase !== "playing" || agent.leaving || agent.crew !== void 0 || agent.performer !== void 0) {
+    if (show === void 0 || show.phase !== "playing" || agent.leaving || agent.crew !== void 0 || agent.performer !== void 0 || inInvasion(agent)) {
       return false;
     }
     if (agent.goal?.kind === "show" || agent.status === "working" || isAddressing(agent)) {
@@ -6666,6 +6973,819 @@
         return { pose: "talk", facing: agent.facing, frame: agent.bubble === void 0 ? 0 : Math.floor(time * 5), seated: false };
     }
   }
+  var MAX_DEBRIS = 16;
+  var ZOMBIE_LINES = ["braaains\u2026", "uuurgh\u2026", "*groan*", "mmm\u2026 brains"];
+  function inInvasion(agent) {
+    return agent.invader !== void 0 || agent.scare !== void 0;
+  }
+  function canBeScared(agent) {
+    return !agent.leaving && agent.crew === void 0 && agent.performer === void 0 && agent.invader === void 0 && agent.scare === void 0;
+  }
+  function invaderAgents(state2) {
+    return state2.agents.filter((agent) => agent.invader !== void 0);
+  }
+  function isUp(agent) {
+    return agent.mode !== "down" && agent.mode !== "float" && agent.mode !== "struggle";
+  }
+  function huntersOf(state2) {
+    return state2.agents.filter(
+      (agent) => !agent.leaving && (agent.invader !== void 0 && !agent.invader.exiting && agent.mode !== "beam" || agent.scare?.turned === true)
+    );
+  }
+  function hunterKind(state2, agent) {
+    return agent.invader?.kind ?? (agent.scare?.turned === true ? "zombies" : state2.invasion?.kind ?? "zombies");
+  }
+  var talkChance = (state2, chance) => chance * Math.min(1, talkOf(state2));
+  function startInvasion(state2, input, random2) {
+    if (state2.invasion !== void 0 || input.invaders.length === 0 || !state2.agents.some(canBeScared)) {
+      return false;
+    }
+    endShow(state2, random2);
+    state2.invasion = {
+      kind: input.kind,
+      phase: "warning",
+      startedAt: state2.time,
+      phaseStartedAt: state2.time,
+      phaseEndsAt: state2.time + WARNING_SECONDS,
+      length: Math.max(8, input.length),
+      invaderIds: [],
+      pending: [...input.invaders],
+      nextSpawnAt: FOREVER,
+      debris: [],
+      debrisCount: 0,
+      hits: [],
+      puffs: [],
+      zaps: [],
+      nextGatherAt: state2.time + 2,
+      allDownSince: void 0,
+      nextWakeAt: FOREVER
+    };
+    for (const agent of state2.agents) {
+      if (canBeScared(agent)) {
+        enlist(state2, agent, random2);
+      }
+    }
+    return true;
+  }
+  function endInvasion(state2, random2) {
+    if (state2.invasion === void 0) {
+      return;
+    }
+    state2.invasion = void 0;
+    for (const agent of [...state2.agents]) {
+      if (agent.invader !== void 0) {
+        removeAgent(state2, agent);
+      } else if (agent.scare !== void 0) {
+        release(state2, agent, random2, false);
+      }
+    }
+  }
+  function enlist(state2, agent, random2) {
+    const invasion = state2.invasion;
+    endChat(state2, agent);
+    const napping = agent.mode === "sleep";
+    agent.watch = void 0;
+    agent.react = void 0;
+    agent.reply = void 0;
+    agent.cheerUntil = 0;
+    agent.snack = void 0;
+    agent.groggy = void 0;
+    agent.goal = void 0;
+    agent.scare = {
+      since: state2.time,
+      nextScreamAt: state2.time + between(random2, 0.3, 2.4),
+      down: false,
+      woke: false,
+      turnAt: void 0,
+      turned: false,
+      headLeft: random2() < 0.5,
+      repathAt: 0
+    };
+    if (napping && random2() < talkChance(state2, 0.7)) {
+      say(state2, agent, random2() < 0.5 ? "huh?!" : "wha\u2014?", 1.2);
+    }
+    if (agent.path.length > 0) {
+      agent.path = agent.path.slice(0, 1);
+      agent.target = agent.path[0];
+      return;
+    }
+    agent.target = void 0;
+    if (invasion.phase === "warning") {
+      if (INVASIONS[invasion.kind].entry === "door") {
+        agent.facing = facingToward(agent, state2.layout.door);
+      }
+      setMode(state2, agent, "alert", invasion.phaseEndsAt - state2.time + between(random2, 0, 0.7));
+    } else {
+      setMode(state2, agent, "alert", between(random2, 0.1, 0.5));
+    }
+  }
+  function stepInvasion(state2, random2) {
+    const invasion = state2.invasion;
+    if (invasion === void 0) {
+      return;
+    }
+    invasion.hits = invasion.hits.filter((hit) => state2.time - hit.at < 2);
+    invasion.puffs = invasion.puffs.filter((puff) => state2.time - puff.at < 3);
+    invasion.zaps = invasion.zaps.filter((zap) => state2.time < zap.until);
+    const spec = INVASIONS[invasion.kind];
+    switch (invasion.phase) {
+      case "warning":
+        for (const agent of state2.agents) {
+          if (agent.scare !== void 0 && state2.time >= agent.scare.nextScreamAt) {
+            agent.scare.nextScreamAt = FOREVER;
+            if (agent.bubble === void 0 && random2() < talkChance(state2, 0.6)) {
+              say(state2, agent, pickPhrase(spec.warning, random2), 1.8);
+            }
+          }
+        }
+        if (state2.time >= invasion.phaseEndsAt) {
+          beginAttack(state2, invasion, random2);
+        }
+        return;
+      case "attack":
+        stepAttack(state2, invasion, random2);
+        return;
+      case "retreat":
+        if (!state2.agents.some((agent) => agent.invader !== void 0) || state2.time >= invasion.phaseEndsAt) {
+          for (const agent of invaderAgents(state2)) {
+            if (!agent.leaving) {
+              invasion.puffs.push({ x: agent.x, y: agent.y, at: state2.time, exit: true });
+            }
+            removeAgent(state2, agent);
+          }
+          beginAftermath(state2, invasion, random2);
+        }
+        return;
+      case "aftermath":
+        stepAftermath(state2, invasion, random2);
+        return;
+    }
+  }
+  function beginAttack(state2, invasion, random2) {
+    invasion.phase = "attack";
+    invasion.phaseStartedAt = state2.time;
+    invasion.phaseEndsAt = state2.time + invasion.length;
+    invasion.nextSpawnAt = state2.time;
+    for (const agent of state2.agents) {
+      if (agent.scare === void 0) {
+        continue;
+      }
+      agent.scare.nextScreamAt = state2.time + between(random2, 0.8, 3);
+      if (agent.mode === "alert") {
+        agent.modeUntil = state2.time + between(random2, 0.2, 1.2);
+      }
+    }
+  }
+  function stepAttack(state2, invasion, random2) {
+    const pending = invasion.pending[0];
+    if (pending !== void 0 && state2.time >= invasion.nextSpawnAt) {
+      invasion.pending.shift();
+      spawnInvader(state2, invasion, pending, random2, invasion.invaderIds.length === 0);
+      invasion.nextSpawnAt = state2.time + between(random2, 0.6, 1.1);
+    }
+    if (state2.time >= invasion.nextGatherAt) {
+      invasion.nextGatherAt = state2.time + 2;
+      for (const agent of state2.agents) {
+        if (canBeScared(agent)) {
+          enlist(state2, agent, random2);
+        }
+      }
+    }
+    const hunters = huntersOf(state2);
+    for (const agent of state2.agents) {
+      const scare = agent.scare;
+      if (scare === void 0) {
+        continue;
+      }
+      if (scare.turnAt !== void 0 && state2.time >= scare.turnAt && agent.mode === "down") {
+        rise(state2, agent, random2);
+        continue;
+      }
+      if (agent.mode === "struggle" && !state2.agents.some((other) => other.strike?.targetId === agent.id)) {
+        setMode(state2, agent, "alert", 0.2);
+        continue;
+      }
+      if (scare.turned || !isUp(agent) || state2.time < scare.nextScreamAt) {
+        continue;
+      }
+      scare.nextScreamAt = state2.time + between(random2, 3, 7) / Math.max(0.4, Math.sqrt(talkOf(state2)));
+      if (agent.bubble === void 0 && random2() < talkChance(state2, 0.55)) {
+        say(state2, agent, agent.mode === "cower" ? pickPhrase(COWER_LINES, random2) : screamLine(invasion.kind, random2), 1.4);
+      }
+    }
+    for (const hunter of hunters) {
+      stepHunter(state2, hunter, random2);
+    }
+    const standing = state2.agents.filter((agent) => agent.scare !== void 0 && !agent.scare.turned && isUp(agent) && agent.scare.turnAt === void 0);
+    if (standing.length === 0 && invasion.pending.length === 0) {
+      invasion.allDownSince ??= state2.time;
+    } else {
+      invasion.allDownSince = void 0;
+    }
+    if (state2.time >= invasion.phaseEndsAt || invasion.allDownSince !== void 0 && state2.time - invasion.allDownSince > 2.5) {
+      beginRetreat(state2, invasion, random2);
+    }
+  }
+  function spawnInvader(state2, invasion, input, random2, first) {
+    const spec = INVASIONS[invasion.kind];
+    const agent = {
+      ...newAgent(state2, { id: input.id, seed: input.seed, status: "working", title: input.title }, random2),
+      invader: {
+        kind: invasion.kind,
+        nextTauntAt: state2.time + between(random2, 1.5, 4),
+        nextTrashAt: state2.time + between(random2, spec.trashEvery[0], spec.trashEvery[1]),
+        repathAt: 0,
+        loot: false,
+        exiting: false
+      },
+      speed: spec.speed
+    };
+    if (spec.entry === "door") {
+      if (first) {
+        popWord(state2, state2.layout.door, invasion.kind === "raiders" ? "BAM!" : "CREAK\u2026");
+      }
+      setMode(state2, agent, "alert", 0.2);
+    } else {
+      const deskTiles = deskTileKeys(state2.layout);
+      const open2 = openFloorTiles(state2.layout).filter((tile) => tile.y >= 1 && !deskTiles.has(`${tile.x},${tile.y}`) && !state2.agents.some((other) => other.invader !== void 0 && Math.round(other.x) === tile.x && Math.round(other.y) === tile.y));
+      const spot = open2.length === 0 ? state2.layout.door : open2[Math.floor(random2() * open2.length)];
+      agent.x = spot.x;
+      agent.y = spot.y;
+      agent.facing = "down";
+      setMode(state2, agent, "beam", 1.2);
+      invasion.puffs.push({ x: spot.x, y: spot.y, at: state2.time, exit: false });
+    }
+    state2.agents.push(agent);
+    invasion.invaderIds.push(agent.id);
+  }
+  function deskTileKeys(layout) {
+    return new Set(layout.desks.flatMap((desk) => [desk.desk, desk.seat]).map((point) => `${point.x},${point.y}`));
+  }
+  function stepHunter(state2, hunter, random2) {
+    if (hunter.mode === "attack" || hunter.mode === "beam") {
+      return;
+    }
+    const kind = hunterKind(state2, hunter);
+    const spec = INVASIONS[kind];
+    const invader = hunter.invader;
+    const scare = hunter.scare;
+    if (invader !== void 0 && state2.time >= invader.nextTauntAt) {
+      invader.nextTauntAt = state2.time + between(random2, 5, 11);
+      if (hunter.bubble === void 0 && random2() < talkChance(state2, 0.6)) {
+        say(state2, hunter, pickPhrase(spec.taunts, random2), 1.8);
+      }
+    } else if (scare !== void 0 && state2.time >= scare.nextScreamAt) {
+      scare.nextScreamAt = state2.time + between(random2, 5, 10);
+      if (hunter.bubble === void 0 && random2() < talkChance(state2, 0.5)) {
+        say(state2, hunter, pickPhrase(ZOMBIE_LINES, random2), 1.6);
+      }
+    }
+    const repathAt = invader?.repathAt ?? scare?.repathAt ?? 0;
+    if (state2.time < repathAt) {
+      return;
+    }
+    if (invader !== void 0) {
+      invader.repathAt = state2.time + 0.45;
+    } else if (scare !== void 0) {
+      scare.repathAt = state2.time + 0.45;
+    }
+    if (invader !== void 0 && state2.time >= invader.nextTrashAt) {
+      invader.nextTrashAt = state2.time + between(random2, spec.trashEvery[0], spec.trashEvery[1]);
+      if (goTrash(state2, hunter, random2)) {
+        return;
+      }
+    }
+    if (hunter.goal?.kind === "trash" && hunter.path.length > 0) {
+      return;
+    }
+    const prey = pickPrey(state2, hunter);
+    if (prey === void 0) {
+      if (hunter.path.length === 0) {
+        wanderHunt(state2, hunter, random2);
+      }
+      return;
+    }
+    if (Math.hypot(prey.x - hunter.x, prey.y - hunter.y) <= spec.reach) {
+      strike(state2, hunter, prey, random2);
+      return;
+    }
+    const tile = here(prey);
+    if (hunter.goal?.kind === "hunt" && hunter.goal.preyId === prey.id && hunter.target !== void 0 && samePoint(hunter.target, tile) && hunter.path.length > 0) {
+      return;
+    }
+    goTo(state2, hunter, tile, { kind: "hunt", preyId: prey.id }, true, random2);
+  }
+  function wanderHunt(state2, hunter, random2) {
+    const open2 = openFloorTiles(state2.layout).filter((tile) => tile.y >= 1);
+    if (open2.length === 0) {
+      return;
+    }
+    goTo(state2, hunter, open2[Math.floor(random2() * open2.length)], { kind: "hunt", preyId: "" }, false, random2);
+  }
+  function pickPrey(state2, hunter) {
+    const chased = new Set(state2.agents.flatMap(
+      (other) => other === hunter ? [] : [...other.goal?.kind === "hunt" ? [other.goal.preyId] : [], ...other.strike?.targetId !== void 0 ? [other.strike.targetId] : []]
+    ));
+    let best;
+    for (const agent of state2.agents) {
+      if (agent === hunter || agent.scare === void 0 || agent.scare.turned || agent.leaving || !isUp(agent) || agent.scare.turnAt !== void 0) {
+        continue;
+      }
+      const score = Math.hypot(agent.x - hunter.x, agent.y - hunter.y) + (chased.has(agent.id) ? 4 : 0);
+      if (best === void 0 || score < best.score) {
+        best = { agent, score };
+      }
+    }
+    return best?.agent;
+  }
+  function goTrash(state2, hunter, random2) {
+    const { layout } = state2;
+    const spots = [
+      ...[...state2.placed.keys()].map((index) => layout.desks[index]).filter((desk) => desk !== void 0).map((desk) => ({ x: desk.seat.x, y: desk.seat.y + 1 })),
+      ...layout.props.flatMap((prop) => prop.stand === void 0 ? [] : [prop.stand])
+    ].filter((spot) => layout.tiles[spot.y]?.[spot.x] === "floor" && Math.hypot(spot.x - hunter.x, spot.y - hunter.y) < 8 && !isTargeted(state2, hunter, spot));
+    if (spots.length === 0) {
+      return false;
+    }
+    goTo(state2, hunter, spots[Math.floor(random2() * spots.length)], { kind: "trash" }, true, random2);
+    return true;
+  }
+  function strike(state2, hunter, prey, random2) {
+    const spec = INVASIONS[hunterKind(state2, hunter)];
+    hunter.facing = facingToward(hunter, prey);
+    prey.facing = facingToward(prey, hunter);
+    hunter.goal = void 0;
+    hunter.target = void 0;
+    hunter.strike = { targetId: prey.id, at: here(prey), feeding: false };
+    setMode(state2, hunter, "attack", spec.strikeSeconds);
+    prey.goal = void 0;
+    prey.target = void 0;
+    prey.speed = void 0;
+    setMode(state2, prey, "struggle", FOREVER);
+    if (spec.attack === "zap" && hunter.scare === void 0) {
+      state2.invasion?.zaps.push({ fromId: hunter.id, toId: prey.id, until: state2.time + spec.strikeSeconds });
+    }
+    if (random2() < talkChance(state2, 0.7)) {
+      say(state2, prey, pickPhrase(spec.caught, random2), 1.3);
+    }
+  }
+  function resolveStrike(state2, hunter, random2) {
+    const strikeNow = hunter.strike;
+    hunter.strike = void 0;
+    const kind = hunterKind(state2, hunter);
+    const spec = INVASIONS[kind];
+    const huntOn = () => {
+      hunter.mode = "alert";
+      hunter.modeUntil = FOREVER;
+      const pause = state2.time + spec.rest * between(random2, 0.7, 1.3);
+      if (hunter.invader !== void 0) {
+        hunter.invader.repathAt = pause;
+      } else if (hunter.scare !== void 0) {
+        hunter.scare.repathAt = pause;
+      }
+    };
+    if (strikeNow.targetId === void 0) {
+      popWord(state2, strikeNow.at, pickPhrase(spec.trashWords, random2));
+      addDebris(state2, strikeNow.at, kind, random2);
+      if (random2() < 0.5) {
+        addDebris(state2, strikeNow.at, kind, random2);
+      }
+      if (hunter.invader !== void 0 && kind === "raiders") {
+        hunter.invader.loot = true;
+      }
+      huntOn();
+      return;
+    }
+    const prey = state2.agents.find((agent) => agent.id === strikeNow.targetId);
+    if (prey?.scare === void 0) {
+      huntOn();
+      return;
+    }
+    if (strikeNow.feeding) {
+      if (prey.mode === "down") {
+        prey.variant = "pale";
+        popWord(state2, prey, "gulp!");
+      }
+      huntOn();
+      return;
+    }
+    if (prey.mode !== "struggle") {
+      huntOn();
+      return;
+    }
+    const attack = hunter.scare !== void 0 ? "bite" : spec.attack;
+    if (attack === "zap" && random2() < 0.35) {
+      setMode(state2, prey, "float", FOREVER);
+      prey.scare.since = state2.time;
+      prey.scare.down = true;
+      popWord(state2, prey, "BZZT!");
+    } else {
+      knockDown(state2, prey, pickPhrase(spec.hitWords, random2));
+    }
+    if (attack === "bite") {
+      prey.scare.turnAt = state2.time + between(random2, 2.5, 4.5);
+    }
+    if (random2() < 0.4) {
+      addDebris(state2, prey, kind, random2);
+    }
+    if (attack === "drink") {
+      hunter.strike = { targetId: prey.id, at: here(prey), feeding: true };
+      setMode(state2, hunter, "attack", 2.2);
+      hunter.facing = prey.x < hunter.x ? "left" : "right";
+      popWord(state2, { x: prey.x, y: prey.y - 0.4 }, "SLURP!");
+      return;
+    }
+    huntOn();
+  }
+  function knockDown(state2, agent, word) {
+    agent.path = [];
+    agent.goal = void 0;
+    agent.target = void 0;
+    agent.speed = void 0;
+    agent.running = false;
+    setMode(state2, agent, "down", FOREVER);
+    agent.facing = "down";
+    if (agent.scare !== void 0) {
+      agent.scare.down = true;
+      agent.scare.since = state2.time;
+    }
+    if (word !== void 0) {
+      popWord(state2, agent, word);
+    }
+  }
+  function rise(state2, agent, random2) {
+    const scare = agent.scare;
+    scare.turnAt = void 0;
+    scare.turned = true;
+    scare.repathAt = state2.time + 0.6;
+    scare.nextScreamAt = state2.time + between(random2, 3, 6);
+    agent.variant = "zombie";
+    agent.speed = INVASIONS.zombies.speed;
+    if (random2() < talkChance(state2, 0.8)) {
+      say(state2, agent, pickPhrase(ZOMBIE_LINES, random2), 1.6);
+    }
+    agent.facing = "down";
+    setMode(state2, agent, "alert", FOREVER);
+  }
+  function popWord(state2, at, word) {
+    state2.invasion?.hits.push({ x: at.x, y: at.y, at: state2.time, word });
+  }
+  function addDebris(state2, near, kind, random2) {
+    const invasion = state2.invasion;
+    if (invasion === void 0 || invasion.debris.length >= MAX_DEBRIS) {
+      return;
+    }
+    const deskTiles = deskTileKeys(state2.layout);
+    const spots = openFloorTiles(state2.layout).filter((tile2) => tile2.y >= 1 && Math.abs(tile2.x - near.x) <= 1.5 && Math.abs(tile2.y - near.y) <= 1.5 && !deskTiles.has(`${tile2.x},${tile2.y}`) && !invasion.debris.some((piece) => piece.x === tile2.x && piece.y === tile2.y));
+    if (spots.length === 0) {
+      return;
+    }
+    const tile = spots[Math.floor(random2() * spots.length)];
+    const kinds = INVASIONS[kind].debris;
+    invasion.debrisCount += 1;
+    invasion.debris.push({
+      id: invasion.debrisCount,
+      x: tile.x,
+      y: tile.y,
+      ox: Math.round(between(random2, -4, 4)),
+      oy: Math.round(between(random2, -3, 2)),
+      kind: kinds[Math.floor(random2() * kinds.length) % kinds.length],
+      sweeper: void 0
+    });
+  }
+  function flee(state2, agent, random2) {
+    const hunters = huntersOf(state2);
+    if (hunters.length > 0 && agent.mode !== "cower" && random2() < 0.18) {
+      agent.facing = "down";
+      agent.speed = void 0;
+      setMode(state2, agent, "cower", between(random2, 2.5, 5));
+      return;
+    }
+    const open2 = openFloorTiles(state2.layout).filter((tile) => tile.y >= 1 && !isTargeted(state2, agent, tile));
+    let best;
+    for (let tries = 0; tries < 14 && open2.length > 0; tries++) {
+      const tile = open2[Math.floor(random2() * open2.length)];
+      const danger = hunters.length === 0 ? random2() * 4 : Math.min(...hunters.map((hunter) => Math.hypot(tile.x - hunter.x, tile.y - hunter.y)));
+      const score = danger - 0.15 * Math.hypot(tile.x - agent.x, tile.y - agent.y) + random2() * 1.2;
+      if (best === void 0 || score > best.score) {
+        best = { tile, score };
+      }
+    }
+    if (best === void 0) {
+      setMode(state2, agent, "panic", between(random2, 0.6, 1.2));
+      return;
+    }
+    agent.speed = FLEE_SPEED;
+    goTo(state2, agent, best.tile, { kind: "flee" }, true, random2);
+  }
+  function beginRetreat(state2, invasion, random2) {
+    invasion.phase = "retreat";
+    invasion.phaseStartedAt = state2.time;
+    invasion.phaseEndsAt = state2.time + RETREAT_SECONDS;
+    invasion.pending = [];
+    invasion.zaps = [];
+    const spec = INVASIONS[invasion.kind];
+    for (const agent of state2.agents) {
+      const scare = agent.scare;
+      if (scare !== void 0) {
+        scare.turnAt = void 0;
+        agent.strike = void 0;
+        if (scare.turned || agent.mode === "float" || agent.mode === "struggle") {
+          scare.turned = false;
+          knockDown(state2, agent, agent.mode === "float" ? "THUD!" : void 0);
+        } else if (agent.mode !== "down") {
+          agent.path = agent.path.slice(0, 1);
+          agent.goal = void 0;
+          agent.speed = void 0;
+          agent.running = false;
+          if (agent.path.length === 0) {
+            setMode(state2, agent, "alert", FOREVER);
+          }
+        }
+        continue;
+      }
+      if (agent.invader === void 0 || agent.leaving) {
+        continue;
+      }
+      agent.strike = void 0;
+      if (random2() < talkChance(state2, 0.7)) {
+        say(state2, agent, pickPhrase(spec.exitLines, random2), 1.8);
+      }
+      if (invasion.kind === "raiders") {
+        agent.invader.loot = true;
+      }
+      setMode(state2, agent, "alert", between(random2, 0.3, 1.4));
+    }
+  }
+  function invaderLeaves(state2, agent, random2) {
+    const invader = agent.invader;
+    const spec = INVASIONS[invader.kind];
+    if (spec.exit === "door") {
+      agent.speed = spec.speed * (invader.kind === "zombies" ? 1.7 : 1.1);
+      leave(state2, agent);
+      agent.running = true;
+      return;
+    }
+    invader.exiting = true;
+    state2.invasion?.puffs.push({ x: agent.x, y: agent.y, at: state2.time, exit: true });
+    setMode(state2, agent, "beam", between(random2, 0.9, 1.2));
+  }
+  function beginAftermath(state2, invasion, random2) {
+    invasion.phase = "aftermath";
+    invasion.phaseStartedAt = state2.time;
+    invasion.phaseEndsAt = state2.time + AFTERMATH_SECONDS;
+    invasion.nextWakeAt = state2.time + between(random2, 2, 3);
+    for (const agent of state2.agents) {
+      if (agent.scare !== void 0 && !agent.scare.down) {
+        agent.scare.nextScreamAt = state2.time + between(random2, 0.5, 2.5);
+      }
+    }
+  }
+  function stepAftermath(state2, invasion, random2) {
+    if (state2.time >= invasion.nextWakeAt) {
+      const downs = state2.agents.filter((agent) => agent.scare !== void 0 && agent.mode === "down" && !agent.scare.woke);
+      if (downs.length > 0) {
+        wake(state2, downs[Math.floor(random2() * downs.length)], invasion, random2);
+        invasion.nextWakeAt = state2.time + between(random2, 1, 2.4);
+      } else {
+        invasion.nextWakeAt = FOREVER;
+      }
+    }
+    for (const agent of state2.agents) {
+      const scare = agent.scare;
+      if (scare !== void 0 && !scare.down && !scare.woke && state2.time >= scare.nextScreamAt) {
+        scare.woke = true;
+        if (agent.bubble === void 0 && random2() < talkChance(state2, 0.7)) {
+          say(state2, agent, pickPhrase(SURVIVOR_LINES, random2), 1.8);
+        }
+        agent.path = [];
+        setMode(state2, agent, "dazed", between(random2, 1.5, 2.5));
+      }
+    }
+    if (state2.time >= invasion.phaseEndsAt) {
+      invasion.debris = [];
+      endInvasion(state2, random2);
+      return;
+    }
+    if (!state2.agents.some(inInvasion)) {
+      state2.invasion = void 0;
+    }
+  }
+  function wake(state2, agent, invasion, random2) {
+    const scare = agent.scare;
+    scare.woke = true;
+    if (agent.variant === "zombie") {
+      agent.variant = void 0;
+    }
+    if (random2() < talkChance(state2, 0.9)) {
+      say(state2, agent, wakeLine(invasion.kind, personalityOf(agent.seed), random2), 2.6);
+    }
+    setMode(state2, agent, "dazed", between(random2, 2.6, 3.6));
+  }
+  function cleanUp(state2, agent, random2) {
+    const invasion = state2.invasion;
+    const sweeping = new Set(state2.agents.flatMap((other) => other !== agent && other.goal?.kind === "sweep" ? [other.goal.debrisId] : []));
+    const free = (invasion?.debris ?? []).filter((piece) => !sweeping.has(piece.id));
+    if (free.length === 0) {
+      release(state2, agent, random2, true);
+      return;
+    }
+    const nearest = free.reduce((best, piece) => Math.hypot(piece.x - agent.x, piece.y - agent.y) < Math.hypot(best.x - agent.x, best.y - agent.y) ? piece : best);
+    nearest.sweeper = agent.id;
+    goTo(state2, agent, { x: nearest.x, y: nearest.y }, { kind: "sweep", debrisId: nearest.id }, false, random2);
+  }
+  function release(state2, agent, random2, lines) {
+    agent.scare = void 0;
+    agent.variant = void 0;
+    agent.speed = void 0;
+    agent.strike = void 0;
+    agent.goal = void 0;
+    agent.target = void 0;
+    agent.running = false;
+    if (lines && agent.bubble === void 0 && random2() < talkChance(state2, 0.3)) {
+      say(state2, agent, pickPhrase(DONE_LINES, random2), 1.8);
+    }
+    setMode(state2, agent, "loiter", between(random2, 0.4, 1.5));
+  }
+  function invasionDecide(state2, agent, random2) {
+    const invasion = state2.invasion;
+    if (agent.invader !== void 0) {
+      if (invasion === void 0 || agent.invader.exiting) {
+        removeAgent(state2, agent);
+        return;
+      }
+      if (agent.strike !== void 0) {
+        resolveStrike(state2, agent, random2);
+        return;
+      }
+      if (invasion.phase === "retreat" || invasion.phase === "aftermath") {
+        invaderLeaves(state2, agent, random2);
+        return;
+      }
+      agent.invader.repathAt = 0;
+      agent.mode = "alert";
+      agent.modeUntil = FOREVER;
+      return;
+    }
+    const scare = agent.scare;
+    if (invasion === void 0) {
+      release(state2, agent, random2, false);
+      return;
+    }
+    agent.running = false;
+    if (agent.strike !== void 0) {
+      resolveStrike(state2, agent, random2);
+      return;
+    }
+    switch (agent.mode) {
+      case "down":
+      case "float":
+        setMode(state2, agent, agent.mode, FOREVER);
+        return;
+      case "struggle":
+        if (state2.agents.some((other) => other.strike?.targetId === agent.id)) {
+          setMode(state2, agent, "struggle", FOREVER);
+          return;
+        }
+        break;
+      case "dazed":
+        if (random2() < talkChance(state2, 0.3) && agent.bubble === void 0) {
+          say(state2, agent, pickPhrase(DUST_LINES, random2), 1.4);
+        }
+        setMode(state2, agent, "dust", between(random2, 1.2, 1.8));
+        return;
+      case "dust":
+        agent.variant = void 0;
+        cleanUp(state2, agent, random2);
+        return;
+      case "sweep": {
+        const goal = agent.goal;
+        if (goal?.kind === "sweep") {
+          invasion.debris = invasion.debris.filter((piece) => piece.id !== goal.debrisId);
+        }
+        if (random2() < talkChance(state2, 0.25) && agent.bubble === void 0) {
+          say(state2, agent, pickPhrase(CLEAN_LINES, random2), 1.6);
+        }
+        cleanUp(state2, agent, random2);
+        return;
+      }
+    }
+    if (scare.turned && invasion.phase === "attack") {
+      scare.repathAt = 0;
+      agent.mode = "alert";
+      agent.modeUntil = FOREVER;
+      agent.path = [];
+      return;
+    }
+    switch (invasion.phase) {
+      case "warning":
+        setMode(state2, agent, "alert", Math.max(0, invasion.phaseEndsAt - state2.time) + between(random2, 0, 0.6));
+        return;
+      case "attack":
+        flee(state2, agent, random2);
+        return;
+      case "retreat":
+        setMode(state2, agent, "alert", FOREVER);
+        return;
+      case "aftermath":
+        if (scare.woke) {
+          cleanUp(state2, agent, random2);
+        } else {
+          setMode(state2, agent, "alert", FOREVER);
+        }
+        return;
+    }
+  }
+  function invasionArrive(state2, agent, random2) {
+    const goal = agent.goal;
+    switch (goal?.kind) {
+      case "flee":
+        setMode(state2, agent, "panic", between(random2, 0.3, 1));
+        return;
+      case "hunt":
+        agent.mode = "alert";
+        agent.modeUntil = FOREVER;
+        if (agent.invader !== void 0) {
+          agent.invader.repathAt = 0;
+        } else if (agent.scare !== void 0) {
+          agent.scare.repathAt = 0;
+        }
+        return;
+      case "trash":
+        agent.strike = { targetId: void 0, at: here(agent), feeding: false };
+        agent.facing = "up";
+        setMode(state2, agent, "attack", 1);
+        return;
+      case "sweep":
+        if (state2.invasion?.debris.some((piece) => piece.id === goal.debrisId) === true) {
+          agent.facing = "down";
+          setMode(state2, agent, "sweep", between(random2, 2, 3));
+        } else {
+          cleanUp(state2, agent, random2);
+        }
+        return;
+      default:
+        setMode(state2, agent, "alert", 0);
+    }
+  }
+  function invasionPose(agent, time, phase) {
+    const scare = agent.scare;
+    const invader = agent.invader;
+    if (scare === void 0 && invader === void 0) {
+      return void 0;
+    }
+    const zombie = invader?.kind === "zombies" || scare?.turned === true;
+    const facing = agent.facing;
+    switch (agent.mode) {
+      case "down":
+        return { pose: "down", facing: "down", frame: 0, seated: false, lying: true };
+      case "float":
+        return { pose: "panic", facing: "down", frame: Math.floor(time * 6 + phase * 2), seated: false, offset: { x: 0, y: -Math.round(Math.min(10, (time - (scare?.since ?? time)) * 8)) } };
+      case "struggle":
+        return { pose: "panic", facing, frame: Math.floor(time * 10), seated: false, offset: { x: Math.floor(time * 16) % 2, y: 0 } };
+      case "cower":
+        return { pose: "cower", facing: "down", frame: 0, seated: false, offset: { x: Math.floor(time * 9 + phase * 3) % 2, y: 1 } };
+      case "dazed":
+        return { pose: agent.bubble === void 0 ? "stand" : "talk", facing: ["left", "down", "right", "down"][Math.floor(time * 1.3 + phase * 4) % 4], frame: Math.floor(time * 5), seated: false };
+      case "dust":
+        return { pose: "build", facing: "down", frame: Math.floor(time * 6), seated: false };
+      case "sweep":
+        return { pose: "build", facing, frame: Math.floor(time * 4 + phase * 2), seated: false };
+      case "beam":
+        return { pose: "stand", facing: "down", frame: 0, seated: false };
+      case "attack": {
+        const attack = zombie ? "bite" : invader === void 0 ? "bite" : INVASIONS[invader.kind].attack;
+        if (agent.strike?.targetId === void 0 || attack === "bonk") {
+          return { pose: zombie ? "reach" : "punch", facing, frame: Math.floor(time * 5), seated: false };
+        }
+        if (agent.strike.feeding) {
+          return { pose: "reach", facing, frame: 0, seated: false, offset: { x: 0, y: 3 } };
+        }
+        return { pose: "reach", facing, frame: attack === "zap" ? 0 : Math.floor(time * 8), seated: false };
+      }
+      default:
+        break;
+    }
+    if (agent.path.length > 0) {
+      if (invader?.loot === true) {
+        return { pose: "carry", facing, frame: Math.floor(time * 12), seated: false };
+      }
+      if (zombie) {
+        return { pose: "reach", facing, frame: Math.floor(time * (agent.running ? 6 : 5)), seated: false };
+      }
+      if (scare !== void 0) {
+        return { pose: "panic", facing, frame: Math.floor(time * 12), seated: false };
+      }
+      return { pose: "walk", facing, frame: Math.floor(time * (agent.running ? 12 : 7)), seated: false };
+    }
+    if (agent.mode === "panic") {
+      return { pose: "panic", facing, frame: Math.floor(time * 6 + phase * 2), seated: false };
+    }
+    if (zombie) {
+      return { pose: "reach", facing, frame: 0, seated: false };
+    }
+    return { pose: agent.bubble === void 0 ? "stand" : "talk", facing, frame: agent.bubble === void 0 ? 0 : Math.floor(time * 5), seated: false };
+  }
 
   // src/sceneEventSchedule.ts
   var SCENE_EVENT_KINDS = ["error", "hack", "defense"];
@@ -6729,7 +7849,7 @@
   var DEFENSE_BEATS = [0, 1.8, 3.8, 5.4];
 
   // src/officeYou.ts
-  var AFTERMATH_SECONDS = 1.8;
+  var AFTERMATH_SECONDS2 = 1.8;
   var ERROR_LINES = [
     "WHAT?!",
     "NOOO",
@@ -6824,7 +7944,7 @@
     ]
   };
   function yourEventSeconds(kind) {
-    return EVENT_SECONDS[kind] + AFTERMATH_SECONDS;
+    return EVENT_SECONDS[kind] + AFTERMATH_SECONDS2;
   }
   var pickLine = (lines, variant) => lines[(Math.floor(variant) % lines.length + lines.length) % lines.length];
   var typing = (time, rate) => Math.floor(time * rate) % 2;
@@ -7477,8 +8597,8 @@
         r(left + 13, seatTop + 8, 1, 6, "#8B5A2B");
         r(left + 13, seatTop + 7, 1, 1, "#FF6A00");
         for (let puff = 0; puff < 3; puff++) {
-          const rise = (seconds * 2 + puff * 2) % 6;
-          r(left + 13 + Math.round(Math.sin(seconds + puff) * 1), seatTop + 6 - Math.round(rise), 1, 1, "#BBBBBB");
+          const rise2 = (seconds * 2 + puff * 2) % 6;
+          r(left + 13 + Math.round(Math.sin(seconds + puff) * 1), seatTop + 6 - Math.round(rise2), 1, 1, "#BBBBBB");
         }
         return;
       }
@@ -8347,14 +9467,14 @@
     return next;
   }
   function randomLook(random2) {
-    const pick3 = (items) => items[Math.min(items.length - 1, Math.floor(random2() * items.length))];
+    const pick4 = (items) => items[Math.min(items.length - 1, Math.floor(random2() * items.length))];
     const look = pixelGuyLook(`maker|${Math.floor(random2() * 1e9)}`, true);
     const options = makerOptions(look);
     return {
       ...look,
-      eyes: look.eyes ?? pick3(EYE_COLORS),
-      beard: pick3(options.beards),
-      accessory: pick3(options.accessories),
+      eyes: look.eyes ?? pick4(EYE_COLORS),
+      beard: pick4(options.beards),
+      accessory: pick4(options.accessories),
       sleeveless: options.alwaysSleeveless || random2() < 0.3,
       shorts: random2() < 0.3,
       flipFlops: random2() < 0.15
@@ -9038,11 +10158,350 @@
     }
   };
 
-  // src/officeView/shows.ts
+  // src/officeView/invasions.ts
   var TILE2 = 16;
   var FRAME2 = 12;
   function painter(kit2, box, mirror) {
     return (x, y, w, h, color) => kit2.rect(mirror ? box.left + FRAME2 - x - w : box.left + x, box.top + y, w, h, color);
+  }
+  function variantLook(look, variant) {
+    if (variant === "zombie") {
+      return lookWithRace(look, "zombie");
+    }
+    return { ...look, skin: mixHex(look.skin, "#F2EEF8", 0.65) };
+  }
+  function tintLevel(invasion, time) {
+    const age = time - invasion.phaseStartedAt;
+    switch (invasion.phase) {
+      case "warning":
+        return Math.min(1, age / WARNING_SECONDS) * (Math.floor(time * 9) % 3 === 0 ? 0.3 : 1);
+      case "attack":
+        return Math.floor(time * 5) % 9 === 0 ? 0.7 : 1;
+      case "retreat":
+        return Math.max(0, 1 - age / 3);
+      default:
+        return 0;
+    }
+  }
+  function drawInvasionTint(kit2, invasion, width2, height2, time) {
+    if (invasion === void 0) {
+      return;
+    }
+    const { context: context2 } = kit2;
+    const level = tintLevel(invasion, time);
+    if (level > 0) {
+      if (invasion.kind === "vampires") {
+        context2.globalAlpha = 0.3 * level;
+        kit2.rect(0, 0, width2, height2, "#0A0614");
+      }
+      context2.globalAlpha = 0.16 * level;
+      kit2.rect(0, 0, width2, height2, INVASIONS[invasion.kind].tint);
+      context2.globalAlpha = 1;
+    }
+    if (invasion.kind === "vampires" && invasion.phase === "retreat") {
+      const age = time - invasion.phaseStartedAt;
+      context2.globalAlpha = 0.45 * Math.max(0, 1 - age / 1.6);
+      kit2.rect(0, 0, width2, height2, "#FFD27A");
+      context2.globalAlpha = 1;
+    }
+  }
+  function drawInvasionBanner(kit2, invasion, width2, time) {
+    if (invasion === void 0) {
+      return;
+    }
+    const age = time - invasion.startedAt;
+    if (age > WARNING_SECONDS + 2.5 || age < WARNING_SECONDS && Math.floor(age * 4) % 2 === 1) {
+      return;
+    }
+    const { context: context2 } = kit2;
+    const text = INVASIONS[invasion.kind].banner;
+    context2.font = "bold 9px monospace";
+    const textWidth = context2.measureText(text).width;
+    const top = 3;
+    context2.globalAlpha = 0.6;
+    kit2.rect(Math.floor((width2 - textWidth) / 2) - 6, top, Math.ceil(textWidth) + 12, 12, "#120A0A");
+    context2.globalAlpha = 1;
+    for (let index = 0; index < 4; index++) {
+      const color = index % 2 === 0 ? "#F5C542" : "#1A1A1A";
+      kit2.rect(Math.floor((width2 - textWidth) / 2) - 6 + index, top, 1, 12, color);
+      kit2.rect(Math.floor((width2 + textWidth) / 2) + 2 + index, top, 1, 12, color);
+    }
+    context2.textBaseline = "top";
+    context2.fillStyle = Math.floor(time * 6) % 2 === 0 ? "#FF4B3B" : "#FFE14A";
+    context2.fillText(text, Math.round((width2 - textWidth) / 2), top + 2);
+  }
+  function drawInvasionEffects(kit2, invasion, agents, boxOf, time) {
+    if (invasion === void 0) {
+      return;
+    }
+    const { context: context2 } = kit2;
+    for (const agent of agents) {
+      if (agent.mode === "float") {
+        drawBeam(kit2, agent.x * TILE2 + TILE2 / 2, agent.y * TILE2 + TILE2 - 1, time, 0.3);
+      }
+    }
+    for (const puff of invasion.puffs) {
+      const age = time - puff.at;
+      const x = puff.x * TILE2 + TILE2 / 2;
+      const y = puff.y * TILE2 + TILE2 - 2;
+      if (INVASIONS[invasion.kind].entry === "beam") {
+        if (age < 1.3) {
+          drawBeam(kit2, x, y, time, 0.65 * Math.sin(Math.PI * age / 1.3));
+        }
+      } else if (invasion.kind === "vampires") {
+        drawSmoke(kit2, x, y - 6, age);
+        if (puff.exit) {
+          drawBats(kit2, x, y - 8, age, puff.x + puff.y);
+        }
+      }
+    }
+    for (const zap of invasion.zaps) {
+      const from = agents.find((agent) => agent.id === zap.fromId);
+      const to = agents.find((agent) => agent.id === zap.toId);
+      const fromBox = from === void 0 ? void 0 : boxOf(from);
+      const toBox = to === void 0 ? void 0 : boxOf(to);
+      if (from !== void 0 && fromBox !== void 0 && toBox !== void 0) {
+        drawZap(kit2, fromBox, from.facing, toBox, time);
+      }
+    }
+    context2.textBaseline = "middle";
+    for (const hit of invasion.hits) {
+      drawWord(kit2, hit.word, hit.x * TILE2 + TILE2 / 2, hit.y * TILE2 - 2, time - hit.at, invasion.kind);
+    }
+  }
+  function drawBeam(kit2, x, floorY, time, alpha) {
+    if (alpha <= 0) {
+      return;
+    }
+    const { context: context2 } = kit2;
+    context2.globalAlpha = alpha * 0.55;
+    kit2.rect(x - 6, 0, 12, floorY, "#9DFFB0");
+    context2.globalAlpha = alpha;
+    kit2.rect(x - 7, 0, 1, floorY, "#E8FFE8");
+    kit2.rect(x + 6, 0, 1, floorY, "#E8FFE8");
+    for (let ring = 0; ring < 3; ring++) {
+      const y = floorY - ((time * 22 + ring * (floorY / 3)) % floorY || 0);
+      kit2.rect(x - 5, Math.round(y), 10, 1, "#FFFFFF");
+    }
+    context2.globalAlpha = 1;
+    kit2.glow(x, floorY, 10, "#9DFFB0", alpha * 0.5);
+  }
+  function drawSmoke(kit2, x, y, age) {
+    if (age > 1.2) {
+      return;
+    }
+    const { context: context2 } = kit2;
+    const spread = 3 + age * 9;
+    context2.globalAlpha = Math.max(0, 0.8 * (1 - age / 1.2));
+    for (let index = 0; index < 6; index++) {
+      const angle = index * 1.05 + age;
+      const size = Math.max(2, Math.round(5 - age * 3));
+      kit2.rect(Math.round(x + Math.cos(angle) * spread - size / 2), Math.round(y + Math.sin(angle) * spread * 0.6 - size / 2), size, size, index % 2 === 0 ? "#6B4A8A" : "#3A2A4A");
+    }
+    context2.globalAlpha = 1;
+  }
+  function drawBats(kit2, x, y, age, seed) {
+    if (age > 2.8) {
+      return;
+    }
+    for (let index = 0; index < 3; index++) {
+      const direction = index === 1 ? 0.3 : index === 0 ? -1 : 1;
+      const batX = Math.round(x + direction * age * (26 + index * 6) + Math.sin(age * 9 + index + seed) * 2);
+      const batY = Math.round(y - age * (22 + index * 5));
+      const up = Math.floor(age * 12 + index) % 2 === 0;
+      kit2.rect(batX - 1, batY, 3, 2, "#1A1420");
+      kit2.rect(batX - 3, batY + (up ? -1 : 1), 2, 1, "#1A1420");
+      kit2.rect(batX + 2, batY + (up ? -1 : 1), 2, 1, "#1A1420");
+      kit2.rect(batX, batY, 1, 1, "#E04050");
+    }
+  }
+  function drawZap(kit2, from, facing, to, time) {
+    const { context: context2 } = kit2;
+    const startX = from.left + (facing === "left" ? 0 : facing === "right" ? FRAME2 : FRAME2 / 2);
+    const startY = from.top + 8;
+    const endX = to.left + FRAME2 / 2;
+    const endY = to.top + 7;
+    context2.strokeStyle = Math.floor(time * 20) % 2 === 0 ? "#B4FF5A" : "#F0FFE0";
+    context2.lineWidth = 1;
+    context2.beginPath();
+    context2.moveTo(startX, startY);
+    for (let step = 1; step < 4; step++) {
+      const t = step / 4;
+      context2.lineTo(startX + (endX - startX) * t + Math.sin(time * 40 + step) * 1.5, startY + (endY - startY) * t + Math.cos(time * 37 + step) * 2);
+    }
+    context2.lineTo(endX, endY);
+    context2.stroke();
+    kit2.glow(endX, endY, 7, "#B4FF5A", 0.6);
+    kit2.glow(startX, startY, 4, "#B4FF5A", 0.5);
+  }
+  function drawWord(kit2, word, x, y, age, kind) {
+    if (age < 0 || age > 1.4) {
+      return;
+    }
+    const { context: context2 } = kit2;
+    const size = age < 0.12 ? 10 : 8;
+    context2.font = `bold ${size}px monospace`;
+    const width2 = context2.measureText(word).width;
+    const left = Math.round(x - width2 / 2);
+    const top = Math.round(y - age * 10);
+    context2.globalAlpha = age > 0.9 ? Math.max(0, 1 - (age - 0.9) / 0.5) : 1;
+    context2.fillStyle = "#1A1A1A";
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+      context2.fillText(word, left + dx, top + dy);
+    }
+    context2.fillStyle = kind === "aliens" ? "#B4FF5A" : kind === "vampires" ? "#FF6B8A" : "#FFE14A";
+    context2.fillText(word, left, top);
+    context2.globalAlpha = 1;
+  }
+  function drawDizzy(kit2, headX, headY, time) {
+    for (let index = 0; index < 3; index++) {
+      const angle = time * 4 + index * 2.1;
+      const x = Math.round(headX + Math.cos(angle) * 5);
+      const y = Math.round(headY - 4 + Math.sin(angle) * 1.5);
+      const color = index === 1 ? "#FFFFFF" : "#FFE14A";
+      kit2.rect(x, y, 1, 1, color);
+      if (Math.floor(time * 6 + index) % 2 === 0) {
+        kit2.rect(x - 1, y, 3, 1, color);
+        kit2.rect(x, y - 1, 1, 3, color);
+      }
+    }
+  }
+  function drawDust(kit2, box, time) {
+    const { context: context2 } = kit2;
+    context2.globalAlpha = 0.6;
+    for (let index = 0; index < 4; index++) {
+      const age = (time * 1.6 + index * 0.25) % 1;
+      const x = box.left + 2 + (index * 5 + Math.floor(time)) % 9;
+      kit2.rect(x, Math.round(box.top + 14 - age * 6), 1, 1, "#C9C2B0");
+    }
+    context2.globalAlpha = 1;
+  }
+  var DEBRIS_ART = {
+    papers: { rows: ["ww...", "wgw.w", ".wwwg", "...ww"], colors: { w: "#F4F1E8", g: "#B9B3A3" } },
+    mug: { rows: ["..cc..", "cccccc", "w.cc.r", ".w..r."], colors: { c: "#6B4226", w: "#F2EEE6", r: "#C0392B" } },
+    goo: { rows: [".gggg.", "gglggg", ".ggg.g"], colors: { g: "#6EDC5A", l: "#C6F7AA" } },
+    scorch: { rows: ["..kk..", ".kddk.", "kkdkkk", ".kkk.."], colors: { k: "#2A2622", d: "#4A3A30" } },
+    cans: { rows: ["rr.", "rr.", "..s", ".ss"], colors: { r: "#C0392B", s: "#B8B8B8" } },
+    cobweb: { rows: ["w.w.w", ".www.", "wwwww", ".www.", "w.w.w"], colors: { w: "#E8E8F0" } },
+    plant: { rows: ["..gg.", ".ggg.", "g.g..", "bbsss"], colors: { g: "#4CB944", b: "#B5651D", s: "#5A3A22" } }
+  };
+  function drawDebris(kit2, piece) {
+    const art = DEBRIS_ART[piece.kind];
+    const width2 = art.rows[0].length;
+    const left = Math.round(piece.x * TILE2 + TILE2 / 2 + piece.ox - width2 / 2);
+    const top = Math.round(piece.y * TILE2 + 10 + piece.oy);
+    const { context: context2 } = kit2;
+    if (piece.kind === "scorch" || piece.kind === "cobweb") {
+      context2.globalAlpha = 0.7;
+    }
+    art.rows.forEach((row, y) => [...row].forEach((cell, x) => {
+      const color = art.colors[cell];
+      if (color !== void 0) {
+        kit2.rect(left + x, top + y, 1, 1, color);
+      }
+    }));
+    context2.globalAlpha = 1;
+  }
+  function drawInvaderGear(kit2, agent, box, facing, frame, layer) {
+    const kind = agent.invader?.kind;
+    if (kind === void 0) {
+      return;
+    }
+    const side = facing === "left" || facing === "right";
+    const paint2 = painter(kit2, box, facing === "left");
+    if (kind === "vampires") {
+      const cape = "#141018";
+      const lining = "#8E1B2B";
+      const moving = agent.path.length > 0;
+      if (facing === "up" && layer === "front") {
+        paint2(2, 7, 8, 9, cape);
+        paint2(1, 6, 1, 3, lining);
+        paint2(10, 6, 1, 3, lining);
+      } else if (facing !== "up" && layer === "behind") {
+        if (side) {
+          paint2(moving ? 0 : 1, 7, moving ? 4 : 3, moving ? 8 : 9, cape);
+          paint2(moving ? 0 : 1, 14, moving ? 3 : 2, 1, lining);
+        } else {
+          paint2(1, 7, 10, 9, cape);
+          paint2(1, 5, 1, 3, lining);
+          paint2(10, 5, 1, 3, lining);
+        }
+      }
+      return;
+    }
+    if (layer !== "front") {
+      return;
+    }
+    if (kind === "aliens") {
+      if (side) {
+        paint2(9, 7, 3, 2, "#8A9BA8");
+        paint2(12, 7, 1, 1, "#7CFF6B");
+      } else if (facing === "down") {
+        paint2(7, 9, 2, 2, "#8A9BA8");
+        paint2(7, 10, 1, 1, "#7CFF6B");
+      }
+      return;
+    }
+    if (kind === "raiders") {
+      if (agent.invader?.loot === true && agent.path.length > 0) {
+        drawLoot(kit2, box, agent.id);
+        return;
+      }
+      if (agent.mode === "attack") {
+        const wood = "#8B5A2B";
+        const swung = frame % 2 === 0;
+        if (side) {
+          if (swung) {
+            paint2(9, 7, 5, 2, wood);
+          } else {
+            paint2(7, 1, 2, 6, wood);
+          }
+        } else {
+          paint2(swung ? 2 : 8, 0, 2, 6, wood);
+        }
+      }
+    }
+  }
+  function drawLoot(kit2, box, id) {
+    const which = [...id].reduce((sum, character) => sum + character.charCodeAt(0), 0) % 3;
+    const left = box.left + 2;
+    const top = box.top - 6;
+    if (which === 0) {
+      kit2.rect(left, top, 8, 6, "#2E2E36");
+      kit2.rect(left + 1, top + 1, 6, 4, "#7FB8D8");
+      kit2.rect(left + 3, top + 6, 2, 1, "#2E2E36");
+    } else if (which === 1) {
+      kit2.rect(left + 2, top, 4, 1, "#2E2E36");
+      kit2.rect(left + 1, top + 1, 6, 5, "#D8E2E8");
+      kit2.rect(left + 2, top + 3, 4, 3, "#6B4226");
+      kit2.rect(left + 7, top + 2, 1, 3, "#2E2E36");
+    } else {
+      kit2.rect(left + 1, top - 1, 2, 3, "#4CB944");
+      kit2.rect(left + 4, top - 2, 2, 4, "#5DBB46");
+      kit2.rect(left + 2, top + 2, 4, 4, "#B5651D");
+    }
+  }
+  function drawBroom(kit2, box, facing, frame) {
+    const shift = frame % 2 === 0 ? -1 : 1;
+    const handle = "#A0703A";
+    const bristles = "#D9A441";
+    if (facing === "left" || facing === "right") {
+      const paint2 = painter(kit2, box, facing === "left");
+      paint2(8, 7, 1, 2, handle);
+      paint2(9, 9, 1, 2, handle);
+      paint2(10, 11, 1, 3, handle);
+      paint2(9 + shift, 14, 4, 2, bristles);
+      return;
+    }
+    kit2.rect(box.left + 9, box.top + 7, 1, 8, handle);
+    kit2.rect(box.left + 7 + shift, box.top + 15, 5, 2, bristles);
+  }
+
+  // src/officeView/shows.ts
+  var TILE3 = 16;
+  var FRAME3 = 12;
+  function painter2(kit2, box, mirror) {
+    return (x, y, w, h, color) => kit2.rect(mirror ? box.left + FRAME3 - x - w : box.left + x, box.top + y, w, h, color);
   }
   var FOOD_ART = {
     pizza: { rows: ["cccc", "ysry", ".yy.", ".s.."], colors: { c: "#C8873A", y: "#F5C542", s: "#F5C542", r: "#C0392B" } },
@@ -9072,11 +10531,11 @@
     }
     const x = step === 0 ? 7 : 7;
     const y = step === 0 ? 4 : 6;
-    drawFood(kit2, food, facing === "right" ? box.left + x : box.left + FRAME2 - x - 4, box.top + y);
+    drawFood(kit2, food, facing === "right" ? box.left + x : box.left + FRAME3 - x - 4, box.top + y);
   }
   function drawDeskPlate(kit2, food, deskX, deskY) {
-    const left = deskX * TILE2;
-    const top = deskY * TILE2;
+    const left = deskX * TILE3;
+    const top = deskY * TILE3;
     kit2.rect(left, top + 10, 5, 1, "#F4F4F4");
     kit2.rect(left + 1, top + 11, 3, 1, "#C8C8C8");
     drawFood(kit2, food, left, top + 10 - FOOD_ART[food].rows.length);
@@ -9122,7 +10581,7 @@
       kit2.rect(box.left + 6, box.top - (colors.long ? 3 : 1), 1, 10, colors.neck);
       return;
     }
-    const paint2 = painter(kit2, box, facing === "left");
+    const paint2 = painter2(kit2, box, facing === "left");
     if (facing === "down") {
       paint2(1, 9, 6, 4, colors.edge);
       paint2(2, 9, 4, 4, colors.body);
@@ -9150,7 +10609,7 @@
     kit2.rect(box.left + 4, box.top - 4, 1, 4, "#2E3242");
   }
   function drawWand(kit2, box, facing, now) {
-    const paint2 = painter(kit2, box, facing === "left");
+    const paint2 = painter2(kit2, box, facing === "left");
     const tipX = facing === "down" ? 12 : 11;
     paint2(10, 11, 1, 1, "#141620");
     paint2(11, 10, 1, 1, "#141620");
@@ -9195,7 +10654,7 @@
     }
   }
   function drawSetPiece(kit2, role, spot, show, now) {
-    const box = { left: spot.x * TILE2 + (TILE2 - FRAME2) / 2, top: spot.y * TILE2 + TILE2 - 18 };
+    const box = { left: spot.x * TILE3 + (TILE3 - FRAME3) / 2, top: spot.y * TILE3 + TILE3 - 18 };
     switch (role) {
       case "singer":
       case "comic":
@@ -9272,8 +10731,8 @@
     const cue = show.lastCue;
     const age = cue === void 0 ? Infinity : now - cue.at;
     if ((cue?.cue === "gasp" || cue?.cue === "applause") && age < 3.5) {
-      const rise = Math.min(3, Math.floor(age * 10));
-      const rabbitTop = top - 3 - rise;
+      const rise2 = Math.min(3, Math.floor(age * 10));
+      const rabbitTop = top - 3 - rise2;
       kit2.rect(left + 9, rabbitTop - 3, 1, 3, "#F4F4F4");
       kit2.rect(left + 11, rabbitTop - 3, 1, 3, "#F4F4F4");
       kit2.rect(left + 9, rabbitTop - 2, 1, 1, "#F7A8C4");
@@ -9322,7 +10781,7 @@
       const players = performers.filter((performer) => performer.performing);
       if (playing && players.length > 0 && now >= this.nextEmitAt) {
         const performer = players[Math.floor(random2() * players.length)];
-        const centerX = performer.box.left + FRAME2 / 2;
+        const centerX = performer.box.left + FRAME3 / 2;
         if (effect === "notes" || effect === "disco") {
           this.nextEmitAt = now + (effect === "disco" ? 0.5 : 0.32);
           this.particles.push({
@@ -9366,7 +10825,7 @@
           }
         }
         if (effect === "sparkles" && lead !== void 0 && (cue.cue === "gasp" || cue.cue === "applause")) {
-          const centerX = lead.box.left + FRAME2 / 2 + 4;
+          const centerX = lead.box.left + FRAME3 / 2 + 4;
           const centerY = lead.box.top + 8;
           for (let star = 0; star < 12; star++) {
             const angle = star / 12 * Math.PI * 2;
@@ -9434,8 +10893,8 @@
       return;
     }
     const context2 = kit2.context;
-    const centerX = show.stage.x * TILE2 + TILE2 / 2;
-    const feetY = show.stage.y * TILE2 + TILE2 - 1;
+    const centerX = show.stage.x * TILE3 + TILE3 / 2;
+    const feetY = show.stage.y * TILE3 + TILE3 - 1;
     const poolX = 11;
     const poolY = 3;
     const halfWidth = (y) => {
@@ -9471,7 +10930,7 @@
       return;
     }
     const context2 = kit2.context;
-    const centerX = show.stage.x * TILE2 + TILE2 / 2;
+    const centerX = show.stage.x * TILE3 + TILE3 / 2;
     context2.globalAlpha = 0.3 * level;
     kit2.rect(0, 0, roomWidth, roomHeight, "#14062A");
     context2.globalAlpha = level;
@@ -9502,7 +10961,7 @@
   }
 
   // src/officeView/scenery.ts
-  var TILE3 = 16;
+  var TILE4 = 16;
   var noise = (value) => {
     const wave = Math.sin(value * 12.9898) * 43758.5453;
     return wave - Math.floor(wave);
@@ -9549,7 +11008,7 @@
   var SEA_HORIZON = 6;
   function drawSea(kit2, palette2, width2, seconds) {
     const { rect: rect2 } = kit2;
-    rect2(0, SEA_HORIZON, width2, TILE3 - SEA_HORIZON, palette2.wall);
+    rect2(0, SEA_HORIZON, width2, TILE4 - SEA_HORIZON, palette2.wall);
     rect2(0, SEA_HORIZON, width2, 1, "#1E7AA8");
     for (let glint = 0; glint < width2 / 8; glint++) {
       const x = Math.floor((noise(glint) * width2 + seconds * (3 + glint % 3 * 2)) % width2);
@@ -9586,7 +11045,7 @@
     }
     for (let x = 0; x < width2; x += 2) {
       const top = peakTop(x);
-      rect2(x, top, 2, TILE3 - top, palette2.wall);
+      rect2(x, top, 2, TILE4 - top, palette2.wall);
       rect2(x, top, 2, top < 6 ? 2 : 1, "#FFFFFF");
       if (noise(x) > 0.6) {
         rect2(x, top + 3, 1, 2, "#6E86A8");
@@ -9594,7 +11053,7 @@
     }
     for (let x = 0; x < width2; x += 2) {
       const top = snowHill(x);
-      rect2(x, top, 2, TILE3 - top, "#F4F8FC");
+      rect2(x, top, 2, TILE4 - top, "#F4F8FC");
       rect2(x, top, 2, 1, "#FFFFFF");
     }
     for (let x = 5; x < width2; x += 13) {
@@ -9623,7 +11082,7 @@
     for (let x = 0; x < width2; x += 2) {
       const top = mesaTop(x);
       if (top < 13) {
-        rect2(x, top, 2, TILE3 - top, palette2.wall);
+        rect2(x, top, 2, TILE4 - top, palette2.wall);
         rect2(x, top, 2, 1, "#E09A6A");
         rect2(x, top + 3, 2, 1, "#B0603A");
         rect2(x, top + 5, 2, 1, "#D8885A");
@@ -9631,7 +11090,7 @@
     }
     for (let x = 0; x < width2; x += 2) {
       const top = duneTop(x);
-      rect2(x, top, 2, TILE3 - top, palette2.wallTrim);
+      rect2(x, top, 2, TILE4 - top, palette2.wallTrim);
       rect2(x, top, 2, 1, "#F4D8A8");
     }
     for (let x = 23; x < width2; x += 47) {
@@ -9643,7 +11102,7 @@
   }
   function drawWater(kit2, palette2, width2, seconds) {
     const { rect: rect2, context: context2 } = kit2;
-    rect2(0, 0, width2, TILE3, palette2.wall);
+    rect2(0, 0, width2, TILE4, palette2.wall);
     rect2(0, 0, width2, 4, "#2A78B0");
     for (let x = 0; x < width2; x += 4) {
       const shimmer = Math.round(Math.sin(seconds * 2 + x / 5) * 1.5);
@@ -9659,19 +11118,19 @@
     context2.globalAlpha = 1;
     for (let x = 0; x < width2; x += 2) {
       const top = 10 + Math.round(noise(Math.floor(x / 6)) * 3);
-      rect2(x, top, 2, TILE3 - top, palette2.wallTrim);
+      rect2(x, top, 2, TILE4 - top, palette2.wallTrim);
     }
     for (let x = 9; x < width2; x += 17) {
       const sway2 = Math.round(Math.sin(seconds * 1.1 + x) * 1);
       rect2(x + sway2, 4, 1, 8, "#174A70");
       rect2(x + sway2 + 1, 6, 1, 2, "#174A70");
     }
-    rect2(0, TILE3 - 2, width2, 2, "#0B3254");
+    rect2(0, TILE4 - 2, width2, 2, "#0B3254");
   }
   var LIBRARY_WINDOW_EVERY = 5;
   function drawBookcases(kit2, palette2, width2, light2) {
     const { rect: rect2 } = kit2;
-    rect2(0, 0, width2, TILE3, palette2.wall);
+    rect2(0, 0, width2, TILE4, palette2.wall);
     const colors = ["#8A2E2E", "#2E5A8A", "#3E7A3E", "#8A6A2E", "#5A2E7A", "#2E2E3A", "#A8743A"];
     for (const shelfTop of [0, 5, 10]) {
       for (let x = 0; x < width2; x += 2) {
@@ -9680,8 +11139,8 @@
       }
       rect2(0, shelfTop + 4, width2, 1, palette2.wallTrim);
     }
-    for (let column = 3; column * TILE3 < width2 - TILE3; column += LIBRARY_WINDOW_EVERY) {
-      const left = column * TILE3 + 1;
+    for (let column = 3; column * TILE4 < width2 - TILE4; column += LIBRARY_WINDOW_EVERY) {
+      const left = column * TILE4 + 1;
       rect2(left, 0, 14, 13, palette2.wallTrim);
       rect2(left + 1, 2, 12, 10, light2.sky);
       rect2(left + 3, 1, 8, 1, light2.sky);
@@ -9695,8 +11154,8 @@
       rect2(left + 7, 1, 1, 11, palette2.wallTrim);
       rect2(left + 1, 6, 12, 1, palette2.wallTrim);
     }
-    rect2(0, TILE3 - 3, width2, 3, palette2.wallTrim);
-    rect2(0, TILE3 - 3, width2, 1, "#7A5232");
+    rect2(0, TILE4 - 3, width2, 3, palette2.wallTrim);
+    rect2(0, TILE4 - 3, width2, 1, "#7A5232");
   }
   function skylineTowers(width2) {
     const towers = [];
@@ -9724,7 +11183,7 @@
     const { rect: rect2 } = kit2;
     for (const tower of skylineTowers(width2)) {
       const color = tower.near ? palette2.wall : "#9AA8BC";
-      rect2(tower.left, tower.top, tower.width, TILE3 - tower.top, color);
+      rect2(tower.left, tower.top, tower.width, TILE4 - tower.top, color);
       if (tower.near) {
         for (let y = tower.top + 2; y < 13; y += 2) {
           for (let x = tower.left + 1; x < tower.left + tower.width - 1; x += 2) {
@@ -9902,8 +11361,8 @@
         rect2(left + 14, top + 2, 1, 1, "#C0392B");
         context2.globalAlpha = 0.6;
         for (let puff = 0; puff < 3; puff++) {
-          const rise = (seconds * 4 + puff * 3) % 9;
-          rect2(left + 5 + puff + Math.round(Math.sin(seconds * 2 + puff)), top - 2 - Math.floor(rise), 1, 1, "#FFFFFF");
+          const rise2 = (seconds * 4 + puff * 3) % 9;
+          rect2(left + 5 + puff + Math.round(Math.sin(seconds * 2 + puff)), top - 2 - Math.floor(rise2), 1, 1, "#FFFFFF");
         }
         context2.globalAlpha = 1;
         return;
@@ -9932,8 +11391,8 @@
         return;
       case "igloo": {
         for (let row = 0; row < 13; row++) {
-          const rise = (12 - row) / 12;
-          const half = Math.round(Math.sqrt(Math.max(0, 1 - rise * rise)) * 8);
+          const rise2 = (12 - row) / 12;
+          const half = Math.round(Math.sqrt(Math.max(0, 1 - rise2 * rise2)) * 8);
           rect2(left + 8 - half, top + 3 + row, half * 2, 1, row % 3 === 2 ? "#C9D6E4" : "#F4F8FC");
         }
         for (let row = 2; row < 13; row += 3) {
@@ -10010,10 +11469,10 @@
         rect2(left + 4, top + 8, 2, 4, "#8E8574");
         rect2(left + 10, top + 10, 2, 3, "#5A564E");
         for (let bubble = 0; bubble < 4; bubble++) {
-          const rise = (seconds * 10 + bubble * 6) % 22;
+          const rise2 = (seconds * 10 + bubble * 6) % 22;
           const x = left + 7 + Math.round(Math.sin(seconds * 3 + bubble * 2) * 1.5);
           const size = bubble % 2 === 0 ? 2 : 1;
-          rect2(x, top + 2 - Math.floor(rise), size, size, "#CFEFFF");
+          rect2(x, top + 2 - Math.floor(rise2), size, size, "#CFEFFF");
         }
         return;
       }
@@ -10059,8 +11518,8 @@
         rect2(left + 4 + pop * 2, top + 4, 2, 1, "#B8FFB0");
         context2.globalAlpha = 0.5;
         for (let puff = 0; puff < 3; puff++) {
-          const rise = (seconds * 5 + puff * 4) % 12;
-          rect2(left + 6 + puff * 2 + Math.round(Math.sin(seconds + puff) * 1.5), top + 3 - Math.floor(rise), 1, 1, "#9AF09A");
+          const rise2 = (seconds * 5 + puff * 4) % 12;
+          rect2(left + 6 + puff * 2 + Math.round(Math.sin(seconds + puff) * 1.5), top + 3 - Math.floor(rise2), 1, 1, "#9AF09A");
         }
         context2.globalAlpha = 1;
         return;
@@ -10129,8 +11588,8 @@
         rect2(left + 7, top + 11, 2, 5, "#3A3A44");
         context2.globalAlpha = 0.45;
         for (let puff = 0; puff < 4; puff++) {
-          const rise = (seconds * 4 + puff * 3) % 14;
-          rect2(left + 5 + puff * 2 + Math.round(Math.sin(seconds * 1.5 + puff) * 1.5), top + 2 - Math.floor(rise), 2, 1, "#C8C8D0");
+          const rise2 = (seconds * 4 + puff * 3) % 14;
+          rect2(left + 5 + puff * 2 + Math.round(Math.sin(seconds * 1.5 + puff) * 1.5), top + 2 - Math.floor(rise2), 2, 1, "#C8C8D0");
         }
         context2.globalAlpha = 1;
         return;
@@ -10184,10 +11643,10 @@
     } else if (sceneId2 === "reef") {
       context2.globalAlpha = 0.55;
       for (let bubble = 0; bubble < roomWidth / 18; bubble++) {
-        const rise = (seconds * (8 + noise(bubble * 9) * 6) + noise(bubble) * roomHeight) % (roomHeight + 8);
+        const rise2 = (seconds * (8 + noise(bubble * 9) * 6) + noise(bubble) * roomHeight) % (roomHeight + 8);
         const x = noise(bubble * 7) * roomWidth + Math.sin(seconds * 2 + bubble) * 2;
         const size = bubble % 3 === 0 ? 2 : 1;
-        rect2(Math.floor(x), Math.floor(roomHeight - rise), size, size, "#CFEFFF");
+        rect2(Math.floor(x), Math.floor(roomHeight - rise2), size, size, "#CFEFFF");
       }
       context2.globalAlpha = 1;
     }
@@ -10216,7 +11675,7 @@
   }
 
   // src/officeView/main.ts
-  var TILE4 = 16;
+  var TILE5 = 16;
   var SEATED_LIFT = 5;
   var GUY_HEIGHT = FRAME_HEIGHT - HEAD_ROOM;
   var vscode = acquireVsCodeApi();
@@ -10254,6 +11713,10 @@
   var nextShowAt = performanceGap(Math.random, "normal", true);
   var showCount = 0;
   var showEffects = new ShowEffects();
+  var invasionsSetting = "normal";
+  var nextInvasionAt = invasionGap(Math.random, "normal", true);
+  var invasionCount = 0;
+  var quiet = false;
   var random = Math.random;
   var crittersOn = true;
   var racesOn = true;
@@ -10265,10 +11728,14 @@
   var flightWatchers = /* @__PURE__ */ new Set();
   var nextFlightAt = 20;
   var dayNightOn = true;
+  var skyOverride;
   var skyCache;
   var light = sceneLight("office", DAYTIME_SKY);
   var lightMap;
   function currentSky() {
+    if (skyOverride !== void 0) {
+      return skyOverride === "night" ? NIGHT_SKY : DAYTIME_SKY;
+    }
     if (!dayNightOn) {
       return DAYTIME_SKY;
     }
@@ -10280,19 +11747,19 @@
   }
   function fitLayout() {
     const withStation = youKey !== void 0;
-    const roomHeight = Math.max(TILE4 * 4, height - (chatterSetting === "log" ? LOG_RESERVE : 0));
-    const shape = officeShape(desksNeeded(latestInputs.length) + (withStation ? STATION_DESKS : 0), width, roomHeight, TILE4, withStation);
+    const roomHeight = Math.max(TILE5 * 4, height - (chatterSetting === "log" ? LOG_RESERVE : 0));
+    const shape = officeShape(desksNeeded(latestInputs.length) + (withStation ? STATION_DESKS : 0), width, roomHeight, TILE5, withStation);
     const layout = state.layout;
     if (shape.cols !== layout.cols || shape.rows !== layout.rows || sceneChanged || layout.station !== void 0 !== withStation) {
       sceneChanged = false;
       relayoutOffice(state, buildOfficeLayout(shape.cols, shape.rows, sceneId, withStation), random);
     }
     const pixelRatio = window.devicePixelRatio || 1;
-    const fit = Math.min(width / (state.layout.cols * TILE4), roomHeight / (state.layout.rows * TILE4));
+    const fit = Math.min(width / (state.layout.cols * TILE5), roomHeight / (state.layout.rows * TILE5));
     const snapped = Math.floor(fit * pixelRatio) / pixelRatio;
     scale = snapped >= fit * 0.85 ? snapped : fit;
-    originX = Math.floor((width - state.layout.cols * TILE4 * scale) / 2);
-    originY = Math.floor(height - state.layout.rows * TILE4 * scale);
+    originX = Math.floor((width - state.layout.cols * TILE5 * scale) / 2);
+    originY = Math.floor(height - state.layout.rows * TILE5 * scale);
   }
   var sceneChanged = false;
   new ResizeObserver(() => {
@@ -10324,6 +11791,14 @@
       playShow(isPerformanceKind(data.kind) ? data.kind : void 0);
       return;
     }
+    if (data !== null && typeof data === "object" && data.type === "stop") {
+      stopEverything();
+      return;
+    }
+    if (data !== null && typeof data === "object" && data.type === "invasion") {
+      playInvasion(isInvasionKind(data.kind) ? data.kind : void 0);
+      return;
+    }
     if (data !== null && typeof data === "object" && data.type === "sceneEvent") {
       startSceneEvent(data);
       return;
@@ -10349,13 +11824,15 @@
     if (nextRaces !== racesOn) {
       racesOn = nextRaces;
       for (const key of [...lookCache.keys()]) {
-        if (!key.startsWith("you|") && !key.startsWith("visitor|") && !key.startsWith("show|") && !customLooks.has(key)) {
+        if (!key.startsWith("you|") && !key.startsWith("visitor|") && !key.startsWith("show|") && !key.startsWith("invader|") && !customLooks.has(key)) {
           lookCache.delete(key);
         }
       }
       spriteCache.clear();
     }
     dayNightOn = data.dayNight !== false;
+    quiet = data.quiet === true;
+    skyOverride = data.sky === "night" || data.sky === "day" ? data.sky : void 0;
     const nextVisitors = visitorFrequency(data.visitors);
     if (nextVisitors !== visitorsSetting && nextVisitors !== "off") {
       nextVisitorAt = Math.min(nextVisitorAt, state.time + visitorGap(random, nextVisitors, true));
@@ -10366,6 +11843,11 @@
       nextShowAt = Math.min(nextShowAt, state.time + performanceGap(random, nextPerformances, true));
     }
     performancesSetting = nextPerformances;
+    const nextInvasions = invasionFrequency(data.invasions);
+    if (nextInvasions !== invasionsSetting && nextInvasions !== "off") {
+      nextInvasionAt = Math.min(nextInvasionAt, state.time + invasionGap(random, nextInvasions, true));
+    }
+    invasionsSetting = nextInvasions;
     state.talk = talkFactor(talkFrequency(data.talk));
     state.activityLevel = activityLevel(data.activities);
     state.activitySwaps = activitySwaps(data.activitySwaps);
@@ -10414,7 +11896,7 @@
     roomReactions = [];
     callYouBack(state, random);
     for (const agent of state.agents) {
-      const text = agent.mode === "sleep" || agent.leaving || agent.you ? void 0 : roomReaction(data.kind, random);
+      const text = agent.mode === "sleep" || agent.leaving || agent.you || agent.invader !== void 0 || agent.scare !== void 0 ? void 0 : roomReaction(data.kind, random);
       if (text !== void 0) {
         roomReactions.push({ id: agent.id, text, at: start + 0.2 + random() * 0.9 });
       }
@@ -10450,7 +11932,11 @@
     if (visitorsSetting === "off" || sceneEvent !== void 0 || state.time < nextVisitorAt) {
       return;
     }
-    if (state.show !== void 0) {
+    if (quiet) {
+      nextVisitorAt = state.time + 60;
+      return;
+    }
+    if (state.show !== void 0 || state.invasion !== void 0) {
       nextVisitorAt = state.time + 20;
       return;
     }
@@ -10500,6 +11986,10 @@
     if (state.show !== void 0 || performancesSetting === "off" || sceneEvent !== void 0 || state.time < nextShowAt) {
       return;
     }
+    if (state.invasion !== void 0 || quiet) {
+      nextShowAt = state.time + 60;
+      return;
+    }
     nextShowAt = state.time + performanceGap(random, performancesSetting);
     const crowd = state.agents.some(
       (agent) => !agent.leaving && agent.performer === void 0 && agent.crew === void 0 && (agent.status === "idle" || agent.status === "asleep")
@@ -10533,6 +12023,48 @@
     if (startShow(state, { kind: plan.kind, title: plan.title, performers, lines: plan.lines, closer: plan.closer, length: plan.length, food: plan.food }, random)) {
       nextShowAt = Math.max(nextShowAt, state.time + plan.length + 120);
       vscode.postMessage({ type: "showStart", kind: plan.kind });
+    }
+  }
+  function stepInvasions() {
+    if (state.invasion !== void 0 || invasionsSetting === "off" || state.time < nextInvasionAt) {
+      return;
+    }
+    if (state.show !== void 0 || sceneEvent !== void 0 || quiet) {
+      nextInvasionAt = state.time + (quiet ? 120 : 30);
+      return;
+    }
+    nextInvasionAt = state.time + invasionGap(random, invasionsSetting);
+    playInvasion(void 0);
+  }
+  function playInvasion(kind) {
+    if (state.invasion !== void 0) {
+      return;
+    }
+    const guys = state.agents.filter((agent) => !agent.leaving && agent.crew === void 0 && agent.performer === void 0).length;
+    const plan = planInvasion(random, kind, guys);
+    const spec = INVASIONS[plan.kind];
+    invasionCount += 1;
+    const invaders = plan.titles.map((title, index) => {
+      const seed = `invader|${plan.kind}|${(invasionCount + index) % 6}`;
+      const base2 = pixelGuyLook(seed, true);
+      const race = spec.altRace !== void 0 && index % 2 === 1 ? spec.altRace : spec.outfit.race;
+      lookCache.set(seed, { ...lookWithRace(base2, race), ...invaderClothes(spec.outfit) });
+      forgetSprites(seed);
+      return { id: `${seed}|${invasionCount}|${index}`, seed, title };
+    });
+    if (startInvasion(state, { kind: plan.kind, invaders, length: plan.length }, random)) {
+      nextInvasionAt = Math.max(nextInvasionAt, state.time + 5 * 60);
+      vscode.postMessage({ type: "invasionStart", kind: plan.kind });
+    }
+  }
+  function stopEverything() {
+    endShow(state, random);
+    endInvasion(state, random);
+    sendVisitorsHome(state);
+    if (sceneEvent !== void 0) {
+      vscode.postMessage({ type: "eventEnd", kind: sceneEvent.kind });
+      sceneEvent = void 0;
+      roomReactions = [];
     }
   }
   function currentEvent() {
@@ -10594,13 +12126,13 @@
     return deskStyleFor(seed === void 0 ? void 0 : lookOf(seed).race);
   }
   var spriteCache = /* @__PURE__ */ new Map();
-  function sprite(seed, pose, facing, frame) {
-    const key = `${seed}|${pose}|${facing}|${frame}`;
+  function sprite(seed, pose, facing, frame, variant) {
+    const key = `${seed}|${pose}|${facing}|${frame}|${variant ?? ""}`;
     const cached = spriteCache.get(key);
     if (cached !== void 0) {
       return cached;
     }
-    const look = lookOf(seed);
+    const look = variant === void 0 ? lookOf(seed) : variantLook(lookOf(seed), variant);
     const image = document.createElement("canvas");
     image.width = FRAME_WIDTH;
     image.height = FRAME_HEIGHT;
@@ -10628,28 +12160,28 @@
   function drawFloor(layout, palette2) {
     for (let y = 1; y < layout.rows; y++) {
       for (let x = 0; x < layout.cols; x++) {
-        const left = x * TILE4;
-        const top = y * TILE4;
+        const left = x * TILE5;
+        const top = y * TILE5;
         if (palette2.floorStyle === "planks" || palette2.floorStyle === "tiles") {
-          rect(left, top, TILE4, TILE4, (x + y) % 2 === 0 ? palette2.floor : palette2.floorAlt);
-          rect(left, top + TILE4 - 1, TILE4, 1, palette2.floorLine);
+          rect(left, top, TILE5, TILE5, (x + y) % 2 === 0 ? palette2.floor : palette2.floorAlt);
+          rect(left, top + TILE5 - 1, TILE5, 1, palette2.floorLine);
           if (palette2.floorStyle === "planks") {
-            rect(left + y * 5 % TILE4, top, 1, TILE4 - 1, palette2.floorLine);
+            rect(left + y * 5 % TILE5, top, 1, TILE5 - 1, palette2.floorLine);
           } else {
-            rect(left + TILE4 - 1, top, 1, TILE4, palette2.floorLine);
+            rect(left + TILE5 - 1, top, 1, TILE5, palette2.floorLine);
           }
         } else {
           drawGround(left, top, x * 31 + y * 17, palette2);
         }
       }
     }
-    rect(0, TILE4, layout.cols * TILE4, 2, palette2.shadow);
+    rect(0, TILE5, layout.cols * TILE5, 2, palette2.shadow);
   }
   function drawGround(left, top, seed, palette2) {
-    rect(left, top, TILE4, TILE4, palette2.floor);
+    rect(left, top, TILE5, TILE5, palette2.floor);
     const at = (salt) => ({
-      x: left + Math.floor(noise2(seed + salt) * (TILE4 - 2)),
-      y: top + Math.floor(noise2(seed * 3 + salt) * (TILE4 - 2))
+      x: left + Math.floor(noise2(seed + salt) * (TILE5 - 2)),
+      y: top + Math.floor(noise2(seed * 3 + salt) * (TILE5 - 2))
     });
     const patch = at(1);
     rect(patch.x, patch.y, 5, 3, palette2.floorAlt);
@@ -10699,21 +12231,21 @@
     }
   }
   function drawWall(layout, palette2, seconds) {
-    const width2 = layout.cols * TILE4;
+    const width2 = layout.cols * TILE5;
     context.save();
     context.beginPath();
-    context.rect(0, 0, width2, TILE4);
+    context.rect(0, 0, width2, TILE5);
     context.clip();
     switch (palette2.backdrop) {
       case "windows":
       case "panels":
-        rect(0, 0, width2, TILE4, palette2.wall);
-        rect(0, TILE4 - 3, width2, 3, palette2.wallTrim);
+        rect(0, 0, width2, TILE5, palette2.wall);
+        rect(0, TILE5 - 3, width2, 3, palette2.wallTrim);
         for (let x = 3; x < layout.cols - 1; x += 5) {
           if (palette2.backdrop === "windows") {
-            drawWindow(x * TILE4 + 1, 2, palette2);
+            drawWindow(x * TILE5 + 1, 2, palette2);
           } else {
-            drawWallPanel(x * TILE4 + 1, 2, palette2, seconds, x);
+            drawWallPanel(x * TILE5 + 1, 2, palette2, seconds, x);
           }
         }
         break;
@@ -10739,7 +12271,7 @@
         drawBackdrop(kit, palette2, width2, seconds, light);
     }
     context.restore();
-    drawLuckyCat(rect, TILE4 + 8, 1, seconds, /* @__PURE__ */ new Date(), currentEvent() !== void 0);
+    drawLuckyCat(rect, TILE5 + 8, 1, seconds, /* @__PURE__ */ new Date(), currentEvent() !== void 0);
     drawDoor(layout.door, palette2);
   }
   function drawWindow(left, top, palette2) {
@@ -10769,7 +12301,7 @@
     }
   }
   function drawTrees(width2, palette2) {
-    rect(0, 0, width2, TILE4, palette2.wall);
+    rect(0, 0, width2, TILE5, palette2.wall);
     for (let x = 2; x < width2; x += 7) {
       const shift = Math.floor(noise2(x) * 3);
       rect(x + shift, 5, 2, 9, "#4A3220");
@@ -10800,7 +12332,7 @@
     drawSkyBodies(width2, seconds);
     for (let x = 0; x < width2; x += 2) {
       const hill = hillTop(x);
-      rect(x, hill, 2, TILE4 - hill, "#6FA84A");
+      rect(x, hill, 2, TILE5 - hill, "#6FA84A");
     }
     rect(0, 12, width2, 1, palette2.wallTrim);
     rect(0, 14, width2, 1, palette2.wallTrim);
@@ -10810,7 +12342,7 @@
   }
   function drawSkyBodies(width2, seconds) {
     const sky = currentSky();
-    rect(0, 0, width2, TILE4, light.sky);
+    rect(0, 0, width2, TILE5, light.sky);
     if (light.stars > 0) {
       context.globalAlpha = light.stars;
       for (let star = 0; star < width2 / 10; star++) {
@@ -10869,13 +12401,13 @@
       rect(x, 5 + ripple % 4 * 2, 3, 1, ripple % 2 === 0 ? "#8FD3F4" : "#5FAEDC");
     }
     for (let x = 0; x < width2; x += 5) {
-      const rise = Math.floor(noise2(x * 3) * 2);
-      rect(x, 12 - rise, 5, 4 + rise, x % 10 === 0 ? palette2.wallTrim : "#A39A88");
-      rect(x + 1, 12 - rise, 2, 1, "#C2B9A6");
+      const rise2 = Math.floor(noise2(x * 3) * 2);
+      rect(x, 12 - rise2, 5, 4 + rise2, x % 10 === 0 ? palette2.wallTrim : "#A39A88");
+      rect(x + 1, 12 - rise2, 2, 1, "#C2B9A6");
     }
   }
   function drawRockWall(width2, palette2, seconds) {
-    rect(0, 0, width2, TILE4, palette2.wall);
+    rect(0, 0, width2, TILE5, palette2.wall);
     for (let x = 0; x < width2; x += 5) {
       rect(x, Math.floor(noise2(x) * 10), 4, 3, palette2.wallTrim);
     }
@@ -10894,10 +12426,10 @@
       rect(x + 2, 8, 1, 3, color);
       rect(x - 1, 9, 1, 2, color);
     }
-    rect(0, TILE4 - 3, width2, 3, "#1E1B19");
+    rect(0, TILE5 - 3, width2, 3, "#1E1B19");
   }
   function drawSpace(width2, palette2, seconds) {
-    rect(0, 0, width2, TILE4, palette2.wall);
+    rect(0, 0, width2, TILE5, palette2.wall);
     for (let star = 0; star < width2 / 6; star++) {
       const twinkle = noise2(star * 5 + Math.floor(seconds * 1.5 + star)) > 0.15;
       rect(Math.floor(noise2(star * 3) * width2), Math.floor(noise2(star * 7) * 11), 1, 1, twinkle ? "#FFFFFF" : "#555A70");
@@ -10929,27 +12461,27 @@
     context.globalAlpha = 1;
     for (let x = 0; x < width2; x += 3) {
       const ridge = ridgeTop(x);
-      rect(x, ridge, 3, TILE4 - ridge, palette2.wallTrim);
+      rect(x, ridge, 3, TILE5 - ridge, palette2.wallTrim);
     }
-    rect(0, TILE4 - 1, width2, 1, "#6A6A72");
+    rect(0, TILE5 - 1, width2, 1, "#6A6A72");
   }
   function ridgeTop(x) {
     return 11 + Math.round(Math.sin(x / 13) * 1.2 + noise2(x) * 0.8);
   }
   function drawDoor(door, palette2) {
     const open2 = state.agents.some((agent) => Math.abs(agent.x - door.x) + Math.abs(agent.y - door.y) < 1.2);
-    const left = door.x * TILE4 + 2;
+    const left = door.x * TILE5 + 2;
     switch (palette2.doorStyle) {
       case "door":
-        rect(left, 1, 12, TILE4 - 1, palette2.doorFrame);
-        rect(left + 1, 2, 10, TILE4 - 2, open2 ? "#121212" : palette2.door);
+        rect(left, 1, 12, TILE5 - 1, palette2.doorFrame);
+        rect(left + 1, 2, 10, TILE5 - 2, open2 ? "#121212" : palette2.door);
         if (!open2) {
           rect(left + 8, 9, 1, 1, "#F1C24B");
         }
         return;
       case "trail":
-        for (let row = 0; row < TILE4; row++) {
-          const half = 2 + Math.floor(row * 4 / TILE4);
+        for (let row = 0; row < TILE5; row++) {
+          const half = 2 + Math.floor(row * 4 / TILE5);
           rect(left + 6 - half - 1, row, half * 2 + 2, 1, palette2.doorFrame);
           rect(left + 6 - half, row, half * 2, 1, palette2.door);
         }
@@ -10957,9 +12489,9 @@
         rect(left + 7, 10, 2, 1, palette2.doorFrame);
         return;
       case "gate": {
-        rect(left, 6, 1, TILE4 - 6, palette2.doorFrame);
-        rect(left + 11, 6, 1, TILE4 - 6, palette2.doorFrame);
-        rect(left + 1, 7, 10, TILE4 - 7, "#6FA84A");
+        rect(left, 6, 1, TILE5 - 6, palette2.doorFrame);
+        rect(left + 11, 6, 1, TILE5 - 6, palette2.doorFrame);
+        rect(left + 1, 7, 10, TILE5 - 7, "#6FA84A");
         const span = open2 ? 3 : 10;
         rect(left + 1, 9, span, 1, palette2.door);
         rect(left + 1, 13, span, 1, palette2.door);
@@ -10967,14 +12499,14 @@
         return;
       }
       case "tunnel":
-        rect(left - 1, 3, 14, TILE4 - 3, palette2.doorFrame);
+        rect(left - 1, 3, 14, TILE5 - 3, palette2.doorFrame);
         rect(left + 1, 2, 10, 2, palette2.doorFrame);
-        rect(left + 1, 5, 10, TILE4 - 5, palette2.door);
+        rect(left + 1, 5, 10, TILE5 - 5, palette2.door);
         rect(left + 2, 4, 8, 1, palette2.door);
         return;
       case "hatch":
-        rect(left, 2, 12, TILE4 - 2, palette2.doorFrame);
-        rect(left + 1, 3, 10, TILE4 - 3, open2 ? "#05060C" : palette2.door);
+        rect(left, 2, 12, TILE5 - 2, palette2.doorFrame);
+        rect(left + 1, 3, 10, TILE5 - 3, open2 ? "#05060C" : palette2.door);
         if (!open2) {
           rect(left + 4, 5, 4, 3, "#1B2340");
           rect(left + 4, 5, 1, 1, "#7FD1FF");
@@ -10998,8 +12530,8 @@
     return event.age >= EVENT_SECONDS.defense ? void 0 : ["#FF5A4F", "#F1C24B", "#F1C24B", "#4FC3F7"][beat];
   }
   function drawDesk(desk, owner, palette2, seconds, index, eventColor, style) {
-    const left = desk.desk.x * TILE4;
-    const top = desk.desk.y * TILE4;
+    const left = desk.desk.x * TILE5;
+    const top = desk.desk.y * TILE5;
     rect(left + 3, top, 10, 8, palette2.monitor);
     const typing2 = owner !== void 0 && owner.mode === "type" && owner.path.length === 0;
     const present = owner !== void 0 && !owner.leaving && owner.status !== "asleep";
@@ -11018,11 +12550,11 @@
     rect(left + 7, top + 8, 2, 1, palette2.monitor);
     const deskTop = style.top ?? palette2.deskTop;
     const deskFront = style.front ?? palette2.deskFront;
-    rect(left, top + 9, TILE4, 3, deskTop);
+    rect(left, top + 9, TILE5, 3, deskTop);
     rect(left + 4, top + 10, 8, 1, palette2.keyboard);
-    rect(left, top + 12, TILE4, 4, deskFront);
+    rect(left, top + 12, TILE5, 4, deskFront);
     rect(left + 1, top + 12, 1, 4, deskTop);
-    rect(left + TILE4 - 2, top + 12, 1, 4, deskTop);
+    rect(left + TILE5 - 2, top + 12, 1, 4, deskTop);
     drawDeskDecor(left, top, style, palette2, seconds, index);
   }
   function drawDeskDecor(left, top, style, palette2, seconds, index) {
@@ -11035,7 +12567,7 @@
         }
         return;
       case "planks":
-        rect(left, top + 14, TILE4, 1, edge);
+        rect(left, top + 14, TILE5, 1, edge);
         [3, 12].forEach((x) => rect(left + x, top + 12, 1, 1, accent));
         [3, 12].forEach((x) => rect(left + x, top + 15, 1, 1, accent));
         rect(left + 6, top + 12, 1, 1, edge);
@@ -11050,11 +12582,11 @@
         [4, 8, 11].forEach((x) => rect(left + x, top + 12, 1, 4, edge));
         rect(left, top + 8, 2, 1, accent);
         rect(left + 1, top + 7, 1, 1, accent);
-        rect(left + TILE4 - 2, top + 8, 2, 1, accent);
+        rect(left + TILE5 - 2, top + 8, 2, 1, accent);
         rect(left + 14, top + 13, 1, 1, "#F28FB8");
         return;
       case "candle": {
-        rect(left + 1, top + 12, TILE4 - 2, 1, edge);
+        rect(left + 1, top + 12, TILE5 - 2, 1, edge);
         rect(left + 13, top + 5, 2, 4, "#EDE6D8");
         const flicker = Math.floor(seconds * 8 + index) % 3;
         rect(left + 13 + (flicker === 2 ? 1 : 0), top + 3, 1, 2, accent);
@@ -11063,16 +12595,16 @@
       }
       case "glowStrip": {
         rect(left, top + 15, 1, 1, palette2.floor);
-        rect(left + TILE4 - 1, top + 15, 1, 1, palette2.floor);
+        rect(left + TILE5 - 1, top + 15, 1, 1, palette2.floor);
         const pulse = 0.55 + Math.sin(seconds * 2 + index) * 0.3;
         context.globalAlpha = pulse;
-        rect(left + 2, top + 13, TILE4 - 4, 1, accent);
+        rect(left + 2, top + 13, TILE5 - 4, 1, accent);
         context.globalAlpha = 1;
         return;
       }
       case "led": {
-        const lit = Math.floor(seconds * 3 + index) % (TILE4 - 4);
-        rect(left + 2, top + 13, TILE4 - 4, 1, edge);
+        const lit = Math.floor(seconds * 3 + index) % (TILE5 - 4);
+        rect(left + 2, top + 13, TILE5 - 4, 1, edge);
         rect(left + 2 + lit, top + 13, 2, 1, accent);
         return;
       }
@@ -11110,7 +12642,7 @@
         rect(left + 10, top + 10, 1, 1, accent);
         return;
       case "egg":
-        [12, 14].forEach((y) => rect(left + 1, top + y, TILE4 - 2, 1, edge));
+        [12, 14].forEach((y) => rect(left + 1, top + y, TILE5 - 2, 1, edge));
         rect(left + 12, top + 6, 2, 3, accent);
         rect(left + 13, top + 7, 1, 1, "#C9BFAE");
         return;
@@ -11141,16 +12673,16 @@
   function tintColors() {
     if (tintList === void 0) {
       const style = getComputedStyle(document.documentElement);
-      const pick3 = (fallback, ...names) => names.map((name) => style.getPropertyValue(name).trim()).find(Boolean) || fallback;
+      const pick4 = (fallback, ...names) => names.map((name) => style.getPropertyValue(name).trim()).find(Boolean) || fallback;
       tintList = [
-        pick3("#888", "--vscode-textLink-foreground", "--vscode-focusBorder"),
-        pick3("#E0624A", "--vscode-charts-red"),
-        pick3("#E08A55", "--vscode-charts-orange"),
-        pick3("#F0C24B", "--vscode-charts-yellow"),
-        pick3("#5FC27E", "--vscode-charts-green"),
-        pick3("#8FD0F5", "--vscode-terminal-ansiBrightCyan"),
-        pick3("#4FC3F7", "--vscode-charts-blue", "--vscode-terminal-ansiBrightBlue"),
-        pick3("#9A72E0", "--vscode-charts-purple")
+        pick4("#888", "--vscode-textLink-foreground", "--vscode-focusBorder"),
+        pick4("#E0624A", "--vscode-charts-red"),
+        pick4("#E08A55", "--vscode-charts-orange"),
+        pick4("#F0C24B", "--vscode-charts-yellow"),
+        pick4("#5FC27E", "--vscode-charts-green"),
+        pick4("#8FD0F5", "--vscode-terminal-ansiBrightCyan"),
+        pick4("#4FC3F7", "--vscode-charts-blue", "--vscode-terminal-ansiBrightBlue"),
+        pick4("#9A72E0", "--vscode-charts-purple")
       ];
     }
     return tintList;
@@ -11194,9 +12726,9 @@
     }
   }
   function drawStation(station, reaction, palette2, seconds) {
-    const left = station.desk.x * TILE4;
-    const top = station.desk.y * TILE4;
-    const width2 = TILE4 * STATION_DESKS;
+    const left = station.desk.x * TILE5;
+    const top = station.desk.y * TILE5;
+    const width2 = TILE5 * STATION_DESKS;
     rect(left + 1, top + 2, 4, 2, palette2.monitor);
     rect(left + 2, top + 4, 1, 5, palette2.monitor);
     context.globalAlpha = 0.25;
@@ -11327,16 +12859,16 @@
     }
   }
   function drawChairBack(seat, palette2, shiftX = 0) {
-    const left = seat.x * TILE4 + shiftX;
-    const top = seat.y * TILE4;
+    const left = seat.x * TILE5 + shiftX;
+    const top = seat.y * TILE5;
     rect(left + 3, top + 6, 10, 6, palette2.chair);
     rect(left + 4, top + 7, 8, 1, palette2.chairLight);
     rect(left + 7, top + 12, 2, 3, palette2.chairLeg);
     rect(left + 4, top + 15, 8, 1, palette2.chairLeg);
   }
   function drawProp(prop, palette2, seconds, index) {
-    const left = prop.at.x * TILE4;
-    const top = prop.at.y * TILE4;
+    const left = prop.at.x * TILE5;
+    const top = prop.at.y * TILE5;
     switch (prop.kind) {
       case "plant":
         rect(left + 4, top + 9, 8, 7, palette2.pot);
@@ -11395,18 +12927,18 @@
         return;
       case "couch":
         if (palette2.couchStyle === "towel") {
-          for (let x = 1; x < TILE4 * 2 - 1; x++) {
+          for (let x = 1; x < TILE5 * 2 - 1; x++) {
             rect(left + x, top + 5, 1, 9, Math.floor((x - 1) / 3) % 2 === 0 ? palette2.couch : palette2.couchLight);
           }
-          rect(left + 1, top + 13, TILE4 * 2 - 2, 1, palette2.shadow);
+          rect(left + 1, top + 13, TILE5 * 2 - 2, 1, palette2.shadow);
           return;
         }
-        rect(left + 1, top + 4, TILE4 * 2 - 2, 6, palette2.couch);
+        rect(left + 1, top + 4, TILE5 * 2 - 2, 6, palette2.couch);
         if (palette2.couchStyle === "sofa") {
-          rect(left + 2, top + 5, TILE4 - 3, 4, palette2.couchLight);
-          rect(left + TILE4 + 1, top + 5, TILE4 - 3, 4, palette2.couchLight);
+          rect(left + 2, top + 5, TILE5 - 3, 4, palette2.couchLight);
+          rect(left + TILE5 + 1, top + 5, TILE5 - 3, 4, palette2.couchLight);
         } else {
-          rect(left + 2, top + 4, TILE4 * 2 - 4, 1, palette2.couchLight);
+          rect(left + 2, top + 4, TILE5 * 2 - 4, 1, palette2.couchLight);
         }
         return;
       case "pine":
@@ -11593,32 +13125,32 @@
     context.globalAlpha = 1;
   }
   function drawCouchBack(prop, palette2) {
-    const left = prop.at.x * TILE4;
-    const top = prop.at.y * TILE4;
+    const left = prop.at.x * TILE5;
+    const top = prop.at.y * TILE5;
     if (palette2.couchStyle === "towel") {
       return;
     }
     if (palette2.couchStyle !== "sofa") {
-      rect(left + 1, top + 9, TILE4 * 2 - 2, 6, shadeColor(palette2.couch));
-      rect(left + 1, top + 15, TILE4 * 2 - 2, 1, palette2.shadow);
+      rect(left + 1, top + 9, TILE5 * 2 - 2, 6, shadeColor(palette2.couch));
+      rect(left + 1, top + 15, TILE5 * 2 - 2, 1, palette2.shadow);
       if (palette2.couchStyle === "log") {
-        for (let x = 5; x < TILE4 * 2 - 4; x += 6) {
+        for (let x = 5; x < TILE5 * 2 - 4; x += 6) {
           rect(left + x, top + 11, 3, 1, palette2.couch);
         }
         rect(left, top + 5, 3, 10, palette2.couchLight);
         rect(left + 1, top + 8, 1, 3, palette2.couch);
-        rect(left + TILE4 * 2 - 3, top + 5, 3, 10, palette2.couchLight);
-        rect(left + TILE4 * 2 - 2, top + 8, 1, 3, palette2.couch);
+        rect(left + TILE5 * 2 - 3, top + 5, 3, 10, palette2.couchLight);
+        rect(left + TILE5 * 2 - 2, top + 8, 1, 3, palette2.couch);
       } else {
         rect(left + 6, top + 11, 4, 1, palette2.couchLight);
         rect(left + 18, top + 12, 3, 1, palette2.couchLight);
       }
       return;
     }
-    rect(left, top + 9, TILE4 * 2, 7, shadeColor(palette2.couch));
+    rect(left, top + 9, TILE5 * 2, 7, shadeColor(palette2.couch));
     rect(left, top + 4, 3, 12, palette2.couch);
-    rect(left + TILE4 * 2 - 3, top + 4, 3, 12, palette2.couch);
-    rect(left + 3, top + 10, TILE4 * 2 - 6, 1, palette2.couchLight);
+    rect(left + TILE5 * 2 - 3, top + 4, 3, 12, palette2.couch);
+    rect(left + 3, top + 10, TILE5 * 2 - 6, 1, palette2.couchLight);
   }
   function shadeColor(color) {
     const match = /^#([0-9a-f]{6})$/i.exec(color);
@@ -11629,8 +13161,8 @@
     return "rgb(" + [value >> 16 & 255, value >> 8 & 255, value & 255].map((channel) => Math.round(channel * 0.75)).join(",") + ")";
   }
   function agentBox(agent, seated) {
-    const left = Math.round((agent.x + stationSlide(agent)) * TILE4 + (TILE4 - FRAME_WIDTH) / 2);
-    const top = Math.round(agent.y * TILE4 + TILE4 - GUY_HEIGHT - (seated ? SEATED_LIFT : 0));
+    const left = Math.round((agent.x + stationSlide(agent)) * TILE5 + (TILE5 - FRAME_WIDTH) / 2);
+    const top = Math.round(agent.y * TILE5 + TILE5 - GUY_HEIGHT - (seated ? SEATED_LIFT : 0));
     return { agent, left, top };
   }
   function stationSlide(agent) {
@@ -11640,13 +13172,34 @@
     const distance = Math.hypot(agent.x - agent.workSpot.x, agent.y - agent.workSpot.y);
     return 0.5 * Math.max(0, 1 - distance);
   }
+  function drawLying(agent, pose, seconds) {
+    const centerX = Math.round(agent.x * TILE5 + TILE5 / 2);
+    const floorY = Math.round(agent.y * TILE5 + TILE5 - 1);
+    const headLeft = agent.scare?.headLeft !== false;
+    context.globalAlpha = 0.25;
+    rect(centerX - 8, floorY - 1, 16, 2, "#000");
+    context.globalAlpha = 1;
+    context.save();
+    context.translate(centerX, floorY - FRAME_WIDTH / 2);
+    context.rotate(headLeft ? -Math.PI / 2 : Math.PI / 2);
+    context.drawImage(sprite(agent.seed, pose, "down", 0, agent.variant), -FRAME_WIDTH / 2, -FRAME_HEIGHT / 2 - 1);
+    context.restore();
+    const headX = centerX + (headLeft ? -6 : 6);
+    if (state.invasion?.phase !== "aftermath" || agent.scare?.woke !== true) {
+      drawDizzy(kit, headX, floorY - 9, seconds + agent.x);
+    }
+    return { agent, left: centerX - FRAME_WIDTH / 2, top: floorY - 9 };
+  }
   function drawAgent(agent, seconds) {
     const pose = agentPose(agent, seconds);
+    if (pose.lying === true) {
+      return drawLying(agent, pose.pose, seconds);
+    }
     const baseBox = agentBox(agent, pose.seated);
     const box = pose.offset === void 0 ? baseBox : { ...baseBox, left: baseBox.left + pose.offset.x, top: baseBox.top + pose.offset.y };
     if (!pose.seated) {
       context.globalAlpha = 0.25;
-      rect(box.left + 2, Math.round(agent.y * TILE4) + TILE4 - 2, FRAME_WIDTH - 4, 2, "#000");
+      rect(box.left + 2, Math.round(agent.y * TILE5) + TILE5 - 2, FRAME_WIDTH - 4, 2, "#000");
       context.globalAlpha = 1;
     }
     const show = state.show;
@@ -11657,11 +13210,19 @@
     if (performer !== void 0) {
       drawGear(kit, performer.role, gearBox, pose.facing, "behind", show, seconds, agent.mode === "perform");
     }
-    context.globalAlpha = agent.leaving && agent.visitor === void 0 && performer === void 0 ? 0.7 : 1;
-    context.drawImage(sprite(agent.seed, pose.pose, pose.facing, pose.frame), box.left, box.top + bob - HEAD_ROOM);
+    drawInvaderGear(kit, agent, gearBox, pose.facing, pose.frame, "behind");
+    const fading = agent.mode === "beam" && agent.invader !== void 0 ? Math.max(0, Math.min(1, agent.invader.exiting ? (agent.modeUntil - seconds) / 1 : 1 - (agent.modeUntil - seconds) / 1.2)) : void 0;
+    context.globalAlpha = fading ?? (agent.leaving && agent.visitor === void 0 && performer === void 0 && agent.invader === void 0 ? 0.7 : 1);
+    context.drawImage(sprite(agent.seed, pose.pose, pose.facing, pose.frame, agent.variant), box.left, box.top + bob - HEAD_ROOM);
     context.globalAlpha = 1;
     if (performer !== void 0) {
       drawGear(kit, performer.role, gearBox, pose.facing, "front", show, seconds, agent.mode === "perform");
+    }
+    drawInvaderGear(kit, agent, gearBox, pose.facing, pose.frame, "front");
+    if (agent.mode === "sweep" && agent.path.length === 0) {
+      drawBroom(kit, gearBox, pose.facing, pose.frame);
+    } else if (agent.mode === "dust") {
+      drawDust(kit, gearBox, seconds);
     }
     if (pose.pose === "eat" && agent.snack !== void 0) {
       drawSnack(kit, agent.snack, gearBox, pose.facing, pose.frame % 2);
@@ -11704,11 +13265,11 @@
     }
   }
   function drawYou(station, reaction) {
-    const left = Math.round(station.seat.x * TILE4 + TILE4 / 2 + (TILE4 - FRAME_WIDTH) / 2);
-    const top = Math.round(station.seat.y * TILE4 + TILE4 - GUY_HEIGHT - (reaction.seated ? SEATED_LIFT : 0) - reaction.hop);
+    const left = Math.round(station.seat.x * TILE5 + TILE5 / 2 + (TILE5 - FRAME_WIDTH) / 2);
+    const top = Math.round(station.seat.y * TILE5 + TILE5 - GUY_HEIGHT - (reaction.seated ? SEATED_LIFT : 0) - reaction.hop);
     if (!reaction.seated) {
       context.globalAlpha = 0.25;
-      rect(left + 2, station.seat.y * TILE4 + TILE4 - 2, FRAME_WIDTH - 4, 2, "#000");
+      rect(left + 2, station.seat.y * TILE5 + TILE5 - 2, FRAME_WIDTH - 4, 2, "#000");
       context.globalAlpha = 1;
     }
     if (youKey !== void 0) {
@@ -11721,11 +13282,11 @@
   function layoutBubble(box, text, bubbleTop = box.top - 11, hovered = false) {
     const { font, fill } = bubbleStyle(bubbleLookSetting, hovered);
     context.font = `${font}px monospace`;
-    const lines = wrapText(text, Math.min(BUBBLE_WRAP, state.layout.cols * TILE4 - 8));
+    const lines = wrapText(text, Math.min(BUBBLE_WRAP, state.layout.cols * TILE5 - 8));
     const textWidth = Math.max(...lines.map((line) => Math.ceil(context.measureText(line).width)));
     const width2 = textWidth + 6;
     const height2 = font + 2 + (lines.length - 1) * font;
-    const left = Math.max(1, Math.min(state.layout.cols * TILE4 - width2 - 1, Math.round(box.left + FRAME_WIDTH / 2 - width2 / 2)));
+    const left = Math.max(1, Math.min(state.layout.cols * TILE5 - width2 - 1, Math.round(box.left + FRAME_WIDTH / 2 - width2 / 2)));
     return { lines, left, top: bubbleTop + 9 - height2, width: width2, height: height2, tailX: box.left + FRAME_WIDTH / 2 - 1, tailY: bubbleTop + 9, font, fill };
   }
   function spreadBubbles(bubbles) {
@@ -11893,11 +13454,11 @@
     context.textBaseline = "alphabetic";
     for (let index = 0; index < 3; index++) {
       const age = (seconds + offset + index) % 3;
-      const rise = age / 3;
-      context.globalAlpha = Math.sin(rise * Math.PI);
+      const rise2 = age / 3;
+      context.globalAlpha = Math.sin(rise2 * Math.PI);
       context.font = `${5 + index}px monospace`;
       context.fillStyle = palette2.snore;
-      context.fillText("z", box.left + 8 + rise * 6 + Math.sin(age * 3) * 1.5, box.top + 6 - rise * 12);
+      context.fillText("z", box.left + 8 + rise2 * 6 + Math.sin(age * 3) * 1.5, box.top + 6 - rise2 * 12);
     }
     context.globalAlpha = 1;
   }
@@ -11905,7 +13466,7 @@
     const text = box.agent.title.length > 28 ? box.agent.title.slice(0, 27) + "\u2026" : box.agent.title;
     context.font = "7px monospace";
     const textWidth = Math.ceil(context.measureText(text).width);
-    const tagLeft = Math.max(1, Math.min(state.layout.cols * TILE4 - textWidth - 5, Math.round(box.left + FRAME_WIDTH / 2 - textWidth / 2 - 2)));
+    const tagLeft = Math.max(1, Math.min(state.layout.cols * TILE5 - textWidth - 5, Math.round(box.left + FRAME_WIDTH / 2 - textWidth / 2 - 2)));
     const tagTop = box.top + GUY_HEIGHT + 1;
     rect(tagLeft, tagTop, textWidth + 4, 9, palette2.bubbleEdge);
     context.fillStyle = palette2.bubble;
@@ -11934,7 +13495,7 @@
       return;
     }
     context.globalAlpha = alpha;
-    rect(0, 0, layout.cols * TILE4, layout.rows * TILE4, color);
+    rect(0, 0, layout.cols * TILE5, layout.rows * TILE5, color);
     context.globalAlpha = 1;
   }
   var boxes = [];
@@ -11946,7 +13507,7 @@
     const event = currentEvent();
     const station = state.layout.station;
     const you = youAgent(state);
-    const atStation = you !== void 0 && isAtStation(you);
+    const atStation = you !== void 0 && isAtStation(you) && you.scare === void 0;
     const deskReaction = yourReaction(event, seconds);
     const reaction = atStation || event !== void 0 ? deskReaction : { ...deskReaction, screen: "idle", shake: 0 };
     const shake = reaction.shake * (Math.floor(seconds * 30) % 2 === 0 ? 1 : -1) * scale;
@@ -12010,7 +13571,7 @@
     let youBox;
     if (station !== void 0 && you !== void 0) {
       layers.push({ depth: station.desk.y + 0.4, paint: () => drawStation(station, reaction, palette2, seconds) });
-      layers.push({ depth: station.seat.y + 0.7, paint: () => drawChairBack(station.seat, palette2, TILE4 / 2) });
+      layers.push({ depth: station.seat.y + 0.7, paint: () => drawChairBack(station.seat, palette2, TILE5 / 2) });
       if (atStation) {
         layers.push({ depth: station.seat.y + 0.5, paint: () => {
           youBox = drawYou(station, reaction);
@@ -12043,6 +13604,9 @@
         });
       }
     }
+    for (const piece of state.invasion?.debris ?? []) {
+      layers.push({ depth: piece.y + 0.2, paint: () => drawDebris(kit, piece) });
+    }
     const run = critterRun;
     if (run !== void 0) {
       layers.push({ depth: run.row + 0.6, paint: () => drawCritters(run, palette2, seconds) });
@@ -12056,14 +13620,16 @@
     if (overhead !== void 0) {
       drawFlight(overhead, seconds, false);
     }
-    drawWeather(kit, sceneId, layout.cols * TILE4, layout.rows * TILE4, seconds);
+    drawWeather(kit, sceneId, layout.cols * TILE5, layout.rows * TILE5, seconds);
     drawLighting(layout, owners, atStation || event !== void 0, seconds);
-    drawAfterLight(kit, sceneId, layout.cols * TILE4, light);
+    drawAfterLight(kit, sceneId, layout.cols * TILE5, light);
     drawShowLights(seconds);
+    drawInvasionTint(kit, state.invasion, layout.cols * TILE5, layout.rows * TILE5, seconds);
+    drawInvasionEffects(kit, state.invasion, state.agents, (agent) => boxes.find((box) => box.agent === agent), seconds);
     if (overhead !== void 0) {
       drawFlight(overhead, seconds, true);
     }
-    drawFireflies(layout.cols * TILE4, seconds);
+    drawFireflies(layout.cols * TILE5, seconds);
     const lines = [];
     boxes.forEach((box) => {
       if (box.agent.mode === "sleep" && box.agent.path.length === 0 && box.agent.bubble === void 0) {
@@ -12075,14 +13641,14 @@
       }
       const bubble = box.agent.bubble;
       if (bubble !== void 0) {
-        const priority = box.agent.performer !== void 0 ? "must" : box.agent.visitor !== void 0 || hostLines.has(bubble) ? "high" : "normal";
+        const priority = box.agent.performer !== void 0 ? "must" : box.agent.visitor !== void 0 || box.agent.invader !== void 0 || hostLines.has(bubble) ? "high" : "normal";
         lines.push(spokenLine(box.agent.id, box.agent.seed, bubble, priority, box, box.top - (crowned ? 14 : 11)));
       }
     });
     youArea = youBox;
     const finalYouBox = youBox;
     if (finalYouBox !== void 0 && youKey !== void 0) {
-      const monitorsTop = station === void 0 ? finalYouBox.top : station.desk.y * TILE4 - 2;
+      const monitorsTop = station === void 0 ? finalYouBox.top : station.desk.y * TILE5 - 2;
       const bubbleTop = Math.min(finalYouBox.top, monitorsTop) - 11;
       if (reaction.bubble !== void 0) {
         lines.push({ id: "you", seed: youKey, key: {}, text: reaction.bubble, since: -Infinity, until: Infinity, priority: "must", box: finalYouBox, bubbleTop });
@@ -12091,6 +13657,7 @@
       }
     }
     drawChatter(lines, palette2, seconds);
+    drawInvasionBanner(kit, state.invasion, layout.cols * TILE5, seconds);
     drawEventTint(event, layout);
     const hovered = boxes.find((box) => box.agent.id === hoveredId);
     if (hovered !== void 0) {
@@ -12103,8 +13670,8 @@
   }
   function drawShowLights(seconds) {
     const show = state.show;
-    const roomWidth = state.layout.cols * TILE4;
-    const roomHeight = state.layout.rows * TILE4;
+    const roomWidth = state.layout.cols * TILE5;
+    const roomHeight = state.layout.rows * TILE5;
     if (show !== void 0) {
       const level = showLightLevel(show, seconds);
       const effect = PERFORMANCES[show.kind].effect;
@@ -12129,8 +13696,8 @@
     if (light.darkness < 0.01) {
       return;
     }
-    const roomWidth = layout.cols * TILE4;
-    const roomHeight = layout.rows * TILE4;
+    const roomWidth = layout.cols * TILE5;
+    const roomHeight = layout.rows * TILE5;
     lightMap ??= document.createElement("canvas");
     if (lightMap.width !== roomWidth || lightMap.height !== roomHeight) {
       lightMap.width = roomWidth;
@@ -12159,7 +13726,7 @@
       const typing2 = owner !== void 0 && owner.mode === "type" && owner.path.length === 0;
       const present = owner !== void 0 && !owner.leaving && owner.status !== "asleep";
       if (typing2 || present) {
-        pool(desk.desk.x * TILE4 + 8, desk.desk.y * TILE4 + 5, typing2 ? 15 : 10, "#8CC8FF", typing2 ? 0.42 : 0.22);
+        pool(desk.desk.x * TILE5 + 8, desk.desk.y * TILE5 + 5, typing2 ? 15 : 10, "#8CC8FF", typing2 ? 0.42 : 0.22);
       }
     });
     for (const activity of state.activities ?? []) {
@@ -12167,21 +13734,21 @@
       const fit = activityFit(layout, activity.kind, activity.index);
       const at = fit?.blocked[0] ?? (fit === void 0 ? void 0 : { x: fit.seats[0].x, y: fit.seats[0].y - 1 });
       if (glowing !== void 0 && at !== void 0) {
-        pool(at.x * TILE4 + glowing.dx, at.y * TILE4 + glowing.dy, glowing.radius, glowing.color, 0.45);
+        pool(at.x * TILE5 + glowing.dx, at.y * TILE5 + glowing.dy, glowing.radius, glowing.color, 0.45);
       }
     }
     const station = layout.station;
     if (station !== void 0) {
-      const left = station.desk.x * TILE4;
-      const top = station.desk.y * TILE4;
+      const left = station.desk.x * TILE5;
+      const top = station.desk.y * TILE5;
       pool(left + 3, top + 8, 14, "#FFD98A", 0.5);
       if (stationOn) {
         pool(left + 16, top + 3, 22, "#9AD0FF", 0.45);
       }
     }
     layout.props.forEach((prop, index) => {
-      const left = prop.at.x * TILE4;
-      const top = prop.at.y * TILE4;
+      const left = prop.at.x * TILE5;
+      const top = prop.at.y * TILE5;
       switch (prop.kind) {
         case "campfire":
           pool(left + 8, top + 9, 38 + Math.sin(seconds * 9) * 2 + noise2(Math.floor(seconds * 6) + index) * 3, "#FFB060", 0.85);
@@ -12208,14 +13775,14 @@
       }
     });
     if (layout.door !== void 0 && palette().doorStyle === "hatch") {
-      pool(layout.door.x * TILE4 + 8, 8, 14, "#9AD0FF", 0.4);
+      pool(layout.door.x * TILE5 + 8, 8, 14, "#9AD0FF", 0.4);
     }
     const show = state.show;
     const stageLevel = showLightLevel(show, seconds);
     if (show !== void 0 && stageLevel > 0 && PERFORMANCES[show.kind].effect !== "spotlight") {
       const spots = show.spots;
       const middleX = (Math.min(...spots.map((spot) => spot.x)) + Math.max(...spots.map((spot) => spot.x))) / 2;
-      pool(middleX * TILE4 + 8, show.stage.y * TILE4 + 6, 26 + spots.length * 6, "#FFE2B0", 0.75 * stageLevel);
+      pool(middleX * TILE5 + 8, show.stage.y * TILE5 + 6, 26 + spots.length * 6, "#FFE2B0", 0.75 * stageLevel);
     }
     map.globalCompositeOperation = "source-over";
     context.save();
@@ -12227,7 +13794,7 @@
     return SCENE_PALETTES[sceneId];
   }
   function paintOpenSky(map, layout) {
-    const roomWidth = layout.cols * TILE4;
+    const roomWidth = layout.cols * TILE5;
     const backdrop = palette().backdrop;
     if (backdropHasSky(backdrop)) {
       for (let x = 0; x < roomWidth; x++) {
@@ -12238,12 +13805,12 @@
     switch (backdrop) {
       case "windows":
         for (let x = 3; x < layout.cols - 1; x += 5) {
-          map.fillRect(x * TILE4 + 2, 3, 12, 8);
+          map.fillRect(x * TILE5 + 2, 3, 12, 8);
         }
         return;
       case "bookcases":
-        for (let x = 3; x * TILE4 < roomWidth - TILE4; x += LIBRARY_WINDOW_EVERY) {
-          map.fillRect(x * TILE4 + 2, 2, 12, 10);
+        for (let x = 3; x * TILE5 < roomWidth - TILE5; x += LIBRARY_WINDOW_EVERY) {
+          map.fillRect(x * TILE5 + 2, 2, 12, 10);
         }
         return;
       case "sky":
@@ -12270,7 +13837,7 @@
     }
     if (critterRun === void 0) {
       if (crittersOn && now >= nextCritterAt && width > 0) {
-        critterRun = planCritterRun(state.layout, sceneId, now, random, TILE4);
+        critterRun = planCritterRun(state.layout, sceneId, now, random, TILE5);
         critterWatchers = /* @__PURE__ */ new Set();
         if (critterRun === void 0) {
           nextCritterAt = now + critterGap(random);
@@ -12279,7 +13846,7 @@
       return;
     }
     for (const pose of critterPoses(critterRun, now)) {
-      const at = { x: pose.x / TILE4 - 0.5, y: pose.y / TILE4 - 0.9 };
+      const at = { x: pose.x / TILE5 - 0.5, y: pose.y / TILE5 - 0.9 };
       reactToCritter(state, at, critterLines(pose.kind), critterWatchers, random).forEach((id) => critterWatchers.add(id));
     }
   }
@@ -12287,7 +13854,7 @@
     const layout = state.layout;
     context.save();
     context.beginPath();
-    context.rect(0, 0, layout.cols * TILE4, layout.rows * TILE4);
+    context.rect(0, 0, layout.cols * TILE5, layout.rows * TILE5);
     context.clip();
     const flies = run.row >= layout.rows;
     critterPoses(run, seconds).forEach((pose) => drawCritter(rect, pose, run.groundY, flies ? void 0 : palette2.shadow));
@@ -12304,7 +13871,7 @@
     }
     if (flight === void 0) {
       if (fliersOn && now >= nextFlightAt && width > 0) {
-        flight = planFlight(state.layout, sceneId, now, random, TILE4, fliersNight());
+        flight = planFlight(state.layout, sceneId, now, random, TILE5, fliersNight());
         flightWatchers = /* @__PURE__ */ new Set();
         if (flight === void 0) {
           nextFlightAt = now + flierGap(random);
@@ -12313,14 +13880,14 @@
       return;
     }
     for (const pose of flierPoses(flight, now)) {
-      const at = { x: pose.x / TILE4 - 0.5, y: pose.y / TILE4 + 1 };
+      const at = { x: pose.x / TILE5 - 0.5, y: pose.y / TILE5 + 1 };
       reactToCritter(state, at, flierLines(pose.kind), flightWatchers, random).forEach((id) => flightWatchers.add(id));
     }
   }
   function clipToRoom() {
     context.save();
     context.beginPath();
-    context.rect(0, 0, state.layout.cols * TILE4, state.layout.rows * TILE4);
+    context.rect(0, 0, state.layout.cols * TILE5, state.layout.rows * TILE5);
     context.clip();
   }
   function drawFlightShadows(current, palette2, seconds) {
@@ -12352,6 +13919,14 @@
     });
     context.restore();
   }
+  var invasionOn;
+  function noticeInvasionEnd() {
+    const now = state.invasion?.kind;
+    if (invasionOn !== void 0 && now !== invasionOn) {
+      vscode.postMessage({ type: "invasionEnd", kind: invasionOn });
+    }
+    invasionOn = now;
+  }
   var showOn;
   function noticeShowEnd() {
     const now = state.show?.kind;
@@ -12382,10 +13957,12 @@
       stepOffice(state, seconds - lastTime, random);
       stepVisitors();
       stepShows();
+      stepInvasions();
       playRoomReactions();
       stepCritters();
       stepFliers();
       noticeShowEnd();
+      noticeInvasionEnd();
     }
     lastTime = seconds;
     if (width > 0 && height > 0) {
@@ -12422,7 +13999,7 @@
     const agent = hit?.you ? void 0 : hit;
     hoveredId = agent?.id;
     youHovered = hit?.you === true || agent === void 0 && isOverYou(event.clientX, event.clientY);
-    canvas.style.cursor = agent === void 0 || agent.visitor !== void 0 || agent.crew !== void 0 || agent.performer !== void 0 ? "default" : "pointer";
+    canvas.style.cursor = agent === void 0 || agent.visitor !== void 0 || agent.crew !== void 0 || agent.performer !== void 0 || agent.invader !== void 0 ? "default" : "pointer";
     if (youHovered) {
       tooltip.hidden = false;
       tooltip.textContent = sceneEvent !== void 0 ? `you \xB7 ${sceneEvent.kind}!` : hit?.you ? "you \xB7 on break" : "you \xB7 on watch";
@@ -12433,6 +14010,15 @@
       return;
     }
     tooltip.hidden = false;
+    if (agent.invader !== void 0) {
+      tooltip.textContent = `${agent.title} \xB7 ${INVASIONS[agent.invader.kind].label.toLowerCase()}`;
+      return;
+    }
+    const scared = scareText(agent);
+    if (scared !== void 0) {
+      tooltip.textContent = `${agent.title} \xB7 ${scared}`;
+      return;
+    }
     if (agent.visitor !== void 0) {
       tooltip.textContent = `${agent.title} \xB7 visiting`;
       return;
@@ -12447,6 +14033,31 @@
     }
     tooltip.textContent = `${agent.title}${agent.id === focusedId ? " \xB7 selected" : ""} \xB7 ${agent.status === "asleep" ? "suspended" : agent.status}`;
   });
+  function scareText(agent) {
+    if (agent.scare === void 0) {
+      return void 0;
+    }
+    if (agent.scare.turned) {
+      return "a zombie (for now)";
+    }
+    switch (agent.mode) {
+      case "down":
+        return agent.scare.woke ? "coming to" : "knocked out";
+      case "float":
+        return "abducted";
+      case "struggle":
+        return "caught";
+      case "cower":
+        return "hiding";
+      case "dazed":
+      case "dust":
+        return "coming to";
+      case "sweep":
+        return "cleaning up";
+      default:
+        return agent.goal?.kind === "sweep" ? "cleaning up" : "running scared";
+    }
+  }
   canvas.addEventListener("mouseleave", () => {
     hoveredId = void 0;
     youHovered = false;
@@ -12454,7 +14065,7 @@
   });
   canvas.addEventListener("click", (event) => {
     const agent = agentAt(event.clientX, event.clientY);
-    if (agent !== void 0 && !agent.you && agent.visitor === void 0 && agent.crew === void 0 && agent.performer === void 0) {
+    if (agent !== void 0 && !agent.you && agent.visitor === void 0 && agent.crew === void 0 && agent.performer === void 0 && agent.invader === void 0) {
       vscode.postMessage({ type: "click", id: agent.id });
     } else if (agent?.you === true) {
       vscode.postMessage({ type: "click", id: "you" });

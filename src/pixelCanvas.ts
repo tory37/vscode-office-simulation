@@ -15,9 +15,9 @@ export const BODY_HEIGHT = 16;
 export const HEAD_ROOM = 2;
 export const INNER_HEIGHT = BODY_HEIGHT + HEAD_ROOM;
 
-// Poses whose legs step: walking, and walking with something held overhead.
+// Poses whose legs step: walking, walking with something held overhead, running scared, and a zombie's shamble.
 export function isStepping(pose: string): boolean {
-  return pose === "walk" || pose === "carry";
+  return pose === "walk" || pose === "carry" || pose === "panic" || pose === "reach";
 }
 
 export class Canvas {
