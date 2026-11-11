@@ -78,6 +78,10 @@ export function createOfficeApi(office: OfficePanelProvider, director: OfficeDir
     onDidStartInvasion: office.onDidStartInvasion,
     onDidEndInvasion: office.onDidEndInvasion,
     onDidFinishEvent: office.onDidFinishEvent,
+    onDidRequestEvent: (listener, thisArgs, disposables) => {
+      director.hostTakesRequests = true;
+      return director.onDidRequestEvent(listener, thisArgs, disposables);
+    },
     onDidOpenView: openEmitter.event,
     onDidChangeYourLook: yourGuy.onDidChangeYourLook,
   };

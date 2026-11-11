@@ -132,6 +132,25 @@ describe("the API", () => {
     }
   });
 
+  it("plays a requested event in the Office until a host listens, then hands it to the host", () => {
+    const own = new OfficePanelProvider({ extensionUri: Uri.file("/ext") as unknown as vscode.Uri });
+    const director = new OfficeDirector(own);
+    const hostApi = createOfficeApi(own, director, new YourGuy(own, memento()));
+    const room = new FakeWebviewView();
+    own.resolveWebviewView(room as unknown as vscode.WebviewView);
+    room.send({ type: "ready" });
+    director.requestEvent("hack");
+    expect(room.last("sceneEvent")).toMatchObject({ kind: "hack" });
+    const asked: string[] = [];
+    hostApi.onDidRequestEvent((kind) => asked.push(kind));
+    hostApi.takeOverEvents();
+    const before = room.posted.length;
+    director.requestEvent("error");
+    expect(asked).toEqual(["error"]);
+    expect(room.posted.slice(before).filter((message) => message.type === "sceneEvent")).toEqual([]);
+    director.dispose();
+  });
+
   it("passes on invasions starting and ending", () => {
     const heard: string[] = [];
     api.onDidStartInvasion((kind) => heard.push(`start ${kind}`));

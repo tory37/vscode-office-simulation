@@ -14,6 +14,12 @@ export class OfficeDirector implements vscode.Disposable {
   private tintTakenOver = false;
   private tintIndex = 0;
   private readonly listeners: vscode.Disposable[];
+  // Someone asked for an event in the Office (Trigger Event, Play Scene Event) while a host plays them: the host
+  // plays it everywhere it shows events, so its views and the Office play it together.
+  private readonly requestEmitter = new vscode.EventEmitter<SceneEventKind>();
+  readonly onDidRequestEvent = this.requestEmitter.event;
+  // Set once a host listens for requests; until then a request just plays here.
+  hostTakesRequests = false;
 
   constructor(private readonly office: OfficePanelProvider) {
     this.scheduleEvent(true);
@@ -39,6 +45,15 @@ export class OfficeDirector implements vscode.Disposable {
     this.office.broadcast(variant === undefined ? message : { ...message, variant });
   }
 
+  // Someone in the Office asked for this event: a host that plays them gets the request, otherwise it plays here.
+  requestEvent(kind: SceneEventKind): void {
+    if (this.eventsTakenOver && this.hostTakesRequests) {
+      this.requestEmitter.fire(kind);
+      return;
+    }
+    this.playEvent(kind);
+  }
+
   // A host plays events and sets the tint from now on.
   takeOver(): void {
     this.eventsTakenOver = true;
@@ -59,6 +74,7 @@ export class OfficeDirector implements vscode.Disposable {
   dispose(): void {
     clearTimeout(this.eventTimer);
     clearTimeout(this.tintTimer);
+    this.requestEmitter.dispose();
     this.listeners.forEach((listener) => listener.dispose());
   }
 

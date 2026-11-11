@@ -48,6 +48,12 @@
         "icon": "$(globe)"
       },
       {
+        "command": "officeSim.triggerEvent",
+        "title": "Trigger Event…",
+        "category": "Office",
+        "icon": "$(zap)"
+      },
+      {
         "command": "officeSim.playShow",
         "title": "Play Show…",
         "category": "Office",
@@ -97,7 +103,7 @@
           "group": "navigation@1"
         },
         {
-          "command": "officeSim.playShow",
+          "command": "officeSim.triggerEvent",
           "when": "view == officeSim.office",
           "group": "navigation@2"
         },
@@ -107,19 +113,9 @@
           "group": "navigation@3"
         },
         {
-          "command": "officeSim.startInvasion",
-          "when": "view == officeSim.office",
-          "group": "navigation@4"
-        },
-        {
-          "command": "officeSim.playEvent",
-          "when": "view == officeSim.office",
-          "group": "navigation@5"
-        },
-        {
           "command": "officeSim.customizeYou",
           "when": "view == officeSim.office",
-          "group": "navigation@6"
+          "group": "navigation@4"
         }
       ]
     },

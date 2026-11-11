@@ -141,6 +141,8 @@
         onDidStartInvasion: (listener) => demo.on("invasionStart", (message) => listener(message.kind)),
         onDidEndInvasion: (listener) => demo.on("invasionEnd", (message) => listener(message.kind)),
         onDidFinishEvent: (listener) => demo.on("eventEnd", (message) => listener(message.kind)),
+        // The page has no Trigger Event button, so nothing asks.
+        onDidRequestEvent: () => undefined,
       };
     }
   }

@@ -9,6 +9,7 @@ import { SCENE_EVENT_KINDS, SceneEventKind } from "./sceneEventSchedule";
 import { isPerformanceKind, PERFORMANCE_KINDS, PERFORMANCES, performanceFrequency, PerformanceKindId } from "./officePerformances";
 import { visitorFrequency } from "./officeVisitors";
 import { INVASION_KINDS, INVASIONS, invasionFrequency, InvasionKindId, isInvasionKind } from "./officeInvasions";
+import { invasionDescription, showDescription } from "./officeTriggers";
 import { PixelGuyLook, readLook, yourLook } from "./pixelGuy";
 
 export const OFFICE_PANEL_VIEW_ID = "officeSim.office";
@@ -328,7 +329,7 @@ export function registerOfficeCommands(office: OfficePanelProvider): vscode.Disp
       const picked = await vscode.window.showQuickPick(
         [
           { label: "$(question) Surprise Me", id: "random" as const },
-          ...PERFORMANCE_KINDS.map((id) => ({ label: PERFORMANCES[id].label, description: SHOW_DESCRIPTIONS[id], id })),
+          ...PERFORMANCE_KINDS.map((id) => ({ label: PERFORMANCES[id].label, description: showDescription(id), id })),
         ],
         { placeHolder: "Which show?" },
       );
@@ -345,7 +346,7 @@ export function registerOfficeCommands(office: OfficePanelProvider): vscode.Disp
       const picked = await vscode.window.showQuickPick(
         [
           { label: "$(question) Surprise Me", id: "random" as const },
-          ...INVASION_KINDS.map((id) => ({ label: INVASIONS[id].label, description: INVASION_DESCRIPTIONS[id], id })),
+          ...INVASION_KINDS.map((id) => ({ label: INVASIONS[id].label, description: invasionDescription(id), id })),
         ],
         { placeHolder: "Which invasion?" },
       );
@@ -406,23 +407,6 @@ export function registerOfficeCommands(office: OfficePanelProvider): vscode.Disp
     }),
   ];
 }
-
-const SHOW_DESCRIPTIONS: Record<PerformanceKindId, string> = {
-  guitarist: "a busker with an acoustic guitar",
-  band: "singer, guitar, bass, and drums",
-  lunch: "a trolley of hot lunch for everyone",
-  snacks: "donuts, cookies, ice cream, popcorn",
-  comedian: "stand-up under a spotlight",
-  magician: "card tricks and a rabbit in a hat",
-  dj: "a DJ, a mirror ball, and dancing",
-};
-
-const INVASION_DESCRIPTIONS: Record<InvasionKindId, string> = {
-  aliens: "beamed down; they zap you, or float you up in a beam",
-  zombies: "shamble in; anyone bitten joins them for a bit",
-  raiders: "burst in, bonk heads, and run off with the snacks",
-  vampires: "appear in smoke, tackle, slurp, and leave as bats",
-};
 
 const BUBBLE_LOOK_LABELS: Record<BubbleLook, { label: string; description: string }> = {
   solid: { label: "Bubbles: Solid", description: "opaque bubbles" },

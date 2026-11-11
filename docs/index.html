@@ -373,6 +373,7 @@
 
     <h3>Your guy</h3>
     <p>You get the station in the middle with two monitors. Between events you take breaks: wander, chat, or go look over a busy guy's shoulder. <code>officeYou</code> scripts each moment of an ERROR, HACK, or DEFENSE event (your pose, line, main monitor, and shake), and the room's one-word reactions. A tint message recolors your second monitor's graph with a sweep.</p>
+    <p>The Office view's title bar has four buttons: Switch Scene, Trigger Event, Chatter, and Customize Your Guy. Trigger Event (<code>officeTriggers</code>) starts anything the Office can play, from one list: the scene events, the invasions, the shows, and a visitor from any department, or Surprise Me for any of them. A keybinding can pass an id like <code>"invasion:zombies"</code>. A scene event picked there goes to the host when one has taken over events (<code>onDidRequestEvent</code>), so Overseer plays it in its own views at the same moment.</p>
     <p>On its own, the Office plays an event every few minutes (<code>officeSim.events</code>) and moves the tint every 20 to 40 seconds. An extension that plays events or sets the tint itself takes over, so Overseer's views and the Office play the same event at the same moment.</p>
 
     <h3>Visitors and shows</h3>
@@ -473,6 +474,7 @@ if (api?.apiVersion === 1) {
       <tr><td><code>onDidStartShow</code>, <code>onDidEndShow</code></td><td>A show starts or ends, with its kind.</td></tr>
       <tr><td><code>onDidStartInvasion</code>, <code>onDidEndInvasion</code></td><td>An invasion starts, or ends with everyone back on his feet and the mess swept up, with its kind.</td></tr>
       <tr><td><code>onDidFinishEvent</code></td><td>A scene event finishes playing, with its kind.</td></tr>
+      <tr><td><code>onDidRequestEvent</code></td><td>Someone asked for a scene event in the Office (its Trigger Event button) after your extension took over events. Play it with <code>playEvent</code> and anywhere else you show events, so they play together. Until something listens, a request plays in the Office alone.</td></tr>
       <tr><td><code>onDidChangeYourLook</code></td><td>Your guy's look changes, from the maker or the setting.</td></tr>
       <tr><td><code>onDidOpenView</code></td><td>An Office view starts, yours or its own.</td></tr>
     </tbody></table></div>

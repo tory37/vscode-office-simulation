@@ -74,6 +74,10 @@ export interface OfficeSimulationApi {
   // An invasion started, or ended (everyone back on his feet and the mess swept up).
   readonly onDidStartInvasion: vscode.Event<OfficeInvasionKind>;
   readonly onDidEndInvasion: vscode.Event<OfficeInvasionKind>;
+  // Someone asked for a scene event in the Office (its Trigger Event button or Play Scene Event command) after your
+  // extension took over events. Play it with playEvent, and anywhere else you show events, so they play together.
+  // Until something listens, a request plays in the Office alone.
+  readonly onDidRequestEvent: vscode.Event<OfficeEventKind>;
   // A scene event finished playing in an Office.
   readonly onDidFinishEvent: vscode.Event<OfficeEventKind>;
   // Your guy's look changed (the character maker or the officeSim.yourLook setting).
